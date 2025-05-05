@@ -1,5 +1,7 @@
 // lib/screens/menu_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_facebook_clone/services/auth_service.dart';
+import 'package:go_router/go_router.dart';
 
 class MenuScreen extends StatefulWidget {
   const MenuScreen({super.key});
@@ -7,6 +9,8 @@ class MenuScreen extends StatefulWidget {
   @override
   State<MenuScreen> createState() => _MenuScreenState();
 }
+
+final _auth = AuthService();
 
 class _MenuScreenState extends State<MenuScreen> {
   @override
@@ -48,7 +52,12 @@ class _MenuScreenState extends State<MenuScreen> {
           ListTile(
             leading: const Icon(Icons.logout, color: Color(0xFF1877F2)),
             title: const Text('Log Out'),
-            onTap: () {},
+            onTap: () async {
+              await _auth.signOut();
+              if (context.mounted) {
+                context.go('/login'); 
+              }
+            },
           ),
         ],
       ),
