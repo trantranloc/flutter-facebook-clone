@@ -41,7 +41,7 @@ class SearchScreen extends StatelessWidget {
                         ),
                       ),
                       onChanged: (value) {
-                        // TODO: Thêm logic tìm kiếm ở đây
+                        //  Thêm logic tìm kiếm ở đây
                       },
                     ),
                   ),
