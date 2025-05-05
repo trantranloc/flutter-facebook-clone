@@ -72,4 +72,5 @@ class DefaultFirebaseOptions {
     storageBucket: 'mobile-project-38915.firebasestorage.app',
     iosBundleId: 'com.example.flutterFacebookClone',
   );
+
 }
