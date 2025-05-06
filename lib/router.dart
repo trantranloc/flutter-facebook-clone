@@ -8,6 +8,7 @@ import 'package:flutter_facebook_clone/screens/notification_screen.dart';
 import 'package:flutter_facebook_clone/screens/search_screen.dart';
 import 'package:go_router/go_router.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:flutter_facebook_clone/screens/chat_screen.dart';
 
 final GoRouter router = GoRouter(
   initialLocation: '/home',
@@ -25,6 +26,16 @@ final GoRouter router = GoRouter(
         GoRoute(
           path: '/message',
           builder: (context, state) => const MessageScreen(),
+          routes: [
+            // Thêm tuyến đường con cho ChatScreen
+            GoRoute(
+              path: 'chat/:userName',
+              builder: (context, state) {
+                final userName = state.pathParameters['userName']!;
+                return ChatScreen(userName: userName);
+              },
+            ),
+          ],
         ),
         GoRoute(
           path: '/notification',
