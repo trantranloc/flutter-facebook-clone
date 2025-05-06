@@ -1,6 +1,6 @@
-// lib/router.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_facebook_clone/screens/profile_screen.dart';
+import 'package:flutter_facebook_clone/widgets/avatar_selection_screen.dart';
 import 'package:flutter_facebook_clone/widgets/email_screen.dart';
 import 'package:flutter_facebook_clone/screens/friend_screen.dart';
 import 'package:flutter_facebook_clone/screens/home_screen.dart';
@@ -14,9 +14,26 @@ import 'package:flutter_facebook_clone/screens/search_screen.dart';
 import 'package:flutter_facebook_clone/widgets/verification_sceen.dart';
 import 'package:go_router/go_router.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 final GoRouter router = GoRouter(
-  initialLocation: '/home',
+  initialLocation: '/login',
+  redirect: (context, state) async {
+    final user = FirebaseAuth.instance.currentUser;
+    final isLoggedIn = user != null;
+    final currentPath = state.uri.toString();
+    final protectedRoutes = ['/', '/friend', '/message', '/notification', '/menu', '/profile', '/search'];
+
+    // Nếu chưa đăng nhập và cố gắng vào tuyến đường được bảo vệ, chuyển hướng đến /login
+    if (!isLoggedIn && protectedRoutes.contains(currentPath)) {
+      return '/login';
+    }
+    // Nếu đã đăng nhập và ở trang đăng nhập, chuyển hướng đến /home
+    if (isLoggedIn && currentPath == '/login') {
+      return '/';
+    }
+    return null; // Không chuyển hướng
+  },
   routes: [
     // Không cần thanh điều hướng và appBar
     GoRoute(path: '/login', builder: (context, state) => LoginScreen()),
@@ -33,13 +50,17 @@ final GoRouter router = GoRouter(
       path: '/password',
       builder: (context, state) => const PasswordScreen(),
     ),
+    GoRoute(
+      path: '/avatar',
+      builder: (context, state) => const AvatarSelectionScreen(),
+    ),
     ShellRoute(
       builder: (context, state, child) {
         return ScaffoldWithNavBar(child: child);
       },
-      // có thanh điều hướng và appBar
+      // Có thanh điều hướng và appBar
       routes: [
-        GoRoute(path: '/home', builder: (context, state) => const HomeScreen()),
+        GoRoute(path: '/', builder: (context, state) => const HomeScreen()),
         GoRoute(
           path: '/friend',
           builder: (context, state) => const FriendScreen(),
@@ -55,7 +76,6 @@ final GoRouter router = GoRouter(
         GoRoute(path: '/menu', builder: (context, state) => const MenuScreen()),
       ],
     ),
-
     GoRoute(path: '/search', builder: (context, state) => const SearchScreen()),
     GoRoute(
       path: '/profile',
@@ -71,13 +91,7 @@ class ScaffoldWithNavBar extends StatelessWidget {
   final Widget child;
   const ScaffoldWithNavBar({super.key, required this.child});
 
-  static const tabs = [
-    '/home',
-    '/friend',
-    '/message',
-    '/notification',
-    '/menu',
-  ];
+  static const tabs = ['/', '/friend', '/message', '/notification', '/menu'];
 
   static const tabIcons = [
     FontAwesomeIcons.house,
@@ -85,14 +99,6 @@ class ScaffoldWithNavBar extends StatelessWidget {
     FontAwesomeIcons.comment,
     FontAwesomeIcons.bell,
     FontAwesomeIcons.bars,
-  ];
-
-  static const tabLabels = [
-    'Home',
-    'Friends',
-    'Messages',
-    'Notifications',
-    'Menu',
   ];
 
   int _locationToIndex(String location) {
@@ -109,58 +115,56 @@ class ScaffoldWithNavBar extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
-                leading: const FaIcon(FontAwesomeIcons.penToSquare),
+                leading: const FaIcon(FontAwesomeIcons.penToSquare, color: Color(0xFF1877F2)),
                 title: const Text('Bài viết'),
                 onTap: () {
                   Navigator.pop(context);
                   showDialog(
                     context: context,
-                    builder:
-                        (context) => AlertDialog(
-                          title: const Text('Create Post'),
-                          content: const TextField(
-                            decoration: InputDecoration(
-                              hintText: 'What\'s on your mind?',
-                            ),
-                            maxLines: 3,
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context),
-                              child: const Text('Cancel'),
-                            ),
-                            TextButton(
-                              onPressed: () {
-                                //  Save post
-                                Navigator.pop(context);
-                              },
-                              child: const Text('Post'),
-                            ),
-                          ],
+                    builder: (context) => AlertDialog(
+                      title: const Text('Tạo bài viết'),
+                      content: const TextField(
+                        decoration: InputDecoration(
+                          hintText: 'Bạn đang nghĩ gì?',
                         ),
+                        maxLines: 3,
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Hủy'),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            // Lưu bài viết
+                            Navigator.pop(context);
+                          },
+                          child: const Text('Đăng'),
+                        ),
+                      ],
+                    ),
                   );
                 },
               ),
               ListTile(
-                leading: const FaIcon(FontAwesomeIcons.camera),
+                leading: const FaIcon(FontAwesomeIcons.camera, color: Color(0xFF1877F2)),
                 title: const Text('Tin'),
                 onTap: () {
                   Navigator.pop(context);
                   showDialog(
                     context: context,
-                    builder:
-                        (context) => AlertDialog(
-                          title: const Text('Create Story'),
-                          content: const Text(
-                            'Story creation is not implemented yet.',
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context),
-                              child: const Text('OK'),
-                            ),
-                          ],
+                    builder: (context) => AlertDialog(
+                      title: const Text('Tạo tin'),
+                      content: const Text(
+                        'Chức năng tạo tin chưa được triển khai.',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('OK'),
                         ),
+                      ],
+                    ),
                   );
                 },
               ),
@@ -173,23 +177,27 @@ class ScaffoldWithNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final currentIndex = _locationToIndex(
-      GoRouterState.of(context).uri.toString(),
-    );
+    final currentIndex = _locationToIndex(GoRouterState.of(context).uri.toString());
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF0F2F5), // Facebook background color
       appBar: AppBar(
+        backgroundColor: const Color(0xFF1877F2), // Facebook blue
         title: const Text(
           'Facebook',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 24,
+            color: Colors.white,
+          ),
         ),
         actions: [
           IconButton(
-            icon: const FaIcon(FontAwesomeIcons.plus, size: 30),
+            icon: const FaIcon(FontAwesomeIcons.plus, size: 30, color: Colors.white),
             onPressed: () => _showCreateOptions(context),
           ),
           IconButton(
-            icon: const FaIcon(FontAwesomeIcons.magnifyingGlass, size: 25),
+            icon: const FaIcon(FontAwesomeIcons.magnifyingGlass, size: 25, color: Colors.white),
             onPressed: () {
               context.go('/search');
             },
@@ -200,7 +208,7 @@ class ScaffoldWithNavBar extends StatelessWidget {
         children: [
           // Top Navigation Bar
           Container(
-            color: Colors.white, // Nền trắng cố định
+            color: Colors.white,
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -213,10 +221,7 @@ class ScaffoldWithNavBar extends StatelessWidget {
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
                     curve: Curves.easeInOut,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -225,17 +230,10 @@ class ScaffoldWithNavBar extends StatelessWidget {
                           duration: const Duration(milliseconds: 200),
                           child: FaIcon(
                             tabIcons[index],
-                            color:
-                                isSelected
-                                    ? const Color(
-                                      0xFF1877F2,
-                                    ) // Xanh cho tab được chọn
-                                    : Colors
-                                        .grey[600], // Xám cho tab không được chọn
-                            size: 22, // Tăng kích thước biểu tượng
+                            color: isSelected ? const Color(0xFF1877F2) : Colors.grey[600],
+                            size: 24,
                           ),
-                        ),
-                        const SizedBox(height: 4),
+                        ),                      
                       ],
                     ),
                   ),
@@ -243,9 +241,7 @@ class ScaffoldWithNavBar extends StatelessWidget {
               }),
             ),
           ),
-          // Divider below the navigation bar
-          const Divider(height: 1, color: Colors.grey), // Màu divider cố định
-          // Main content
+          const Divider(height: 1, color: Colors.grey),
           Expanded(child: child),
         ],
       ),

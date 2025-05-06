@@ -1,4 +1,8 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:cloudinary_public/cloudinary_public.dart';
 import 'package:flutter_facebook_clone/services/auth_service.dart';
 import 'package:flutter_facebook_clone/models/User.dart';
 
@@ -16,6 +20,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   UserModel? _userModel;
   bool _isLoading = true;
   List<UserModel> _friends = [];
+
+  final cloudinary = CloudinaryPublic(
+    'drtq9z4r4',
+    'flutter_upload',
+    cache: false,
+  );
 
   @override
   void initState() {
@@ -50,12 +60,96 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  Future<void> _pickAndUploadAvatar() async {
+    try {
+      // Chọn ảnh từ thư viện
+      final picker = ImagePicker();
+      final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+
+      if (pickedFile != null) {
+        // Hiển thị dialog xác nhận
+        final File imageFile = File(pickedFile.path);
+        bool? confirmed = await showDialog<bool>(
+          context: context,
+          builder:
+              (context) => AlertDialog(
+                title: const Text('Xác nhận ảnh đại diện'),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Image.file(
+                      imageFile,
+                      height: 200,
+                      width: 200,
+                      fit: BoxFit.cover,
+                    ),
+                    const SizedBox(height: 16),
+                    const Text('Bạn có muốn sử dụng ảnh này làm ảnh đại diện?'),
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    child: const Text('Hủy'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(true),
+                    child: const Text('Xác nhận'),
+                  ),
+                ],
+              ),
+        );
+
+        // Chỉ upload nếu người dùng xác nhận
+        if (confirmed == true) {
+          setState(() {
+            _isLoading = true;
+          });
+
+          // Upload ảnh lên Cloudinary với unsigned upload preset
+          CloudinaryResponse response = await cloudinary.uploadFile(
+            CloudinaryFile.fromFile(
+              imageFile.path,
+              resourceType: CloudinaryResourceType.Image,
+              folder: 'avatars',
+              publicId:
+                  '${widget.uid}_${DateTime.now().millisecondsSinceEpoch}',
+            ),
+          );
+
+          String downloadUrl = response.secureUrl;
+
+          // Cập nhật avatarUrl trong cơ sở dữ liệu
+          await _auth.updateUserAvatar(widget.uid, downloadUrl);
+
+          // Cập nhật UI
+          setState(() {
+            _userModel = _userModel?.copyWith(avatarUrl: downloadUrl);
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      print('Lỗi khi chọn hoặc upload ảnh: $e');
+      setState(() {
+        _isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Lỗi: Không thể thay đổi ảnh avatar')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Profile'),
+        title: Text(_userModel?.name ?? 'Profile'),
         backgroundColor: Colors.blue[800],
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.go('/menu'),
+        ),
       ),
       body:
           _isLoading
@@ -74,9 +168,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           width: double.infinity,
                           color: Colors.grey[300],
                           child:
-                              _userModel?.avatarUrl.isNotEmpty ?? false
+                              _userModel?.coverUrl.isNotEmpty ?? false
                                   ? Image.network(
-                                    _userModel!.avatarUrl,
+                                    _userModel!.coverUrl,
                                     fit: BoxFit.cover,
                                     errorBuilder:
                                         (context, error, stackTrace) => Center(
@@ -102,35 +196,63 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         // Profile Picture
                         Positioned(
                           left: 16.0,
-                          top: 140.0, // Half of avatar overlaps the cover
-                          child: CircleAvatar(
-                            radius: 60,
-                            backgroundColor: Colors.white,
-                            child: CircleAvatar(
-                              radius: 56,
-                              backgroundColor: Colors.grey[300],
-                              child:
-                                  _userModel?.avatarUrl.isNotEmpty ?? false
-                                      ? ClipOval(
-                                        child: Image.network(
-                                          _userModel!.avatarUrl,
-                                          width: 112,
-                                          height: 112,
-                                          fit: BoxFit.cover,
-                                          errorBuilder:
-                                              (context, error, stackTrace) =>
-                                                  const Icon(
-                                                    Icons.person,
-                                                    size: 56,
-                                                    color: Colors.grey,
-                                                  ),
-                                        ),
-                                      )
-                                      : const Icon(
-                                        Icons.person,
-                                        size: 56,
-                                        color: Colors.grey,
-                                      ),
+                          top: 140.0,
+                          child: GestureDetector(
+                            onTap: _pickAndUploadAvatar,
+                            child: Stack(
+                              children: [
+                                CircleAvatar(
+                                  radius: 60,
+                                  backgroundColor: Colors.white,
+                                  child: CircleAvatar(
+                                    radius: 56,
+                                    backgroundColor: Colors.grey[300],
+                                    child:
+                                        _userModel?.avatarUrl.isNotEmpty ??
+                                                false
+                                            ? ClipOval(
+                                              child: Image.network(
+                                                _userModel!.avatarUrl,
+                                                width: 112,
+                                                height: 112,
+                                                fit: BoxFit.cover,
+                                                errorBuilder:
+                                                    (
+                                                      context,
+                                                      error,
+                                                      stackTrace,
+                                                    ) => const Icon(
+                                                      Icons.person,
+                                                      size: 56,
+                                                      color: Colors.grey,
+                                                    ),
+                                              ),
+                                            )
+                                            : const Icon(
+                                              Icons.person,
+                                              size: 56,
+                                              color: Colors.grey,
+                                            ),
+                                  ),
+                                ),
+                                // Camera icon
+                                Positioned(
+                                  bottom: 0,
+                                  right: 0,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: const BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Colors.blue,
+                                    ),
+                                    child: const Icon(
+                                      Icons.camera_alt,
+                                      color: Colors.white,
+                                      size: 20,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),

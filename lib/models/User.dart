@@ -3,6 +3,7 @@ class UserModel {
   final String name;
   final String email;
   final String avatarUrl;
+  final String coverUrl; // Thêm trường ảnh bìa
   final String gender;
   final DateTime createdAt;
   final List<String> friends; // Danh sách UID của bạn bè
@@ -12,6 +13,7 @@ class UserModel {
     required this.name,
     required this.email,
     required this.avatarUrl,
+    required this.coverUrl, // Thêm vào constructor
     required this.gender,
     required this.createdAt,
     this.friends = const [],
@@ -23,6 +25,7 @@ class UserModel {
       name: map['name'] ?? '',
       email: map['email'] ?? '',
       avatarUrl: map['avatarUrl'] ?? '',
+      coverUrl: map['coverUrl'] ?? '',
       gender: map['gender'] ?? 'Unknown',
       createdAt:
           map['createdAt'] != null
@@ -37,9 +40,32 @@ class UserModel {
       'name': name,
       'email': email,
       'avatarUrl': avatarUrl,
+      'coverUrl': coverUrl, 
       'gender': gender,
       'createdAt': createdAt.toIso8601String(),
       'friends': friends,
     };
+  }
+
+  UserModel copyWith({
+    String? uid,
+    String? name,
+    String? email,
+    String? avatarUrl,
+    String? coverUrl, 
+    String? gender,
+    DateTime? createdAt,
+    List<String>? friends,
+  }) {
+    return UserModel(
+      uid: uid ?? this.uid,
+      name: name ?? this.name,
+      email: email ?? this.email,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
+      coverUrl: coverUrl ?? this.coverUrl,
+      gender: gender ?? this.gender,
+      createdAt: createdAt ?? this.createdAt,
+      friends: friends ?? this.friends,
+    );
   }
 }

@@ -383,7 +383,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         _ActionButton(
                           icon: Icons.emoji_emotions,
                           color: Colors.orange,
-                          label: 'Cảm xúc/hoạt động',
+                          label: 'Cảm xúc',
                         ),
                       ],
                     ),
@@ -454,7 +454,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   shares: post['shares'],
                 ),
               )
-              .toList(),
+              ,
         ],
       ),
     );

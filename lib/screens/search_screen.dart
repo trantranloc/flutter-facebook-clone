@@ -19,7 +19,7 @@ class SearchScreen extends StatelessWidget {
                   IconButton(
                     icon: const Icon(Icons.arrow_back),
                     onPressed: () {
-                      context.go('/home');
+                      context.go('/');
                     },
                   ),
                   const SizedBox(width: 8),

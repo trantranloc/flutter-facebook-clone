@@ -37,7 +37,7 @@ class MyApp extends StatelessWidget {
       routerConfig: router,
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        primaryColor: const Color(0xFF0866FF), // Xanh đậm hơn cho giao diện đẹp
+        primaryColor: const Color(0xFF0866FF), 
         scaffoldBackgroundColor: Colors.white,
         appBarTheme: const AppBarTheme(
           backgroundColor: Color(0xFF0866FF),
