@@ -1,5 +1,7 @@
 // lib/screens/home_screen.dart
 import 'package:flutter/material.dart';
+import 'create_post_screen.dart';
+import '../widgets/post_card.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -9,59 +11,104 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  List<Map<String, dynamic>> posts = [
+    {
+      'username': 'Rosse',
+      'time': '1 ngày trước',
+      'caption': 'Hi ca nha !',
+      'imageUrl':
+          'https://cdn2.tuoitre.vn/471584752817336320/2024/4/16/img9704-17132420881631571916713.jpeg',
+      'likes': 1045,
+      'comments': 1258,
+      'shares': 539,
+    },
+    {
+      'username': 'IT Viet',
+      'time': '1 ngày trước',
+      'caption': 'Hoc Hanh',
+      'imageUrl':
+          'https://images.unsplash.com/photo-1603791440384-56cd371ee9a7',
+      'likes': 23459,
+      'comments': 17069,
+      'shares': 19854,
+    },
+  ];
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: ListView(
         children: [
-          // Create Post Section
-          Padding(
-            padding: const EdgeInsets.all(8.0),
+          GestureDetector(
+            onTap: () async {
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const CreatePostScreen()),
+              );
+              if (result != null && result is Map<String, dynamic>) {
+                setState(() {
+                  posts.insert(0, result);
+                });
+              }
+            },
             child: Card(
+              margin: const EdgeInsets.all(8),
               elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               child: Padding(
-                padding: const EdgeInsets.all(8.0),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
                 child: Column(
                   children: [
                     Row(
                       children: [
-                        CircleAvatar(
-                          radius: 20,
-                          backgroundColor: Colors.grey[300],
-                          child: const Icon(Icons.person, color: Colors.grey),
+                        const CircleAvatar(
+                          backgroundImage: NetworkImage(
+                            'https://i.imgur.com/your-avatar-url.jpg',
+                          ),
+                          radius: 22,
                         ),
                         const SizedBox(width: 10),
-                        const Expanded(
-                          child: TextField(
-                            decoration: InputDecoration(
-                              hintText: "What's on your mind?",
-                              border: InputBorder.none,
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 10,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Color(0xFFF0F2F5),
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                            child: const Text(
+                              ' Bạn đang nghĩ gì thế?',
+                              style: TextStyle(color: Colors.grey),
                             ),
                           ),
                         ),
                       ],
                     ),
-                    const Divider(),
+                    const Divider(height: 20),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        TextButton.icon(
-                          onPressed: () {},
-                          icon: const Icon(Icons.photo, color: Colors.green),
-                          label: const Text('Photo'),
+                      children: const [
+                        _ActionButton(
+                          icon: Icons.videocam,
+                          color: Colors.red,
+                          label: 'Video trực tiếp',
                         ),
-                        TextButton.icon(
-                          onPressed: () {},
-                          icon: const Icon(Icons.videocam, color: Colors.red),
-                          label: const Text('Video'),
+                        _ActionButton(
+                          icon: Icons.photo,
+                          color: Colors.green,
+                          label: 'Ảnh/video',
                         ),
-                        TextButton.icon(
-                          onPressed: () {},
-                          icon: const Icon(
-                            Icons.tag_faces,
-                            color: Colors.yellow,
-                          ),
-                          label: const Text('Feeling'),
+                        _ActionButton(
+                          icon: Icons.emoji_emotions,
+                          color: Colors.orange,
+                          label: 'Cảm xúc/hoạt động',
                         ),
                       ],
                     ),
@@ -70,67 +117,44 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
-          // Sample Post
-          Card(
-            margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            elevation: 2,
-            child: Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 20,
-                        backgroundColor: Colors.grey[300],
-                        child: const Icon(Icons.person, color: Colors.grey),
-                      ),
-                      const SizedBox(width: 10),
-                      const Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'John Doe',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          Text(
-                            '2 hours ago',
-                            style: TextStyle(color: Colors.grey, fontSize: 12),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  const Text('This is a sample post! Enjoying the day!'),
-                  const SizedBox(height: 10),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      TextButton.icon(
-                        onPressed: () {},
-                        icon: const Icon(Icons.thumb_up, color: Colors.grey),
-                        label: const Text('Like'),
-                      ),
-                      TextButton.icon(
-                        onPressed: () {},
-                        icon: const Icon(Icons.comment, color: Colors.grey),
-                        label: const Text('Comment'),
-                      ),
-                      TextButton.icon(
-                        onPressed: () {},
-                        icon: const Icon(Icons.share, color: Colors.grey),
-                        label: const Text('Share'),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
+          ...posts
+              .map(
+                (post) => PostCard(
+                  username: post['username'],
+                  time: post['time'],
+                  caption: post['caption'],
+                  imageUrl: post['imageUrl'],
+                  likes: post['likes'],
+                  comments: post['comments'],
+                  shares: post['shares'],
+                ),
+              )
+              .toList(),
         ],
       ),
+    );
+  }
+}
+
+class _ActionButton extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String label;
+
+  const _ActionButton({
+    required this.icon,
+    required this.color,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, color: color, size: 20),
+        const SizedBox(width: 6),
+        Text(label, style: const TextStyle(fontSize: 14)),
+      ],
     );
   }
 }
