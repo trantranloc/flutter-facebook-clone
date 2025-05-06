@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_facebook_clone/models/User.dart';
+import 'package:flutter_facebook_clone/services/auth_service.dart';
+import 'package:go_router/go_router.dart';
 
 class PasswordScreen extends StatefulWidget {
   const PasswordScreen({super.key});
@@ -19,12 +22,67 @@ class _PasswordScreenState extends State<PasswordScreen> {
     super.dispose();
   }
 
-  void _completeRegistration() {
+  void _completeRegistration() async {
     if (_formKey.currentState!.validate()) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Đăng ký hoàn tất!')));
-      // Có thể thêm logic gửi dữ liệu đăng ký tại đây
+      try {
+        // Lấy dữ liệu từ các màn hình trước
+        final args = GoRouterState.of(context).extra as Map<String, dynamic>?;
+        final email = args?['email'] as String?;
+        final firstName = args?['firstName'] as String?;
+        final lastName = args?['lastName'] as String?;
+        final gender = args?['gender'] as String?;
+
+        if (email == null) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Không tìm thấy email')));
+          return;
+        }
+
+        // Tạo tên đầy đủ từ firstName và lastName
+        final fullName = '${firstName ?? ''} ${lastName ?? ''}'.trim();
+
+        // Hiển thị loading
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder:
+              (context) => const Center(child: CircularProgressIndicator()),
+        );
+
+        // Gọi AuthService để đăng ký
+        final authService = AuthService();
+        final user = await authService.signUp(email, _passwordController.text);
+
+        // Ẩn loading
+        Navigator.pop(context);
+
+        if (user != null) {
+          // Tạo UserModel
+          final userModel = UserModel(
+            uid: user.uid,
+            name: fullName.isNotEmpty ? fullName : 'Unknown',
+            email: email,
+            avatarUrl: '',
+            gender: gender ?? 'Unknown',
+            createdAt: DateTime.now(),
+          );
+
+          // In UserModel để kiểm tra
+          print('UserModel: ${userModel.toMap()}');
+          await authService.saveUser(userModel);
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Đăng ký thành công!')));
+          context.go('/home');
+        }
+      } catch (e) {
+        // Ẩn loading nếu có lỗi
+        Navigator.pop(context);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Lỗi đăng ký: $e')));
+      }
     }
   }
 

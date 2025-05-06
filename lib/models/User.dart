@@ -1,17 +1,17 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 class UserModel {
   final String uid;
   final String name;
   final String email;
   final String avatarUrl;
-  final Timestamp createdAt;
+  final String gender; 
+  final DateTime createdAt;
 
   UserModel({
     required this.uid,
     required this.name,
     required this.email,
     required this.avatarUrl,
+    required this.gender,
     required this.createdAt,
   });
 
@@ -21,7 +21,11 @@ class UserModel {
       name: map['name'] ?? '',
       email: map['email'] ?? '',
       avatarUrl: map['avatarUrl'] ?? '',
-      createdAt: map['createdAt'] ?? Timestamp.now(),
+      gender: map['gender'] ?? 'Unknown', 
+      createdAt:
+          map['createdAt'] != null
+              ? DateTime.parse(map['createdAt'])
+              : DateTime.now(),
     );
   }
 
@@ -30,7 +34,8 @@ class UserModel {
       'name': name,
       'email': email,
       'avatarUrl': avatarUrl,
-      'createdAt': createdAt,
+      'gender': gender,
+      'createdAt': createdAt.toIso8601String(),
     };
   }
 }
