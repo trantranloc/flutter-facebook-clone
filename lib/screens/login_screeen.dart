@@ -97,7 +97,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       onPressed:
                           isLoading
                               ? null
-                              : _signIn, // Vô hiệu hóa nút khi đang loading
+                              : _signIn, 
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF1778F2),
                         shape: RoundedRectangleBorder(
@@ -113,7 +113,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 15),
                   TextButton(
                     onPressed: () {
-                      // TODO: xử lý quên mật khẩu
+                      //  xử lý quên mật khẩu
                     },
                     child: const Text(
                       'Quên mật khẩu?',

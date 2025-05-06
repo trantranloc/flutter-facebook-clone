@@ -3,8 +3,9 @@ class UserModel {
   final String name;
   final String email;
   final String avatarUrl;
-  final String gender; 
+  final String gender;
   final DateTime createdAt;
+  final List<String> friends; // Danh sách UID của bạn bè
 
   UserModel({
     required this.uid,
@@ -13,6 +14,7 @@ class UserModel {
     required this.avatarUrl,
     required this.gender,
     required this.createdAt,
+    this.friends = const [],
   });
 
   factory UserModel.fromMap(Map<String, dynamic> map, String uid) {
@@ -21,11 +23,12 @@ class UserModel {
       name: map['name'] ?? '',
       email: map['email'] ?? '',
       avatarUrl: map['avatarUrl'] ?? '',
-      gender: map['gender'] ?? 'Unknown', 
+      gender: map['gender'] ?? 'Unknown',
       createdAt:
           map['createdAt'] != null
               ? DateTime.parse(map['createdAt'])
               : DateTime.now(),
+      friends: List<String>.from(map['friends'] ?? []),
     );
   }
 
@@ -36,6 +39,7 @@ class UserModel {
       'avatarUrl': avatarUrl,
       'gender': gender,
       'createdAt': createdAt.toIso8601String(),
+      'friends': friends,
     };
   }
 }
