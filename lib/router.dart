@@ -1,17 +1,36 @@
 // lib/router.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_facebook_clone/widgets/email_screen.dart';
 import 'package:flutter_facebook_clone/screens/friend_screen.dart';
 import 'package:flutter_facebook_clone/screens/home_screen.dart';
+import 'package:flutter_facebook_clone/screens/login_screeen.dart';
 import 'package:flutter_facebook_clone/screens/menu_screen.dart';
 import 'package:flutter_facebook_clone/screens/message_screen.dart';
 import 'package:flutter_facebook_clone/screens/notification_screen.dart';
+import 'package:flutter_facebook_clone/widgets/password_screen.dart';
+import 'package:flutter_facebook_clone/widgets/personal_info_screen.dart';
 import 'package:flutter_facebook_clone/screens/search_screen.dart';
+import 'package:flutter_facebook_clone/widgets/verification_sceen.dart';
 import 'package:go_router/go_router.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 final GoRouter router = GoRouter(
   initialLocation: '/home',
   routes: [
+    GoRoute(path: '/login', builder: (context, state) => LoginScreen()),
+    GoRoute(
+      path: '/personal-info',
+      builder: (context, state) => const PersonalInfoScreen(),
+    ),
+    GoRoute(path: '/email', builder: (context, state) => const EmailScreen()),
+    GoRoute(
+      path: '/verification',
+      builder: (context, state) => const VerificationScreen(),
+    ),
+    GoRoute(
+      path: '/password',
+      builder: (context, state) => const PasswordScreen(),
+    ),
     ShellRoute(
       builder: (context, state, child) {
         return ScaffoldWithNavBar(child: child);
