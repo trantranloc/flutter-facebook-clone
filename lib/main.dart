@@ -1,7 +1,8 @@
 // ignore_for_file: avoid_print
-
+import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'background_tasks.dart';
 import 'firebase_options.dart';
 import 'router.dart';
 
@@ -10,6 +11,14 @@ void main() async {
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
+    );
+    await AndroidAlarmManager.initialize();
+    await AndroidAlarmManager.oneShot(
+      const Duration(seconds: 5),
+      0,
+      backgroundTask,
+      exact: true,
+      wakeup: true,
     );
     print('Firebase initialized successfully');
   } catch (e) {
