@@ -80,7 +80,11 @@ class _MenuScreenState extends State<MenuScreen> {
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                     subtitle: const Text('See your profile'),
-                    onTap: () {},
+                    onTap: () {
+                      if (_userModel != null) {
+                        context.go('/profile', extra: _userModel!.uid);
+                      }
+                    },
                   ),
                   const Divider(),
                   // Menu Items

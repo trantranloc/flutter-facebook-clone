@@ -60,6 +60,21 @@ Future<UserModel?> getUser(String uid) async {
       throw Exception('Không thể lấy thông tin người dùng: $e');
     }
   }
+  Future<List<UserModel>> getFriends(List<String> friendUids) async {
+    try {
+      List<UserModel> friends = [];
+      for (String uid in friendUids) {
+        final user = await getUser(uid);
+        if (user != null) {
+          friends.add(user);
+        }
+      }
+      return friends;
+    } catch (e) {
+      print('Lỗi khi lấy danh sách bạn bè: $e');
+      return [];
+    }
+  }
   /// Đăng xuất
   Future<void> signOut() async {
     await _auth.signOut();

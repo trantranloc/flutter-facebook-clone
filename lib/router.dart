@@ -1,5 +1,6 @@
 // lib/router.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_facebook_clone/screens/profile_screen.dart';
 import 'package:flutter_facebook_clone/widgets/email_screen.dart';
 import 'package:flutter_facebook_clone/screens/friend_screen.dart';
 import 'package:flutter_facebook_clone/screens/home_screen.dart';
@@ -17,6 +18,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 final GoRouter router = GoRouter(
   initialLocation: '/home',
   routes: [
+    // Không cần thanh điều hướng và appBar
     GoRoute(path: '/login', builder: (context, state) => LoginScreen()),
     GoRoute(
       path: '/personal-info',
@@ -35,6 +37,7 @@ final GoRouter router = GoRouter(
       builder: (context, state, child) {
         return ScaffoldWithNavBar(child: child);
       },
+      // có thanh điều hướng và appBar
       routes: [
         GoRoute(path: '/home', builder: (context, state) => const HomeScreen()),
         GoRoute(
@@ -52,7 +55,15 @@ final GoRouter router = GoRouter(
         GoRoute(path: '/menu', builder: (context, state) => const MenuScreen()),
       ],
     ),
+
     GoRoute(path: '/search', builder: (context, state) => const SearchScreen()),
+    GoRoute(
+      path: '/profile',
+      builder: (context, state) {
+        final uid = state.extra as String;
+        return ProfileScreen(uid: uid);
+      },
+    ),
   ],
 );
 
