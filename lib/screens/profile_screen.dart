@@ -74,9 +74,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           width: double.infinity,
                           color: Colors.grey[300],
                           child:
-                              _userModel?.avatarUrl?.isNotEmpty ?? false
+                              _userModel?.avatarUrl.isNotEmpty ?? false
                                   ? Image.network(
-                                    _userModel!.avatarUrl!,
+                                    _userModel!.avatarUrl,
                                     fit: BoxFit.cover,
                                     errorBuilder:
                                         (context, error, stackTrace) => Center(

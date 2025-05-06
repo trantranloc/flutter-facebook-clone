@@ -12,27 +12,28 @@ class VerificationScreen extends StatefulWidget {
 class _VerificationScreenState extends State<VerificationScreen> {
   final _formKey = GlobalKey<FormState>();
   final _verificationCodeController = TextEditingController();
+  String? _errorMessage;
+
+  void _nextScreen() {
+    if (_formKey.currentState!.validate()) {
+      final args = GoRouterState.of(context).extra as Map<String, dynamic>?;
+      final enteredCode = _verificationCodeController.text;
+      final actualCode = args?['verificationCode'] as String?;
+
+      if (enteredCode == actualCode) {
+        context.push('/password', extra: args);
+      } else {
+        setState(() {
+          _errorMessage = 'Mã xác minh không đúng';
+        });
+      }
+    }
+  }
 
   @override
   void dispose() {
     _verificationCodeController.dispose();
     super.dispose();
-  }
-
-  void _nextScreen() {
-    if (_formKey.currentState!.validate()) {
-      final args = GoRouterState.of(context).extra as Map<String, dynamic>?;
-
-      if (args != null) {
-        context.push(
-          '/password',
-          extra: {
-            ...args,
-            'verificationCode': _verificationCodeController.text,
-          },
-        );
-      }
-    }
   }
 
   @override
@@ -72,6 +73,10 @@ class _VerificationScreenState extends State<VerificationScreen> {
                   return null;
                 },
               ),
+              if (_errorMessage != null) ...[
+                const SizedBox(height: 16),
+                Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
+              ],
               const Spacer(),
               SizedBox(
                 width: double.infinity,
