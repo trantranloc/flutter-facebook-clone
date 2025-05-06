@@ -42,6 +42,9 @@ dependencies:
   image_picker: ^1.0.4
   permission_handler: ^11.0.0
   android_alarm_manager_plus: ^4.0.7
+  firebase_storage: ^12.4.5
+  flutter_image_compress: ^2.4.0
+  cloudinary_public: ^0.23.1
 dev_dependencies:
   flutter_test:
     sdk: flutter

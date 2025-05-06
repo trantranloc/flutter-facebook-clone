@@ -34,7 +34,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (user != null) {
       // Chuyển hướng
-      context.go('/home');
+      context.go('/');
     } else {
       // Hiển thị thông báo lỗi
       ScaffoldMessenger.of(
@@ -94,10 +94,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     width: double.infinity,
                     height: 45,
                     child: ElevatedButton(
-                      onPressed:
-                          isLoading
-                              ? null
-                              : _signIn, 
+                      onPressed: isLoading ? null : _signIn,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF1778F2),
                         shape: RoundedRectangleBorder(

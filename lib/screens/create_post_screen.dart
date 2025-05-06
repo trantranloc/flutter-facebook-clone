@@ -34,7 +34,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       return;
     }
 
-    // TODO: Gửi dữ liệu bài viết về server hoặc thêm vào danh sách bài viết
+    //  Gửi dữ liệu bài viết về server hoặc thêm vào danh sách bài viết
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text('Đăng bài thành công!')));

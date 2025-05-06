@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_facebook_clone/models/User.dart';
 import 'package:flutter_facebook_clone/services/auth_service.dart';
 import 'package:go_router/go_router.dart';
 
@@ -38,10 +37,6 @@ class _PasswordScreenState extends State<PasswordScreen> {
           ).showSnackBar(const SnackBar(content: Text('Không tìm thấy email')));
           return;
         }
-
-        // Tạo tên đầy đủ từ firstName và lastName
-        final fullName = '${firstName ?? ''} ${lastName ?? ''}'.trim();
-
         // Hiển thị loading
         showDialog(
           context: context,
@@ -58,23 +53,16 @@ class _PasswordScreenState extends State<PasswordScreen> {
         Navigator.pop(context);
 
         if (user != null) {
-          // Tạo UserModel
-          final userModel = UserModel(
-            uid: user.uid,
-            name: fullName.isNotEmpty ? fullName : 'Unknown',
-            email: email,
-            avatarUrl: '',
-            gender: gender ?? 'Unknown',
-            createdAt: DateTime.now(),
+               context.push(
+            '/avatar',
+            extra: {
+              'uid': user.uid,
+              'email': email,
+              'firstName': firstName,
+              'lastName': lastName,
+              'gender': gender,
+            },
           );
-
-          // In UserModel để kiểm tra
-          print('UserModel: ${userModel.toMap()}');
-          await authService.saveUser(userModel);
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('Đăng ký thành công!')));
-          context.go('/home');
         }
       } catch (e) {
         // Ẩn loading nếu có lỗi

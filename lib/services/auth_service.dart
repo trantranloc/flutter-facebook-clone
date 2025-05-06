@@ -5,6 +5,7 @@ import 'package:flutter_facebook_clone/models/User.dart'; // Import UserModel
 class AuthService {
   // Khởi tạo FirebaseAuth instance
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   /// Đăng nhập bằng email và mật khẩu
   Future<User?> signIn(String email, String password) async {
@@ -73,6 +74,16 @@ Future<UserModel?> getUser(String uid) async {
     } catch (e) {
       print('Lỗi khi lấy danh sách bạn bè: $e');
       return [];
+    }
+  }
+  Future<void> updateUserAvatar(String uid, String avatarUrl) async {
+    try {
+      await _firestore.collection('users').doc(uid).update({
+        'avatarUrl': avatarUrl,
+      });
+    } catch (e) {
+      print('Lỗi khi cập nhật avatar: $e');
+      rethrow;
     }
   }
   /// Đăng xuất
