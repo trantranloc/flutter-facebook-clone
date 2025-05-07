@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 class ChatScreen extends StatefulWidget {
   final String userName;
@@ -14,19 +15,26 @@ class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _messageController = TextEditingController();
   final List<Map<String, dynamic>> _messages = [
     {'sender': 'You', 'message': 'Hi! How are you?', 'type': 'text'},
-    {'sender': 'Other', 'message': 'Hey! I’m good, thanks for asking.', 'type': 'text'},
-    {'sender': 'You', 'message': 'Great to hear that!', 'type': 'text'},
-    {'sender': 'Other', 'message': 'What about you? How’s your day going?', 'type': 'text'},
     {
-      
+      'sender': 'Other',
+      'message': 'Hey! I’m good, thanks for asking.',
+      'type': 'text',
+    },
+    {'sender': 'You', 'message': 'Great to hear that!', 'type': 'text'},
+    {
+      'sender': 'Other',
+      'message': 'What about you? How’s your day going?',
+      'type': 'text',
+    },
+    {
       'sender': 'You',
       'message': 'Shared a file: document.pdf',
       'type': 'file',
-      'fileUrl': 'https://example.com/document.pdf'
+      'fileUrl': 'https://example.com/document.pdf',
     },
   ];
 
-  bool _isOnline = true; 
+  bool _isOnline = true;
 
   void _sendMessage() {
     if (_messageController.text.isNotEmpty) {
@@ -55,40 +63,43 @@ class _ChatScreenState extends State<ChatScreen> {
   void _shareFile() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Share File'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              decoration: const InputDecoration(hintText: 'Enter file URL (mock)'),
-              onChanged: (value) {
-                // Giả lập nhập URL file
-              },
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Share File'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  decoration: const InputDecoration(
+                    hintText: 'Enter file URL (mock)',
+                  ),
+                  onChanged: (value) {
+                    // Giả lập nhập URL file
+                  },
+                ),
+              ],
             ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () {
+                  setState(() {
+                    _messages.add({
+                      'sender': 'You',
+                      'message': 'Shared a file: sample.pdf',
+                      'type': 'file',
+                      'fileUrl': 'https://example.com/sample.pdf',
+                    });
+                  });
+                  Navigator.pop(context);
+                },
+                child: const Text('Share'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () {
-              setState(() {
-                _messages.add({
-                  'sender': 'You',
-                  'message': 'Shared a file: sample.pdf',
-                  'type': 'file',
-                  'fileUrl': 'https://example.com/sample.pdf',
-                });
-              });
-              Navigator.pop(context);
-            },
-            child: const Text('Share'),
-          ),
-        ],
-      ),
     );
   }
 
@@ -101,7 +112,7 @@ class _ChatScreenState extends State<ChatScreen> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () {
-            Navigator.pop(context);
+            context.go("/message");
           },
         ),
         title: Row(
@@ -139,51 +150,58 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           ],
         ),
-        actions: widget.members != null && widget.members!.isNotEmpty
-            ? [
-                PopupMenuButton<String>(
-                  icon: const Icon(Icons.more_vert, color: Colors.black),
-                  onSelected: (value) {
-                    // Xử lý hành động menu
-                  },
-                  itemBuilder: (BuildContext context) {
-                    return widget.members!.map((member) {
-                      return PopupMenuItem<String>(
-                        value: member,
-                        child: Row(
-                          children: [
-                            Stack(
-                              children: [
-                                CircleAvatar(
-                                  radius: 15,
-                                  backgroundColor: Colors.grey,
-                                  child: Text(member[0]),
-                                ),
-                                Positioned(
-                                  right: 0,
-                                  bottom: 0,
-                                  child: Container(
-                                    width: 12,
-                                    height: 12,
-                                    decoration: BoxDecoration(
-                                      color: _isOnline ? Colors.green : Colors.grey,
-                                      shape: BoxShape.circle,
-                                      border: Border.all(color: Colors.white, width: 2),
+        actions:
+            widget.members != null && widget.members!.isNotEmpty
+                ? [
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert, color: Colors.black),
+                    onSelected: (value) {
+                      // Xử lý hành động menu
+                    },
+                    itemBuilder: (BuildContext context) {
+                      return widget.members!.map((member) {
+                        return PopupMenuItem<String>(
+                          value: member,
+                          child: Row(
+                            children: [
+                              Stack(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 15,
+                                    backgroundColor: Colors.grey,
+                                    child: Text(member[0]),
+                                  ),
+                                  Positioned(
+                                    right: 0,
+                                    bottom: 0,
+                                    child: Container(
+                                      width: 12,
+                                      height: 12,
+                                      decoration: BoxDecoration(
+                                        color:
+                                            _isOnline
+                                                ? Colors.green
+                                                : Colors.grey,
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: Colors.white,
+                                          width: 2,
+                                        ),
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(width: 8),
-                            Text(member),
-                          ],
-                        ),
-                      );
-                    }).toList();
-                  },
-                ),
-              ]
-            : [],
+                                ],
+                              ),
+                              const SizedBox(width: 8),
+                              Text(member),
+                            ],
+                          ),
+                        );
+                      }).toList();
+                    },
+                  ),
+                ]
+                : [],
       ),
       body: Column(
         children: [
@@ -196,43 +214,49 @@ class _ChatScreenState extends State<ChatScreen> {
                 final message = _messages[index];
                 final isMe = message['sender'] == 'You';
                 return Align(
-                  alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                  alignment:
+                      isMe ? Alignment.centerRight : Alignment.centerLeft,
                   child: Container(
                     margin: const EdgeInsets.symmetric(vertical: 4.0),
-                    padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12.0,
+                      vertical: 8.0,
+                    ),
                     decoration: BoxDecoration(
                       color: isMe ? Colors.blue[100] : Colors.grey[200],
                       borderRadius: BorderRadius.circular(12.0),
                     ),
-                    child: message['type'] == 'file'
-                        ? InkWell(
-                            onTap: () {
-                              // Mở file (giả lập)
-                              print('Opening file: ${message['fileUrl']}');
-                            },
-                            child: Column(
-                              crossAxisAlignment: isMe
-                                  ? CrossAxisAlignment.end
-                                  : CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  message['message']!,
-                                  style: const TextStyle(fontSize: 16.0),
-                                ),
-                                Text(
-                                  message['fileUrl']!,
-                                  style: const TextStyle(
-                                    fontSize: 12.0,
-                                    color: Colors.blue,
+                    child:
+                        message['type'] == 'file'
+                            ? InkWell(
+                              onTap: () {
+                                // Mở file (giả lập)
+                                print('Opening file: ${message['fileUrl']}');
+                              },
+                              child: Column(
+                                crossAxisAlignment:
+                                    isMe
+                                        ? CrossAxisAlignment.end
+                                        : CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    message['message']!,
+                                    style: const TextStyle(fontSize: 16.0),
                                   ),
-                                ),
-                              ],
+                                  Text(
+                                    message['fileUrl']!,
+                                    style: const TextStyle(
+                                      fontSize: 12.0,
+                                      color: Colors.blue,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                            : Text(
+                              message['message']!,
+                              style: const TextStyle(fontSize: 16.0),
                             ),
-                          )
-                        : Text(
-                            message['message']!,
-                            style: const TextStyle(fontSize: 16.0),
-                          ),
                   ),
                 );
               },
