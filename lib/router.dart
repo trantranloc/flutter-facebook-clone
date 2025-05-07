@@ -27,7 +27,6 @@ final GoRouter router = GoRouter(
           path: '/message',
           builder: (context, state) => const MessageScreen(),
           routes: [
-            // Thêm tuyến đường con cho ChatScreen
             GoRoute(
               path: 'chat/:userName',
               builder: (context, state) {

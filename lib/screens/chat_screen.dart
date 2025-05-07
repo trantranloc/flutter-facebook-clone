@@ -18,6 +18,7 @@ class _ChatScreenState extends State<ChatScreen> {
     {'sender': 'You', 'message': 'Great to hear that!', 'type': 'text'},
     {'sender': 'Other', 'message': 'What about you? How’s your day going?', 'type': 'text'},
     {
+      
       'sender': 'You',
       'message': 'Shared a file: document.pdf',
       'type': 'file',

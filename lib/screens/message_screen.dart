@@ -80,6 +80,7 @@ class _MessageScreenState extends State<MessageScreen> {
                   onTap: () {
                     context.go('/message/chat/Claire');
                   },
+                  
                 ),
                 FriendAvatar(
                   name: 'Darrell',
