@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_facebook_clone/screens/friend_screen.dart';
+import 'package:go_router/go_router.dart';
 
 class FriendListScreen extends StatefulWidget {
   const FriendListScreen({super.key});
@@ -16,15 +16,16 @@ class _FriendListScreenState extends State<FriendListScreen> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const FriendScreen()),
-            );
+            context.go('/friend');
           },
         ),
         title: const Text(
           'Bạn bè',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.black),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+            color: Colors.black,
+          ),
         ),
         backgroundColor: Colors.white,
         bottom: PreferredSize(
@@ -66,7 +67,9 @@ class _FriendListScreenState extends State<FriendListScreen> {
           ),
           ListTile(
             leading: CircleAvatar(
-              backgroundImage: NetworkImage('https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-4.0.3&auto=format&fit=crop&w=1350&q=80'),
+              backgroundImage: NetworkImage(
+                'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-4.0.3&auto=format&fit=crop&w=1350&q=80',
+              ),
             ),
             title: const Text('...'),
             subtitle: const Text('43 bạn chung'),
@@ -75,7 +78,9 @@ class _FriendListScreenState extends State<FriendListScreen> {
           const Divider(),
           ListTile(
             leading: CircleAvatar(
-              backgroundImage: NetworkImage('https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-4.0.3&auto=format&fit=crop&w=1350&q=80'),
+              backgroundImage: NetworkImage(
+                'https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-4.0.3&auto=format&fit=crop&w=1350&q=80',
+              ),
             ),
             title: const Text('...'),
             subtitle: const Text('2 bạn chung'),
@@ -84,7 +89,9 @@ class _FriendListScreenState extends State<FriendListScreen> {
           const Divider(),
           ListTile(
             leading: CircleAvatar(
-              backgroundImage: NetworkImage('https://images.unsplash.com/photo-1519345182560-3f2917c472ef?ixlib=rb-4.0.3&auto=format&fit=crop&w=1350&q=80'),
+              backgroundImage: NetworkImage(
+                'https://images.unsplash.com/photo-1519345182560-3f2917c472ef?ixlib=rb-4.0.3&auto=format&fit=crop&w=1350&q=80',
+              ),
             ),
             title: const Text('...'),
             subtitle: const Text('32 bạn chung'),
@@ -93,7 +100,9 @@ class _FriendListScreenState extends State<FriendListScreen> {
           const Divider(),
           ListTile(
             leading: CircleAvatar(
-              backgroundImage: NetworkImage('https://images.unsplash.com/photo-1534528741775-53994a69daeb?ixlib=rb-4.0.3&auto=format&fit=crop&w=1350&q=80'),
+              backgroundImage: NetworkImage(
+                'https://images.unsplash.com/photo-1534528741775-53994a69daeb?ixlib=rb-4.0.3&auto=format&fit=crop&w=1350&q=80',
+              ),
             ),
             title: const Text('...'),
             subtitle: const Text('2 bạn chung'),
@@ -102,7 +111,9 @@ class _FriendListScreenState extends State<FriendListScreen> {
           const Divider(),
           ListTile(
             leading: CircleAvatar(
-              backgroundImage: NetworkImage('https://images.unsplash.com/photo-1524504388940-b1c1722653e1?ixlib=rb-4.0.3&auto=format&fit=crop&w=1350&q=80'),
+              backgroundImage: NetworkImage(
+                'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?ixlib=rb-4.0.3&auto=format&fit=crop&w=1350&q=80',
+              ),
             ),
             title: const Text('...'),
             subtitle: const Text('45 bạn chung'),
@@ -111,7 +122,9 @@ class _FriendListScreenState extends State<FriendListScreen> {
           const Divider(),
           ListTile(
             leading: CircleAvatar(
-              backgroundImage: NetworkImage('https://images.unsplash.com/photo-1531123897727-8f129e1688ce?ixlib=rb-4.0.3&auto=format&fit=crop&w=1350&q=80'),
+              backgroundImage: NetworkImage(
+                'https://images.unsplash.com/photo-1531123897727-8f129e1688ce?ixlib=rb-4.0.3&auto=format&fit=crop&w=1350&q=80',
+              ),
             ),
             title: const Text('...'),
             subtitle: const Text('3 bạn chung'),
@@ -120,7 +133,9 @@ class _FriendListScreenState extends State<FriendListScreen> {
           const Divider(),
           ListTile(
             leading: CircleAvatar(
-              backgroundImage: NetworkImage('https://ix-marketing.imgix.net/focalpoint.png?auto=format,compress&w=1946'),
+              backgroundImage: NetworkImage(
+                'https://ix-marketing.imgix.net/focalpoint.png?auto=format,compress&w=1946',
+              ),
             ),
             title: const Text('...'),
             subtitle: const Text('15 bạn chung'),

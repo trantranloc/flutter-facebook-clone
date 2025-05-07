@@ -45,6 +45,8 @@ dependencies:
   firebase_storage: ^12.4.5
   flutter_image_compress: ^2.4.0
   cloudinary_public: ^0.23.1
+  provider: ^6.1.5
+  shared_preferences: ^2.5.3
 dev_dependencies:
   flutter_test:
     sdk: flutter

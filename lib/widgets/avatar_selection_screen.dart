@@ -145,6 +145,7 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen> {
         email: email,
         avatarUrl: avatarUrl,
         coverUrl: "",
+        bio: "",
         gender: gender ?? 'Unknown',
         createdAt: DateTime.now(),
       );
@@ -196,6 +197,7 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen> {
       email: email ?? '',
       avatarUrl: '',
       coverUrl: '',
+      bio: '',
       gender: gender ?? 'Unknown',
       createdAt: DateTime.now(),
     );
