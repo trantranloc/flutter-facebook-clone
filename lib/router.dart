@@ -12,6 +12,7 @@ import 'package:flutter_facebook_clone/widgets/password_screen.dart';
 import 'package:flutter_facebook_clone/widgets/personal_info_screen.dart';
 import 'package:flutter_facebook_clone/screens/search_screen.dart';
 import 'package:flutter_facebook_clone/widgets/verification_sceen.dart';
+import 'package:flutter_facebook_clone/screens/chat_screen.dart';
 import 'package:go_router/go_router.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -84,6 +85,19 @@ final GoRouter router = GoRouter(
         return ProfileScreen(uid: uid);
       },
     ),
+GoRoute(
+          path: '/message',
+          builder: (context, state) => const MessageScreen(),
+          routes: [
+            GoRoute(
+              path: 'chat/:userName',
+              builder: (context, state) {
+                final userName = state.pathParameters['userName']!;
+                return ChatScreen(userName: userName);
+              },
+            ),
+          ],
+        ),
   ],
 );
 
