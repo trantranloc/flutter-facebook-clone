@@ -15,6 +15,9 @@ import 'package:flutter_facebook_clone/widgets/verification_sceen.dart';
 import 'package:flutter_facebook_clone/screens/chat_screen.dart';
 import 'package:flutter_facebook_clone/screens/list_friend_screen.dart';
 import 'package:flutter_facebook_clone/screens/edit_profile_screen.dart';
+import 'package:flutter_facebook_clone/screens/forgot_password_screen.dart';
+import 'package:flutter_facebook_clone/screens/verify_reset_code_screen.dart';
+import 'package:flutter_facebook_clone/screens/reset_password_screen.dart';
 import 'package:go_router/go_router.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -48,6 +51,18 @@ final GoRouter router = GoRouter(
   routes: [
     // Không cần thanh điều hướng và appBar
     GoRoute(path: '/login', builder: (context, state) => LoginScreen()),
+    GoRoute(
+      path: '/forgot-password',
+      builder: (context, state) => const ForgotPasswordScreen(),
+    ),
+    GoRoute(
+      path: '/verify-reset-code',
+      builder: (context, state) => const VerifyResetCodeScreen(),
+    ),
+    GoRoute(
+      path: '/reset-password',
+      builder: (context, state) => const ResetPasswordScreen(),
+    ),
     GoRoute(
       path: '/personal-info',
       builder: (context, state) => const PersonalInfoScreen(),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_facebook_clone/providers/user_provider.dart';
 import 'package:flutter_facebook_clone/services/auth_service.dart';
+import 'package:flutter_facebook_clone/services/user_service.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
@@ -14,6 +15,7 @@ class MenuScreen extends StatefulWidget {
 
 class _MenuScreenState extends State<MenuScreen> {
   final AuthService _auth = AuthService();
+  final UserService _userService = UserService();
 
   @override
   void initState() {
@@ -23,7 +25,7 @@ class _MenuScreenState extends State<MenuScreen> {
       final userProvider = Provider.of<UserProvider>(context, listen: false);
       final currentUser = FirebaseAuth.instance.currentUser;
       if (currentUser != null && userProvider.userModel == null) {
-        userProvider.loadUserData(currentUser.uid, _auth);
+        userProvider.loadUserData(currentUser.uid, _userService);
       }
     });
   }

@@ -14,32 +14,56 @@ class _LoginScreenState extends State<LoginScreen> {
   final AuthService _authService = AuthService();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
-  bool isLoading = false; // Thêm trạng thái loading
+  bool isLoading = false;
+  String? errorMessage;
 
   // Hàm đăng nhập
   void _signIn() async {
     setState(() {
       isLoading = true;
+      errorMessage = null;
     });
 
     String email = emailController.text;
     String password = passwordController.text;
 
-    // Gọi hàm đăng nhập từ AuthService
-    User? user = await _authService.signIn(email, password);
+    try {
+      // Gọi hàm đăng nhập từ AuthService
+      User? user = await _authService.signIn(email, password);
 
-    setState(() {
-      isLoading = false;
-    });
-
-    if (user != null) {
-      // Chuyển hướng
-      context.go('/');
-    } else {
-      // Hiển thị thông báo lỗi
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Đăng nhập thất bại!')));
+      if (user != null) {
+        // Chuyển hướng
+        context.go('/');
+      }
+    } on FirebaseAuthException catch (e) {
+      String message;
+      switch (e.code) {
+        case 'user-not-found':
+          message = 'Không tìm thấy tài khoản với email này';
+          break;
+        case 'wrong-password':
+          message = 'Mật khẩu không đúng';
+          break;
+        case 'invalid-email':
+          message = 'Email không hợp lệ';
+          break;
+        case 'user-disabled':
+          message = 'Tài khoản đã bị vô hiệu hóa';
+          break;
+        default:
+          message = 'Đăng nhập thất bại: ${e.message}';
+      }
+      setState(() {
+        errorMessage = message;
+      });
+    } catch (e) {
+      setState(() {
+        errorMessage = 'Đăng nhập thất bại: $e';
+      });
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
     }
   }
 
@@ -89,6 +113,13 @@ class _LoginScreenState extends State<LoginScreen> {
                       fillColor: Colors.grey[200],
                     ),
                   ),
+                  if (errorMessage != null) ...[
+                    const SizedBox(height: 15),
+                    Text(
+                      errorMessage!,
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                  ],
                   const SizedBox(height: 20),
                   SizedBox(
                     width: double.infinity,
@@ -110,7 +141,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 15),
                   TextButton(
                     onPressed: () {
-                      //  xử lý quên mật khẩu
+                      context.push('/forgot-password');
                     },
                     child: const Text(
                       'Quên mật khẩu?',
@@ -144,10 +175,8 @@ class _LoginScreenState extends State<LoginScreen> {
           if (isLoading)
             Container(
               color: Colors.black.withOpacity(0.3),
-              child: Center(
-                child: CircularProgressIndicator(
-                  color: Colors.white,
-                ), // Hiển thị loading
+              child: const Center(
+                child: CircularProgressIndicator(color: Colors.white),
               ),
             ),
         ],

@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_facebook_clone/services/user_service.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cloudinary_public/cloudinary_public.dart';
@@ -133,8 +134,7 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen> {
       }
 
       final fullName = '${firstName ?? ''} ${lastName ?? ''}'.trim();
-      final authService = AuthService();
-
+      final userService = UserService();
       // Upload image and get URL
       final avatarUrl = await _uploadImageToCloudinary(uid);
 
@@ -151,7 +151,7 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen> {
       );
 
       // Save updated user model
-      await authService.saveUser(userModel);
+      await userService.saveUser(userModel);
       print('User saved with avatarUrl: $avatarUrl');
 
       setState(() {
@@ -190,6 +190,7 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen> {
 
     final fullName = '${firstName ?? ''} ${lastName ?? ''}'.trim();
     final authService = AuthService();
+    final userService = UserService();
 
     final userModel = UserModel(
       uid: user.uid,
@@ -205,7 +206,7 @@ class _AvatarSelectionScreenState extends State<AvatarSelectionScreen> {
     if (email != null && password != null) {
       await authService.signIn(email, password);
     }
-    await authService.saveUser(userModel);
+    await userService.saveUser(userModel);
     print('User saved without avatar.');
 
     context.go('/', extra: args);

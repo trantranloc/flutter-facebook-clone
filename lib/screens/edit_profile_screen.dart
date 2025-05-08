@@ -2,13 +2,13 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter_facebook_clone/services/user_service.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cloudinary_public/cloudinary_public.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_facebook_clone/providers/user_provider.dart';
-import 'package:flutter_facebook_clone/services/auth_service.dart';
 
 class EditProfileScreen extends StatefulWidget {
   final String editType; // 'cover', 'info', 'bio'
@@ -20,7 +20,7 @@ class EditProfileScreen extends StatefulWidget {
 }
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
-  final AuthService _auth = AuthService();
+  final UserService _userService = UserService();
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _bioController = TextEditingController();
   String _selectedGender = '';
@@ -62,7 +62,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       _selectedGender = userModel.gender;
     } else {
       try {
-        await userProvider.loadUserData(currentUser.uid, _auth);
+        await userProvider.loadUserData(currentUser.uid, _userService);
         final loadedUser = userProvider.userModel;
         if (loadedUser != null && mounted) {
           setState(() {
@@ -204,7 +204,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           String downloadUrl = response.secureUrl;
 
           // Cập nhật coverUrl trong Firestore
-          await _auth.updateUserCover(currentUser.uid, downloadUrl);
+          await _userService.updateUserCover(currentUser.uid, downloadUrl);
 
           // Cập nhật UserProvider
           final userProvider = Provider.of<UserProvider>(
@@ -261,7 +261,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       }
 
       // Cập nhật thông tin cá nhân trong Firestore
-      await _auth.updateUserInfo(
+      await _userService.updateUserInfo(
         currentUser.uid,
         _nameController.text,
         _selectedGender,
@@ -320,7 +320,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       }
 
       // Cập nhật bio trong Firestore
-      await _auth.updateUserBio(currentUser.uid, _bioController.text);
+      await _userService.updateUserBio(currentUser.uid, _bioController.text);
 
       // Cập nhật UserProvider
       final userProvider = Provider.of<UserProvider>(context, listen: false);
@@ -358,19 +358,42 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_getScreenTitle()),
-        backgroundColor: Colors.blue[800],
+        title: Text(
+          _getScreenTitle(),
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: const Color(0xFF1877F2),
+        elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => context.pop(),
         ),
       ),
       body:
           _isLoading
               ? const Center(child: CircularProgressIndicator())
-              : SingleChildScrollView(
-                padding: const EdgeInsets.all(16.0),
-                child: _buildEditForm(),
+              : Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Color(0xFF1877F2), Colors.white],
+                    stops: [0.0, 0.3],
+                  ),
+                ),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Card(
+                    elevation: 4,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: _buildEditForm(),
+                    ),
+                  ),
+                ),
               ),
     );
   }
@@ -412,34 +435,66 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               height: 200,
               width: double.infinity,
               decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(8.0),
+                color: Colors.grey[200],
+                borderRadius: BorderRadius.circular(15.0),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 10,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
               ),
-              child:
-                  userModel?.coverUrl.isNotEmpty == true
-                      ? Image.network(
-                        userModel!.coverUrl,
-                        fit: BoxFit.cover,
-                        errorBuilder:
-                            (context, error, stackTrace) => Center(
-                              child: Text(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(15.0),
+                child:
+                    userModel?.coverUrl.isNotEmpty == true
+                        ? Image.network(
+                          userModel!.coverUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder:
+                              (context, error, stackTrace) => Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.image,
+                                      size: 48,
+                                      color: Colors.grey[400],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Cover Photo',
+                                      style: TextStyle(
+                                        color: Colors.grey[600],
+                                        fontSize: 18,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                        )
+                        : Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.image,
+                                size: 48,
+                                color: Colors.grey[400],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
                                 'Cover Photo',
                                 style: TextStyle(
                                   color: Colors.grey[600],
-                                  fontSize: 24,
+                                  fontSize: 18,
                                 ),
                               ),
-                            ),
-                      )
-                      : Center(
-                        child: Text(
-                          'Cover Photo',
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 24,
+                            ],
                           ),
                         ),
-                      ),
+              ),
             );
           },
         ),
@@ -449,9 +504,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           icon: const Icon(Icons.photo_library),
           label: const Text('Chọn ảnh bìa mới'),
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.blue[800],
+            backgroundColor: const Color(0xFF1877F2),
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            elevation: 2,
           ),
         ),
       ],
@@ -464,27 +523,61 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       children: [
         const Text(
           'Tên hiển thị',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF1877F2),
+          ),
         ),
         const SizedBox(height: 8),
         TextField(
           controller: _nameController,
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             hintText: 'Nhập tên của bạn',
-            border: OutlineInputBorder(),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.grey[300]!),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.grey[300]!),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Color(0xFF1877F2)),
+            ),
+            filled: true,
+            fillColor: Colors.grey[50],
           ),
         ),
         const SizedBox(height: 24),
         const Text(
           'Giới tính',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF1877F2),
+          ),
         ),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
           value: _selectedGender.isNotEmpty ? _selectedGender : null,
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             hintText: 'Chọn giới tính',
-            border: OutlineInputBorder(),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.grey[300]!),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.grey[300]!),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Color(0xFF1877F2)),
+            ),
+            filled: true,
+            fillColor: Colors.grey[50],
           ),
           items: const [
             DropdownMenuItem(value: 'Nam', child: Text('Nam')),
@@ -505,11 +598,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           child: ElevatedButton(
             onPressed: _updateUserInfo,
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue[800],
+              backgroundColor: const Color(0xFF1877F2),
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              elevation: 2,
             ),
-            child: const Text('Lưu thay đổi', style: TextStyle(fontSize: 16)),
+            child: const Text(
+              'Lưu thay đổi',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
           ),
         ),
       ],
@@ -522,14 +622,31 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       children: [
         const Text(
           'Tiểu sử',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF1877F2),
+          ),
         ),
         const SizedBox(height: 8),
         TextField(
           controller: _bioController,
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             hintText: 'Viết về bản thân bạn...',
-            border: OutlineInputBorder(),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.grey[300]!),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.grey[300]!),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Color(0xFF1877F2)),
+            ),
+            filled: true,
+            fillColor: Colors.grey[50],
           ),
           maxLines: 5,
           maxLength: 200,
@@ -540,11 +657,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           child: ElevatedButton(
             onPressed: _updateUserBio,
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue[800],
+              backgroundColor: const Color(0xFF1877F2),
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              elevation: 2,
             ),
-            child: const Text('Lưu thay đổi', style: TextStyle(fontSize: 16)),
+            child: const Text(
+              'Lưu thay đổi',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
           ),
         ),
       ],
