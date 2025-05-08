@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_facebook_clone/models/user.dart';
 import 'package:flutter_facebook_clone/screens/friend_screen.dart';
+import 'package:go_router/go_router.dart';
 
 class FriendListScreen extends StatefulWidget {
   const FriendListScreen({super.key});
@@ -118,15 +119,16 @@ class _FriendListScreenState extends State<FriendListScreen> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const FriendScreen()),
-            );
+            context.go('/friend');
           },
         ),
         title: const Text(
           'Bạn bè',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.black),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+            color: Colors.black,
+          ),
         ),
         backgroundColor: Colors.white,
         bottom: PreferredSize(

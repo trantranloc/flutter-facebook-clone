@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'create_post_screen.dart';
 import 'create_story_screen.dart';
@@ -7,7 +8,7 @@ import 'event_and_birthday_screen.dart';
 import 'notification_screen.dart';
 import '../widgets/post_card.dart';
 import '../models/Story.dart';
-
+import '../models/Post.dart'; // 👈 Thêm model Post
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -17,29 +18,28 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  List<Map<String, dynamic>> posts = [
-    {
-      'username': 'Rosse',
-      'time': '1 ngày trước',
-      'caption': 'Hi ca nha !',
-      'imageUrl':
-          'https://cdn2.tuoitre.vn/471584752817336320/2024/4/16/img9704-17132420881631571916713.jpeg',
-      'likes': 1045,
-      'comments': 1258,
-      'shares': 539,
-    },
-    {
-      'username': 'IT Viet',
-      'time': '1 ngày trước',
-      'caption': 'Hoc Hanh',
-      'imageUrl':
-          'https://images.unsplash.com/photo-1603791440384-56cd371ee9a7',
-      'likes': 23459,
-      'comments': 17069,
-      'shares': 19854,
-    },
+  List<Post> posts = [
+    Post(
+      id: '1',
+      userId: 'user_rosse',
+      content: 'Hi ca nha !',
+      imageUrls: [
+        'https://cdn2.tuoitre.vn/471584752817336320/2024/4/16/img9704-17132420881631571916713.jpeg',
+      ],
+      createdAt: Timestamp.now(),
+      likes: 1045,
+    ),
+    Post(
+      id: '2',
+      userId: 'user_itviet',
+      content: 'Hoc Hanh',
+      imageUrls: [
+        'https://images.unsplash.com/photo-1603791440384-56cd371ee9a7',
+      ],
+      createdAt: Timestamp.now(),
+      likes: 23459,
+    ),
   ];
-
   List<Story> stories = [
     Story(
       imageUrl: 'https://picsum.photos/200/300',
@@ -110,6 +110,63 @@ class _HomeScreenState extends State<HomeScreen> {
     ),
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    fetchPosts();
+  }
+
+  Future<void> fetchPosts() async {
+    final snapshot =
+        await FirebaseFirestore.instance
+            .collection('posts')
+            .orderBy('createdAt', descending: true)
+            .get();
+
+    final List<Post> loaded =
+        snapshot.docs.map((doc) => Post.fromDocument(doc)).toList();
+
+    setState(() {
+      posts = [
+        ...[
+          Post(
+            id: '1',
+            userId: 'user_rosse',
+            content: 'Hi ca nha !',
+            imageUrls: [
+              'https://cdn2.tuoitre.vn/471584752817336320/2024/4/16/img9704-17132420881631571916713.jpeg',
+            ],
+            createdAt: Timestamp.now(),
+            likes: 1045,
+          ),
+          Post(
+            id: '2',
+            userId: 'user_itviet',
+            content: 'Hoc Hanh',
+            imageUrls: [
+              'https://images.unsplash.com/photo-1603791440384-56cd371ee9a7',
+            ],
+            createdAt: Timestamp.now(),
+            likes: 23459,
+          ),
+        ],
+        ...loaded,
+      ];
+    });
+  }
+
+  Future<void> _navigateToCreatePost() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const CreatePostScreen()),
+    );
+    if (result != null && result is Post) {
+      setState(() {
+        posts.insert(0, result);
+      });
+    }
+  }
+
   Future<void> _navigateToCreateStory() async {
     final newStory = await Navigator.push(
       context,
@@ -138,136 +195,26 @@ class _HomeScreenState extends State<HomeScreen> {
                   itemCount: stories.length + 1,
                   itemBuilder: (context, index) {
                     if (index == 0) {
-                      return AnimatedOpacity(
-                        opacity: 1.0,
-                        duration: const Duration(milliseconds: 300),
-                        child: GestureDetector(
-                          onTap: _navigateToCreateStory,
-                          child: Container(
-                            width: 100,
-                            margin: const EdgeInsets.only(right: 10),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
-                              color: Colors.blue[100],
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.1),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const CircleAvatar(
-                                  radius: 30,
-                                  backgroundImage: NetworkImage(
-                                    'https://i.pravatar.cc/150?img=5', // URL hợp lệ
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Tạo Story',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.blue[800],
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
+                      return GestureDetector(
+                        onTap: _navigateToCreateStory,
+                        child: _buildCreateStoryCard(),
                       );
                     }
                     final story = stories[index - 1];
-                    return AnimatedOpacity(
-                      opacity: 1.0,
-                      duration: const Duration(milliseconds: 300),
-                      child: GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder:
-                                  (_) => StoryViewScreen(
-                                    stories: stories,
-                                    initialIndex: index - 1,
-                                  ),
-                            ),
-                          );
-                        },
-                        child: Container(
-                          width: 100,
-                          margin: const EdgeInsets.only(right: 10),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
-                            image: DecorationImage(
-                              image: NetworkImage(story.imageUrl),
-                              fit: BoxFit.cover,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
-                                blurRadius: 4,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
+                    return GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder:
+                                (_) => StoryViewScreen(
+                                  stories: stories,
+                                  initialIndex: index - 1,
+                                ),
                           ),
-                          child: Stack(
-                            children: [
-                              Container(
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(12),
-                                  gradient: LinearGradient(
-                                    begin: Alignment.topCenter,
-                                    end: Alignment.bottomCenter,
-                                    colors: [
-                                      Colors.black.withOpacity(0.3),
-                                      Colors.transparent,
-                                      Colors.black.withOpacity(0.5),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              Positioned(
-                                top: 8,
-                                left: 8,
-                                child: CircleAvatar(
-                                  radius: 15,
-                                  backgroundImage: NetworkImage(
-                                    story.avatarUrl,
-                                  ),
-                                  backgroundColor: Colors.grey[300],
-                                ),
-                              ),
-                              Positioned(
-                                bottom: 8,
-                                left: 8,
-                                right: 8,
-                                child: Text(
-                                  story.user,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                    shadows: [
-                                      Shadow(
-                                        blurRadius: 4,
-                                        color: Colors.black54,
-                                        offset: Offset(1, 1),
-                                      ),
-                                    ],
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                  textAlign: TextAlign.center,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
+                        );
+                      },
+                      child: _buildStoryItem(story),
                     );
                   },
                 ),
@@ -293,13 +240,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         decoration: BoxDecoration(
                           color: Colors.blue[100],
                           shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.2),
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
                         ),
                         child: const Icon(
                           Icons.arrow_forward,
@@ -315,17 +255,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
           // Create Post Section
           GestureDetector(
-            onTap: () async {
-              final result = await Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const CreatePostScreen()),
-              );
-              if (result != null && result is Map<String, dynamic>) {
-                setState(() {
-                  posts.insert(0, result);
-                });
-              }
-            },
+            onTap: _navigateToCreatePost,
             child: Card(
               margin: const EdgeInsets.all(8),
               elevation: 2,
@@ -343,7 +273,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       children: [
                         const CircleAvatar(
                           backgroundImage: NetworkImage(
-                            'https://i.pravatar.cc/150?img=5', // URL hợp lệ
+                            'https://i.pravatar.cc/150?img=5',
                           ),
                           radius: 22,
                         ),
@@ -393,13 +323,10 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          // Notifications Section
+          // Notifications
           Card(
             margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             elevation: 2,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
             child: ListTile(
               leading: const FaIcon(
                 FontAwesomeIcons.bell,
@@ -416,13 +343,10 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          // Events & Birthdays Section
+          // Events
           Card(
             margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             elevation: 2,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
             child: ListTile(
               leading: const FaIcon(
                 FontAwesomeIcons.cakeCandles,
@@ -441,20 +365,88 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          // Posts
-          ...posts
-              .map(
-                (post) => PostCard(
-                  username: post['username'],
-                  time: post['time'],
-                  caption: post['caption'],
-                  imageUrl: post['imageUrl'],
-                  likes: post['likes'],
-                  comments: post['comments'],
-                  shares: post['shares'],
-                ),
-              )
-              ,
+          // Posts from Firestore
+          ...posts.map(
+            (post) => PostCard(
+              username: post.userId, // giả sử userId là tên người dùng demo
+              time: '1 ngày trước', // bạn có thể định dạng từ post.createdAt
+              caption: post.content,
+              imageUrl: post.imageUrls.isNotEmpty ? post.imageUrls.first : '',
+              likes: post.likes,
+              comments: 0,
+              shares: 0,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCreateStoryCard() {
+    return Container(
+      width: 100,
+      margin: const EdgeInsets.only(right: 10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: Colors.blue[100],
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const CircleAvatar(
+            radius: 30,
+            backgroundImage: NetworkImage('https://i.pravatar.cc/150?img=5'),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Tạo Story',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.blue[800],
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStoryItem(Story story) {
+    return Container(
+      width: 100,
+      margin: const EdgeInsets.only(right: 10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        image: DecorationImage(
+          image: NetworkImage(story.imageUrl),
+          fit: BoxFit.cover,
+        ),
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            top: 8,
+            left: 8,
+            child: CircleAvatar(
+              radius: 15,
+              backgroundImage: NetworkImage(story.avatarUrl),
+            ),
+          ),
+          Positioned(
+            bottom: 8,
+            left: 8,
+            right: 8,
+            child: Text(
+              story.user,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
         ],
       ),
     );

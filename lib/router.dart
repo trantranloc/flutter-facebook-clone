@@ -13,6 +13,11 @@ import 'package:flutter_facebook_clone/widgets/personal_info_screen.dart';
 import 'package:flutter_facebook_clone/screens/search_screen.dart';
 import 'package:flutter_facebook_clone/widgets/verification_sceen.dart';
 import 'package:flutter_facebook_clone/screens/chat_screen.dart';
+import 'package:flutter_facebook_clone/screens/list_friend_screen.dart';
+import 'package:flutter_facebook_clone/screens/edit_profile_screen.dart';
+import 'package:flutter_facebook_clone/screens/forgot_password_screen.dart';
+import 'package:flutter_facebook_clone/screens/verify_reset_code_screen.dart';
+import 'package:flutter_facebook_clone/screens/reset_password_screen.dart';
 import 'package:go_router/go_router.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -23,7 +28,15 @@ final GoRouter router = GoRouter(
     final user = FirebaseAuth.instance.currentUser;
     final isLoggedIn = user != null;
     final currentPath = state.uri.toString();
-    final protectedRoutes = ['/', '/friend', '/message', '/notification', '/menu', '/profile', '/search'];
+    final protectedRoutes = [
+      '/',
+      '/friend',
+      '/message',
+      '/notification',
+      '/menu',
+      '/profile',
+      '/search',
+    ];
 
     // Nếu chưa đăng nhập và cố gắng vào tuyến đường được bảo vệ, chuyển hướng đến /login
     if (!isLoggedIn && protectedRoutes.contains(currentPath)) {
@@ -38,6 +51,18 @@ final GoRouter router = GoRouter(
   routes: [
     // Không cần thanh điều hướng và appBar
     GoRoute(path: '/login', builder: (context, state) => LoginScreen()),
+    GoRoute(
+      path: '/forgot-password',
+      builder: (context, state) => const ForgotPasswordScreen(),
+    ),
+    GoRoute(
+      path: '/verify-reset-code',
+      builder: (context, state) => const VerifyResetCodeScreen(),
+    ),
+    GoRoute(
+      path: '/reset-password',
+      builder: (context, state) => const ResetPasswordScreen(),
+    ),
     GoRoute(
       path: '/personal-info',
       builder: (context, state) => const PersonalInfoScreen(),
@@ -81,30 +106,57 @@ final GoRouter router = GoRouter(
     GoRoute(
       path: '/profile',
       builder: (context, state) {
-        final uid = state.extra as String;
+        final uid = state.extra as String?;
+        if (uid == null || uid.isEmpty) {
+          // Trường hợp không có UID hoặc UID rỗng
+          final currentUser = FirebaseAuth.instance.currentUser;
+          if (currentUser != null) {
+            return ProfileScreen(uid: currentUser.uid);
+          } else {
+            // Nếu không có user đang đăng nhập
+            Future.microtask(() => context.go('/login'));
+            return const Center(child: CircularProgressIndicator());
+          }
+        }
         return ProfileScreen(uid: uid);
       },
     ),
-GoRoute(
-          path: '/message',
-          builder: (context, state) => const MessageScreen(),
-          routes: [
-            GoRoute(
-              path: 'chat/:userName',
-              builder: (context, state) {
-                final userName = state.pathParameters['userName']!;
-                return ChatScreen(userName: userName);
-              },
-            ),
-          ],
+    GoRoute(
+      path: '/edit-profile/:editType',
+      builder: (context, state) {
+        final editType = state.pathParameters['editType'] ?? '';
+        return EditProfileScreen(editType: editType);
+      },
+    ),
+    GoRoute(
+      path: '/message',
+      builder: (context, state) => const MessageScreen(),
+      routes: [
+        GoRoute(
+          path: 'chat/:userName',
+          builder: (context, state) {
+            final userName = state.pathParameters['userName']!;
+            return ChatScreen(userName: userName);
+          },
         ),
+      ],
+    ),
+    GoRoute(
+      path: '/list-friend',
+      builder: (context, state) => FriendListScreen(),
+    ),
   ],
 );
 
-class ScaffoldWithNavBar extends StatelessWidget {
+class ScaffoldWithNavBar extends StatefulWidget {
   final Widget child;
   const ScaffoldWithNavBar({super.key, required this.child});
 
+  @override
+  State<ScaffoldWithNavBar> createState() => _ScaffoldWithNavBarState();
+}
+
+class _ScaffoldWithNavBarState extends State<ScaffoldWithNavBar> {
   static const tabs = ['/', '/friend', '/message', '/notification', '/menu'];
 
   static const tabIcons = [
@@ -115,9 +167,28 @@ class ScaffoldWithNavBar extends StatelessWidget {
     FontAwesomeIcons.bars,
   ];
 
-  int _locationToIndex(String location) {
-    final index = tabs.indexWhere((t) => location.startsWith(t));
-    return index < 0 ? 0 : index;
+  // Determine which tab is selected based on the current location
+  int _getSelectedIndex(BuildContext context) {
+    final String location = GoRouterState.of(context).uri.toString();
+
+    // Handle exact matches first
+    int index = tabs.indexOf(location);
+    if (index != -1) return index;
+
+    // Handle nested routes
+    if (location.startsWith('/message/')) {
+      return 2; // Index of message tab
+    }
+
+    // Handle other partial matches
+    for (int i = 0; i < tabs.length; i++) {
+      if (location.startsWith(tabs[i]) && tabs[i] != '/') {
+        return i;
+      }
+    }
+
+    // Default to home if no match
+    return location == '/' ? 0 : -1;
   }
 
   void _showCreateOptions(BuildContext context) {
@@ -129,56 +200,64 @@ class ScaffoldWithNavBar extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
-                leading: const FaIcon(FontAwesomeIcons.penToSquare, color: Color(0xFF1877F2)),
+                leading: const FaIcon(
+                  FontAwesomeIcons.penToSquare,
+                  color: Color(0xFF1877F2),
+                ),
                 title: const Text('Bài viết'),
                 onTap: () {
                   Navigator.pop(context);
                   showDialog(
                     context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text('Tạo bài viết'),
-                      content: const TextField(
-                        decoration: InputDecoration(
-                          hintText: 'Bạn đang nghĩ gì?',
+                    builder:
+                        (context) => AlertDialog(
+                          title: const Text('Tạo bài viết'),
+                          content: const TextField(
+                            decoration: InputDecoration(
+                              hintText: 'Bạn đang nghĩ gì?',
+                            ),
+                            maxLines: 3,
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text('Hủy'),
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                // Lưu bài viết
+                                Navigator.pop(context);
+                              },
+                              child: const Text('Đăng'),
+                            ),
+                          ],
                         ),
-                        maxLines: 3,
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text('Hủy'),
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            // Lưu bài viết
-                            Navigator.pop(context);
-                          },
-                          child: const Text('Đăng'),
-                        ),
-                      ],
-                    ),
                   );
                 },
               ),
               ListTile(
-                leading: const FaIcon(FontAwesomeIcons.camera, color: Color(0xFF1877F2)),
+                leading: const FaIcon(
+                  FontAwesomeIcons.camera,
+                  color: Color(0xFF1877F2),
+                ),
                 title: const Text('Tin'),
                 onTap: () {
                   Navigator.pop(context);
                   showDialog(
                     context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text('Tạo tin'),
-                      content: const Text(
-                        'Chức năng tạo tin chưa được triển khai.',
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text('OK'),
+                    builder:
+                        (context) => AlertDialog(
+                          title: const Text('Tạo tin'),
+                          content: const Text(
+                            'Chức năng tạo tin chưa được triển khai.',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text('OK'),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
                   );
                 },
               ),
@@ -191,7 +270,7 @@ class ScaffoldWithNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final currentIndex = _locationToIndex(GoRouterState.of(context).uri.toString());
+    final selectedIndex = _getSelectedIndex(context);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF0F2F5), // Facebook background color
@@ -207,11 +286,19 @@ class ScaffoldWithNavBar extends StatelessWidget {
         ),
         actions: [
           IconButton(
-            icon: const FaIcon(FontAwesomeIcons.plus, size: 30, color: Colors.white),
+            icon: const FaIcon(
+              FontAwesomeIcons.plus,
+              size: 30,
+              color: Colors.white,
+            ),
             onPressed: () => _showCreateOptions(context),
           ),
           IconButton(
-            icon: const FaIcon(FontAwesomeIcons.magnifyingGlass, size: 25, color: Colors.white),
+            icon: const FaIcon(
+              FontAwesomeIcons.magnifyingGlass,
+              size: 25,
+              color: Colors.white,
+            ),
             onPressed: () {
               context.go('/search');
             },
@@ -227,28 +314,22 @@ class ScaffoldWithNavBar extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: List.generate(tabs.length, (index) {
-                final isSelected = currentIndex == index;
-                return InkWell(
-                  onTap: () => context.go(tabs[index]),
-                  splashColor: const Color(0xFF1877F2).withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(8),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    curve: Curves.easeInOut,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        AnimatedOpacity(
-                          opacity: isSelected ? 1.0 : 0.7,
-                          duration: const Duration(milliseconds: 200),
-                          child: FaIcon(
-                            tabIcons[index],
-                            color: isSelected ? const Color(0xFF1877F2) : Colors.grey[600],
-                            size: 24,
-                          ),
-                        ),                      
-                      ],
+                final isSelected = selectedIndex == index;
+
+                return GestureDetector(
+                  onTap: () {
+                    context.go(tabs[index]);
+                  },
+                  child: Container(
+                    width: 60,
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: FaIcon(
+                      tabIcons[index],
+                      color:
+                          isSelected
+                              ? const Color(0xFF1877F2) // Facebook blue
+                              : Colors.grey[600], // Grey
+                      size: 24,
                     ),
                   ),
                 );
@@ -256,7 +337,7 @@ class ScaffoldWithNavBar extends StatelessWidget {
             ),
           ),
           const Divider(height: 1, color: Colors.grey),
-          Expanded(child: child),
+          Expanded(child: widget.child),
         ],
       ),
     );
