@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_facebook_clone/services/auth_service.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mailer/mailer.dart';
 import 'package:mailer/smtp_server.dart';

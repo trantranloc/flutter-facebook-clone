@@ -1,96 +1,128 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_facebook_clone/services/user_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_facebook_clone/models/User.dart';
-import 'package:flutter_facebook_clone/services/auth_service.dart';
 
 class UserProvider with ChangeNotifier {
   UserModel? _userModel;
   bool _isLoading = false;
+  String? _error;
 
   UserModel? get userModel => _userModel;
   bool get isLoading => _isLoading;
+  String? get error => _error;
 
   void setLoading(bool value) {
     _isLoading = value;
+    _error = null;
     notifyListeners();
   }
 
-  // Tải dữ liệu người dùng
-  Future<void> loadUserData(String uid, AuthService auth) async {
-    // Kiểm tra cache trước
+  // Load user data
+  Future<void> loadUserData(String uid, UserService userService) async {
+    if (uid.isEmpty) {
+      _error = 'Invalid user ID';
+      notifyListeners();
+      return;
+    }
+
+    // Check cache first
     UserModel? cachedUser = await _getCachedUser();
     if (cachedUser != null) {
       _userModel = cachedUser;
       _isLoading = false;
+      _error = null;
       notifyListeners();
-      // Làm mới dữ liệu nền nếu cần (tùy chọn)
-      _refreshUserData(uid, auth);
+      // Refresh data in background
+      _refreshUserData(uid, userService).catchError((e) {
+        print('Background refresh failed: $e');
+      });
       return;
     }
 
-    // Tải từ Firebase nếu không có cache
+    // Load from Firebase if no cache
     _isLoading = true;
+    _error = null;
     notifyListeners();
+
     try {
-      final userModel = await auth.getUser(uid);
-      _userModel = userModel;
+      final userModel = await userService.getUser(uid);
       if (userModel != null) {
-        await _cacheUser(userModel); // Lưu vào cache
+        _userModel = userModel;
+        await _cacheUser(userModel);
+      } else {
+        _error = 'User not found';
       }
     } catch (e) {
-      print('Lỗi khi tải thông tin người dùng: $e');
+      _error = 'Failed to load user data: $e';
+      print(_error);
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
-    _isLoading = false;
-    notifyListeners();
   }
 
-  // Xóa dữ liệu người dùng (khi đăng xuất)
+  // Clear user data (on logout)
   Future<void> clearUser() async {
     _userModel = null;
     _isLoading = false;
-    await _clearCache(); // Xóa cache
+    _error = null;
+    await _clearCache();
     notifyListeners();
   }
 
-  // Lưu UserModel vào SharedPreferences
+  // Save UserModel to SharedPreferences
   Future<void> _cacheUser(UserModel user) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('cached_user', jsonEncode(user.toJson()));
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('cached_user', jsonEncode(user.toJson()));
+    } catch (e) {
+      print('Failed to cache user data: $e');
+    }
   }
 
-  // Lấy UserModel từ SharedPreferences
+  // Get UserModel from SharedPreferences
   Future<UserModel?> _getCachedUser() async {
-    final prefs = await SharedPreferences.getInstance();
-    final userData = prefs.getString('cached_user');
-    if (userData != null) {
-      return UserModel.tryParse(jsonDecode(userData));
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userData = prefs.getString('cached_user');
+      if (userData != null) {
+        return UserModel.tryParse(jsonDecode(userData));
+      }
+    } catch (e) {
+      print('Failed to get cached user data: $e');
     }
     return null;
   }
 
-  // Xóa cache
+  // Clear cache
   Future<void> _clearCache() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('cached_user');
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('cached_user');
+    } catch (e) {
+      print('Failed to clear cache: $e');
+    }
   }
 
-  // Làm mới dữ liệu từ Firebase (tùy chọn)
-  Future<void> _refreshUserData(String uid, AuthService auth) async {
+  // Refresh data from Firebase
+  Future<void> _refreshUserData(String uid, UserService userService) async {
     try {
-      final userModel = await auth.getUser(uid);
+      final userModel = await userService.getUser(uid);
       if (userModel != null) {
         _userModel = userModel;
         await _cacheUser(userModel);
         notifyListeners();
       }
     } catch (e) {
-      print('Lỗi khi làm mới dữ liệu: $e');
+      print('Failed to refresh user data: $e');
     }
   }
 
   void updateUser(UserModel updatedUser) {
     _userModel = updatedUser;
+    _error = null;
     notifyListeners();
   }
 }
