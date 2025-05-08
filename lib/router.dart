@@ -149,10 +149,10 @@ final GoRouter router = GoRouter(
       builder: (context, state) => const MessageScreen(),
       routes: [
         GoRoute(
-          path: 'chat/:userName',
+          path: 'chat/:userId',
           builder: (context, state) {
-            final userName = state.pathParameters['userName']!;
-            return ChatScreen(userName: userName);
+            final userId = state.pathParameters['userId']!;
+            return ChatScreen(userId: userId);
           },
         ),
       ],

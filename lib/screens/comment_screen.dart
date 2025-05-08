@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../services/CommentService.dart';
+import '../services/comment_service.dart';
 
 class CommentScreen extends StatefulWidget {
   final String postId;

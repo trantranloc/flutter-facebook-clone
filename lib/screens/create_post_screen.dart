@@ -1,7 +1,11 @@
 // lib/screens/create_post_screen.dart
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'dart:io';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:uuid/uuid.dart';
+import '../models/Post.dart';
 
 class CreatePostScreen extends StatefulWidget {
   const CreatePostScreen({super.key});
@@ -13,6 +17,7 @@ class CreatePostScreen extends StatefulWidget {
 class _CreatePostScreenState extends State<CreatePostScreen> {
   final TextEditingController _captionController = TextEditingController();
   File? _selectedImage;
+  bool _isPosting = false;
 
   Future<void> _pickImage() async {
     final picker = ImagePicker();
@@ -25,7 +30,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     }
   }
 
-  void _submitPost() {
+  Future<void> _submitPost() async {
     final caption = _captionController.text.trim();
     if (caption.isEmpty && _selectedImage == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -34,12 +39,41 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       return;
     }
 
-    //  Gửi dữ liệu bài viết về server hoặc thêm vào danh sách bài viết
+    setState(() {
+      _isPosting = true;
+    });
+
+    String? imageUrl;
+    if (_selectedImage != null) {
+      final fileName = const Uuid().v4();
+      final ref = FirebaseStorage.instance.ref().child(
+        'post_images/$fileName.jpg',
+      );
+      await ref.putFile(_selectedImage!);
+      imageUrl = await ref.getDownloadURL();
+    }
+
+    final docRef = FirebaseFirestore.instance.collection('posts').doc();
+    final newPost = Post(
+      id: docRef.id,
+      userId: 'user_demo', // 👈 thay bằng thông tin người dùng thật nếu có
+      content: caption,
+      imageUrls: imageUrl != null ? [imageUrl] : [],
+      createdAt: Timestamp.now(),
+      likes: 0,
+    );
+
+    await docRef.set(newPost.toMap());
+
+    setState(() {
+      _isPosting = false;
+    });
+
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text('Đăng bài thành công!')));
 
-    Navigator.pop(context);
+    Navigator.pop(context, newPost);
   }
 
   @override
@@ -49,12 +83,12 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         title: const Text('Tạo bài viết mới'),
         actions: [
           TextButton(
-            onPressed: _submitPost,
+            onPressed: _isPosting ? null : _submitPost,
             child: const Text('Đăng', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -80,9 +114,21 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             ),
             const SizedBox(height: 16),
             if (_selectedImage != null)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.file(_selectedImage!),
+              Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.file(_selectedImage!),
+                  ),
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    child: IconButton(
+                      icon: const Icon(Icons.close, color: Colors.red),
+                      onPressed: () => setState(() => _selectedImage = null),
+                    ),
+                  ),
+                ],
               ),
             const SizedBox(height: 12),
             OutlinedButton.icon(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_facebook_clone/services/chat_service.dart';
 import 'package:go_router/go_router.dart';
 
 class MessageScreen extends StatefulWidget {
@@ -9,23 +10,28 @@ class MessageScreen extends StatefulWidget {
 }
 
 class _MessageScreenState extends State<MessageScreen> {
-  // Giả lập trạng thái hoạt động cho từng người
-  final Map<String, bool> _statusMap = {
-    'Jorge': true,
-    'Claire': false,
-    'Darrell': true,
-    'Aubrey': false,
-    'Dustin': true,
-    'Albert Flores': true,
-    'Bessie Cooper': false,
-    'Esther Howard': true,
-    'Kathryn Murphy': false,
-    'Darrell Steward': true,
-    'Savannah Nguyen': false,
-    'Jerome Bell': true,
-    'Wade Warren': false,
-    'Robert Fox': true,
-  };
+  // Dữ liệu bạn bè từ Firestore
+  List<Map<String, dynamic>> _friendsList = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchFriends();
+  }
+
+  // Lấy danh sách bạn bè từ ChatService
+  Future<void> _fetchFriends() async {
+    final chatService = ChatService();
+    final friends = await chatService.getFriendsWithLastMessage();
+    if (mounted) {
+      // Kiểm tra xem widget còn mounted trước khi gọi setState
+      setState(() {
+        _friendsList = friends;
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -56,150 +62,44 @@ class _MessageScreenState extends State<MessageScreen> {
           ),
         ],
       ),
-      body: ListView(
-        children: [
-          // Horizontal Friends Section
-          Container(
-            height: 90,
-            padding: const EdgeInsets.symmetric(vertical: 5),
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              children: [
-                FriendAvatar(
-                  name: 'Jorge',
-                  image: 'assets/ronaldo.jpg',
-                  isActive: _statusMap['Jorge']!,
-                  onTap: () {
-                    context.go('/message/chat/Jorge');
-                  },
-                ),
-                FriendAvatar(
-                  name: 'Claire',
-                  image: 'assets/ronaldo.jpg',
-                  isActive: _statusMap['Claire']!,
-                  onTap: () {
-                    context.go('/message/chat/Claire');
-                  },
-                ),
-                FriendAvatar(
-                  name: 'Darrell',
-                  image: 'assets/ronaldo.jpg',
-                  isActive: _statusMap['Darrell']!,
-                  onTap: () {
-                    context.go('/message/chat/Darrell');
-                  },
-                ),
-                FriendAvatar(
-                  name: 'Aubrey',
-                  image: 'assets/ronaldo.jpg',
-                  isActive: _statusMap['Aubrey']!,
-                  onTap: () {
-                    context.go('/message/chat/Aubrey');
-                  },
-                ),
-                FriendAvatar(
-                  name: 'Dustin',
-                  image: 'assets/ronaldo.jpg',
-                  isActive: _statusMap['Dustin']!,
-                  onTap: () {
-                    context.go('/message/chat/Dustin');
-                  },
-                ),
-                FriendAvatar(
-                  name: 'Dustin',
-                  image: 'assets/ronaldo.jpg',
-                  isActive: _statusMap['Dustin']!,
-                  onTap: () {
-                    context.go('/message/chat/Dustin');
-                  },
-                ),
-                FriendAvatar(
-                  name: 'Dustin',
-                  image: 'assets/ronaldo.jpg',
-                  isActive: _statusMap['Dustin']!,
-                  onTap: () {
-                    context.go('/message/chat/Dustin');
-                  },
-                ),
-              ],
-            ),
-          ),
-          const Divider(),
-          // Messages Section
-          MessageTile(
-            name: 'Albert Flores',
-            message: 'Hey! Whats up!',
-            isActive: _statusMap['Albert Flores']!,
-            onTap: () {
-              context.go('/message/chat/Albert Flores');
-            },
-          ),
-          MessageTile(
-            name: 'Bessie Cooper',
-            message: 'tastes amazing!',
-            isActive: _statusMap['Bessie Cooper']!,
-            onTap: () {
-              context.go('/message/chat/Bessie Cooper');
-            },
-          ),
-          MessageTile(
-            name: 'Esther Howard',
-            message: 'when will it be ready?',
-            isActive: _statusMap['Esther Howard']!,
-            onTap: () {
-              context.go('/message/chat/Esther Howard');
-            },
-          ),
-          MessageTile(
-            name: 'Kathryn Murphy',
-            message: 'Lo intento gracias',
-            isActive: _statusMap['Kathryn Murphy']!,
-            onTap: () {
-              context.go('/message/chat/Kathryn Murphy');
-            },
-          ),
-          MessageTile(
-            name: 'Darrell Steward',
-            message: 'Ready to explore new places ✈️',
-            isActive: _statusMap['Darrell Steward']!,
-            onTap: () {
-              context.go('/message/chat/Darrell Steward');
-            },
-          ),
-          MessageTile(
-            name: 'Savannah Nguyen',
-            message: 'Change/cancel appointment',
-            isActive: _statusMap['Savannah Nguyen']!,
-            onTap: () {
-              context.go('/message/chat/Savannah Nguyen');
-            },
-          ),
-          MessageTile(
-            name: 'Jerome Bell',
-            message: 'Administrative question',
-            isActive: _statusMap['Jerome Bell']!,
-            onTap: () {
-              context.go('/message/chat/Jerome Bell');
-            },
-          ),
-          MessageTile(
-            name: 'Wade Warren',
-            message: 'Need a hug 🥰',
-            isActive: _statusMap['Wade Warren']!,
-            onTap: () {
-              context.go('/message/chat/Wade Warren');
-            },
-          ),
-          MessageTile(
-            name: 'Robert Fox',
-            message: 'Yoga is the key to finding inner peace 🧘',
-            isActive: _statusMap['Robert Fox']!,
-            onTap: () {
-              context.go('/message/chat/Robert Fox');
-            },
-          ),
-        ],
-      ),
+      body:
+          _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : ListView(
+                children: [
+                  // Horizontal Friends Section
+                  Container(
+                    height: 90,
+                    padding: const EdgeInsets.symmetric(vertical: 5),
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      children:
+                          _friendsList.take(7).map((friend) {
+                            return FriendAvatar(
+                              name: friend['name'],
+                              image: friend['avatarUrl'],
+                              isActive: friend['isActive'],
+                              onTap: () {
+                                context.go('/message/chat/${friend['uid']}');
+                              },
+                            );
+                          }).toList(),
+                    ),
+                  ),
+                  const Divider(),
+                  // Messages Section
+                  ..._friendsList.map((friend) {
+                    return MessageTile(
+                      name: friend['name'],
+                      message: friend['lastMessage'],
+                      isActive: friend['isActive'],
+                      onTap: () {
+                        context.go('/message/chat/${friend['uid']}');
+                      },
+                    );
+                  }),
+                ],
+              ),
     );
   }
 }
@@ -207,7 +107,7 @@ class _MessageScreenState extends State<MessageScreen> {
 class FriendAvatar extends StatelessWidget {
   final String name;
   final String image;
-  final bool isActive; // Thêm trạng thái hoạt động
+  final bool isActive;
   final VoidCallback onTap;
 
   const FriendAvatar({
@@ -231,7 +131,10 @@ class FriendAvatar extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 28,
-                  backgroundImage: AssetImage(image),
+                  backgroundImage:
+                      image.startsWith('http')
+                          ? NetworkImage(image)
+                          : AssetImage(image) as ImageProvider,
                   onBackgroundImageError: (exception, stackTrace) {
                     print('Error loading image: $exception');
                   },
@@ -269,7 +172,7 @@ class FriendAvatar extends StatelessWidget {
 class MessageTile extends StatelessWidget {
   final String name;
   final String message;
-  final bool isActive; // Thêm trạng thái hoạt động
+  final bool isActive;
   final VoidCallback onTap;
 
   const MessageTile({

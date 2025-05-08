@@ -1,11 +1,13 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_facebook_clone/services/chat_service.dart';
 import 'package:go_router/go_router.dart';
 
 class ChatScreen extends StatefulWidget {
-  final String userName;
-  final List<String>? members; // Thêm danh sách thành viên cho chat nhóm
+  final String userId;
+  final List<String>? members;
 
-  const ChatScreen({super.key, required this.userName, this.members});
+  const ChatScreen({super.key, required this.userId, this.members});
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -13,50 +15,39 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _messageController = TextEditingController();
-  final List<Map<String, dynamic>> _messages = [
-    {'sender': 'You', 'message': 'Hi! How are you?', 'type': 'text'},
-    {
-      'sender': 'Other',
-      'message': 'Hey! I’m good, thanks for asking.',
-      'type': 'text',
-    },
-    {'sender': 'You', 'message': 'Great to hear that!', 'type': 'text'},
-    {
-      'sender': 'Other',
-      'message': 'What about you? How’s your day going?',
-      'type': 'text',
-    },
-    {
-      'sender': 'You',
-      'message': 'Shared a file: document.pdf',
-      'type': 'file',
-      'fileUrl': 'https://example.com/document.pdf',
-    },
-  ];
+  final ChatService _chatService = ChatService();
+  Map<String, dynamic>? _otherUserData;
 
-  final bool _isOnline = true;
+  @override
+  void initState() {
+    super.initState();
+    _fetchOtherUserData();
+  }
+
+  // Lấy thông tin người dùng khác
+  Future<void> _fetchOtherUserData() async {
+    final userDoc =
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(widget.userId)
+            .get();
+    if (userDoc.exists) {
+      setState(() {
+        _otherUserData = userDoc.data();
+      });
+    }
+  }
 
   void _sendMessage() {
-    if (_messageController.text.isNotEmpty) {
-      setState(() {
-        _messages.add({
-          'sender': 'You',
-          'message': _messageController.text,
-          'type': 'text',
-        });
-        _messageController.clear();
-
-        // Simulate incoming message
-        Future.delayed(const Duration(seconds: 1), () {
-          setState(() {
-            _messages.add({
-              'sender': 'Other',
-              'message': 'I got your message! 😊',
-              'type': 'text',
-            });
-          });
-        });
-      });
+    if (_messageController.text.trim().isNotEmpty) {
+      _chatService.sendMessage(
+        widget.userId,
+        _messageController.text.trim(),
+        'text',
+      );
+      _messageController.clear();
+      // Cuộn xuống tin nhắn mới nhất (tuỳ chọn)
+      // ScrollController có thể được thêm nếu cần
     }
   }
 
@@ -86,14 +77,12 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
               TextButton(
                 onPressed: () {
-                  setState(() {
-                    _messages.add({
-                      'sender': 'You',
-                      'message': 'Shared a file: sample.pdf',
-                      'type': 'file',
-                      'fileUrl': 'https://example.com/sample.pdf',
-                    });
-                  });
+                  _chatService.sendMessage(
+                    widget.userId,
+                    'Shared a file: sample.pdf',
+                    'file',
+                    fileUrl: 'https://example.com/sample.pdf',
+                  );
                   Navigator.pop(context);
                 },
                 child: const Text('Share'),
@@ -119,10 +108,16 @@ class _ChatScreenState extends State<ChatScreen> {
           children: [
             Stack(
               children: [
-                const CircleAvatar(
+                CircleAvatar(
                   radius: 18,
-                  backgroundColor: Colors.grey,
-                  child: Icon(Icons.person, color: Colors.white),
+                  backgroundImage:
+                      _otherUserData?['avatarUrl']?.isNotEmpty == true
+                          ? NetworkImage(_otherUserData!['avatarUrl'])
+                          : null,
+                  child:
+                      _otherUserData?['avatarUrl']?.isNotEmpty != true
+                          ? const Icon(Icons.person, color: Colors.white)
+                          : null,
                 ),
                 Positioned(
                   right: 0,
@@ -131,7 +126,10 @@ class _ChatScreenState extends State<ChatScreen> {
                     width: 14,
                     height: 14,
                     decoration: BoxDecoration(
-                      color: _isOnline ? Colors.green : Colors.grey,
+                      color:
+                          _otherUserData?['isOnline'] == true
+                              ? Colors.green
+                              : Colors.grey,
                       shape: BoxShape.circle,
                       border: Border.all(color: Colors.white, width: 2),
                     ),
@@ -141,7 +139,7 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
             const SizedBox(width: 8),
             Text(
-              widget.userName,
+              _otherUserData?['name'] ?? widget.userId,
               style: const TextStyle(
                 color: Colors.black,
                 fontSize: 20,
@@ -179,7 +177,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                       height: 12,
                                       decoration: BoxDecoration(
                                         color:
-                                            _isOnline
+                                            _otherUserData?['isOnline'] == true
                                                 ? Colors.green
                                                 : Colors.grey,
                                         shape: BoxShape.circle,
@@ -207,57 +205,71 @@ class _ChatScreenState extends State<ChatScreen> {
         children: [
           // Chat messages
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(8.0),
-              itemCount: _messages.length,
-              itemBuilder: (context, index) {
-                final message = _messages[index];
-                final isMe = message['sender'] == 'You';
-                return Align(
-                  alignment:
-                      isMe ? Alignment.centerRight : Alignment.centerLeft,
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(vertical: 4.0),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12.0,
-                      vertical: 8.0,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isMe ? Colors.blue[100] : Colors.grey[200],
-                      borderRadius: BorderRadius.circular(12.0),
-                    ),
-                    child:
-                        message['type'] == 'file'
-                            ? InkWell(
-                              onTap: () {
-                                // Mở file (giả lập)
-                                print('Opening file: ${message['fileUrl']}');
-                              },
-                              child: Column(
-                                crossAxisAlignment:
-                                    isMe
-                                        ? CrossAxisAlignment.end
-                                        : CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    message['message']!,
-                                    style: const TextStyle(fontSize: 16.0),
+            child: StreamBuilder<List<Map<String, dynamic>>>(
+              stream: _chatService.getMessages(widget.userId),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return const Center(child: Text('Error loading messages'));
+                }
+                final messages = snapshot.data ?? [];
+                return ListView.builder(
+                  reverse: true, // Hiển thị tin nhắn mới nhất ở dưới
+                  padding: const EdgeInsets.all(8.0),
+                  itemCount: messages.length,
+                  itemBuilder: (context, index) {
+                    final message = messages[index];
+                    final isMe = message['sender'] == 'You';
+                    return Align(
+                      alignment:
+                          isMe ? Alignment.centerRight : Alignment.centerLeft,
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(vertical: 4.0),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12.0,
+                          vertical: 8.0,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isMe ? Colors.blue[100] : Colors.grey[200],
+                          borderRadius: BorderRadius.circular(12.0),
+                        ),
+                        child:
+                            message['type'] == 'file'
+                                ? InkWell(
+                                  onTap: () {
+                                    print(
+                                      'Opening file: ${message['fileUrl']}',
+                                    );
+                                  },
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        isMe
+                                            ? CrossAxisAlignment.end
+                                            : CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        message['message']!,
+                                        style: const TextStyle(fontSize: 16.0),
+                                      ),
+                                      Text(
+                                        message['fileUrl']!,
+                                        style: const TextStyle(
+                                          fontSize: 12.0,
+                                          color: Colors.blue,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                  Text(
-                                    message['fileUrl']!,
-                                    style: const TextStyle(
-                                      fontSize: 12.0,
-                                      color: Colors.blue,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            )
-                            : Text(
-                              message['message']!,
-                              style: const TextStyle(fontSize: 16.0),
-                            ),
-                  ),
+                                )
+                                : Text(
+                                  message['message']!,
+                                  style: const TextStyle(fontSize: 16.0),
+                                ),
+                      ),
+                    );
+                  },
                 );
               },
             ),
@@ -289,6 +301,8 @@ class _ChatScreenState extends State<ChatScreen> {
                       filled: true,
                       fillColor: Colors.grey[200],
                     ),
+                    onSubmitted:
+                        (value) => _sendMessage(), // Gửi khi nhấn Enter
                   ),
                 ),
                 const SizedBox(width: 8),
