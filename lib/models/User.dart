@@ -4,10 +4,12 @@ class UserModel {
   final String email;
   final String avatarUrl;
   final String coverUrl;
-  final String bio;
+   final String bio;
   final String gender;
   final DateTime createdAt;
   final List<String> friends;
+  final List<String> pendingRequests;
+
 
   const UserModel({
     required this.uid,
@@ -19,6 +21,7 @@ class UserModel {
     required this.gender,
     required this.createdAt,
     this.friends = const [],
+    this.pendingRequests = const [],
   });
 
   factory UserModel.fromMap(Map<String, dynamic> map) {
@@ -35,9 +38,24 @@ class UserModel {
               ? DateTime.parse(map['createdAt'])
               : (map['createdAt'] as dynamic)?.toDate() ?? DateTime.now(),
       friends: List<String>.from(map['friends'] ?? []),
+      pendingRequests: map['pendingRequests'] != null
+          ? List<String>.from(map['pendingRequests'])
+          : [],
     );
   }
 
+  Map<String, dynamic> toMap() {
+    return {
+      'name': name,
+      'email': email,
+      'avatarUrl': avatarUrl,
+      'coverUrl': coverUrl,
+      'gender': gender,
+      'createdAt': createdAt.toIso8601String(),
+      'friends': friends,
+      'pendingRequests': pendingRequests,
+    };
+  }
   Map<String, dynamic> toJson() => {
     'uid': uid,
     'name': name,
@@ -60,6 +78,7 @@ class UserModel {
     String? gender,
     DateTime? createdAt,
     List<String>? friends,
+    List<String>? pendingRequests,
   }) {
     return UserModel(
       uid: uid ?? this.uid,
@@ -71,8 +90,10 @@ class UserModel {
       gender: gender ?? this.gender,
       createdAt: createdAt ?? this.createdAt,
       friends: friends ?? this.friends,
+      pendingRequests: pendingRequests ?? this.pendingRequests,
     );
   }
+}
 
   static UserModel? tryParse(dynamic json) {
     if (json == null || json is! Map<String, dynamic>) return null;

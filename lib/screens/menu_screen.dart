@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_facebook_clone/screens/group_screen.dart';
 import 'package:flutter_facebook_clone/providers/user_provider.dart';
 import 'package:flutter_facebook_clone/services/auth_service.dart';
 import 'package:flutter_facebook_clone/services/user_service.dart';
@@ -128,13 +129,27 @@ class _MenuScreenState extends State<MenuScreen> {
                                   ],
                                 ),
                               ),
-                            ),
-                            const Divider(height: 1, thickness: 1),
-                            // Menu Items
-                            Container(
-                              color: Colors.white,
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 8.0,
+                              _buildMenuItem(
+                                icon: Icons.group_work,
+                                title: 'Nhóm',
+                                onTap: () {
+                                  Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const GroupScreen(),
+                              ),
+                            );
+                                },
+                              ),
+                              _buildMenuItem(
+                                icon: Icons.settings,
+                                title: 'Cài đặt & quyền riêng tư',
+                                onTap: () {},
+                              ),
+                              _buildMenuItem(
+                                icon: Icons.help,
+                                title: 'Trợ giúp & hỗ trợ',
+                                onTap: () {},
                               ),
                               child: Column(
                                 children: [
