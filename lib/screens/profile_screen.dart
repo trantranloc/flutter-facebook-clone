@@ -53,46 +53,32 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   Future<void> _loadUserData() async {
-    if (widget.uid.isEmpty) {
-      print('Lỗi: UID rỗng hoặc không hợp lệ');
-      if (mounted) {
-        // Lấy UID từ người dùng hiện tại thay vì chuyển hướng ngay
-        final currentUser = FirebaseAuth.instance.currentUser;
-        if (currentUser != null) {
-          // Tải dữ liệu cho người dùng hiện tại
-          _loadUserWithUID(currentUser.uid);
-        } else {
-          context.go('/login');
-        }
-      }
-      return;
-    }
-
-    _loadUserWithUID(widget.uid);
-  }
-
-  Future<void> _loadUserWithUID(String uid) async {
     setState(() {
       _isLoading = true;
     });
 
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
     try {
-      await userProvider.loadUserData(uid, _userService);
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      await userProvider.loadUserData(widget.uid, _userService);
 
-      // Tải danh sách bạn bè
+      // Load friends list
       final userModel = userProvider.userModel;
       if (userModel != null) {
         final friends = await _userService.getFriends(userModel.friends);
         if (mounted) {
           setState(() {
-            _friends = friends.cast<UserModel>();
+            _friends = friends;
             _isLoading = false;
           });
         }
       }
     } catch (e) {
-      print('Lỗi khi tải thông tin người dùng: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Lỗi khi tải thông tin: $e')));
+      }
+    } finally {
       if (mounted) {
         setState(() {
           _isLoading = false;

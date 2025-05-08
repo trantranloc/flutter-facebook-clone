@@ -18,15 +18,24 @@ class _MenuScreenState extends State<MenuScreen> {
   final AuthService _auth = AuthService();
   final UserService _userService = UserService();
 
+  // Lưu trữ UID của người dùng đã đăng nhập
+  String? _loggedInUserId;
+
   @override
   void initState() {
     super.initState();
-    // Load user data after the frame is built
+    // Lấy UID của người dùng đã đăng nhập
+    _loggedInUserId = FirebaseAuth.instance.currentUser?.uid;
+
+    // Load dữ liệu người dùng sau khi frame được xây dựng
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final userProvider = Provider.of<UserProvider>(context, listen: false);
-      final currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser != null && userProvider.userModel == null) {
-        userProvider.loadUserData(currentUser.uid, _userService);
+
+      // Kiểm tra nếu UID hợp lệ và userModel chưa được tải hoặc không khớp với người dùng đã đăng nhập
+      if (_loggedInUserId != null &&
+          (userProvider.userModel == null ||
+              userProvider.userModel?.uid != _loggedInUserId)) {
+        userProvider.loadUserData(_loggedInUserId!, _userService);
       }
     });
   }
@@ -35,7 +44,13 @@ class _MenuScreenState extends State<MenuScreen> {
   Widget build(BuildContext context) {
     return Consumer<UserProvider>(
       builder: (context, userProvider, child) {
-        final userModel = userProvider.userModel;
+        // Chỉ hiển thị userModel nếu nó khớp với người dùng đã đăng nhập
+        final userModel =
+            (userProvider.userModel != null &&
+                    userProvider.userModel!.uid == _loggedInUserId)
+                ? userProvider.userModel
+                : null;
+
         return Scaffold(
           backgroundColor: const Color(0xFFF0F2F5),
           body:
@@ -129,28 +144,10 @@ class _MenuScreenState extends State<MenuScreen> {
                                   ],
                                 ),
                               ),
-                              _buildMenuItem(
-                                icon: Icons.group_work,
-                                title: 'Nhóm',
-                                onTap: () {
-                                  Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const GroupScreen(),
-                              ),
-                            );
-                                },
-                              ),
-                              _buildMenuItem(
-                                icon: Icons.settings,
-                                title: 'Cài đặt & quyền riêng tư',
-                                onTap: () {},
-                              ),
-                              _buildMenuItem(
-                                icon: Icons.help,
-                                title: 'Trợ giúp & hỗ trợ',
-                                onTap: () {},
-                              ),
+                            ),
+                            Container(
+                              color: Colors.white,
+                              margin: const EdgeInsets.only(top: 8),
                               child: Column(
                                 children: [
                                   _buildMenuItem(
@@ -208,16 +205,15 @@ class _MenuScreenState extends State<MenuScreen> {
                                     key: 'groups',
                                     icon: Icons.group_work,
                                     title: 'Nhóm',
-                                    onTap:
-                                        () => ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          const SnackBar(
-                                            content: Text(
-                                              'Tính năng đang phát triển',
-                                            ),
-                                          ),
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder:
+                                              (context) => const GroupScreen(),
                                         ),
+                                      );
+                                    },
                                   ),
                                   _buildMenuItem(
                                     key: 'settings',
@@ -281,7 +277,7 @@ class _MenuScreenState extends State<MenuScreen> {
     required VoidCallback onTap,
   }) {
     return ListTile(
-      key: ValueKey(key), // Thêm key duy nhất
+      key: ValueKey(key),
       leading: Icon(icon, color: const Color(0xFF1877F2), size: 28),
       title: Text(
         title,

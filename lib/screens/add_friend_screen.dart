@@ -30,7 +30,7 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen> {
 
     
     final currentUserDoc = await _firestore.collection('users').doc(currentUser.uid).get();
-    final currentUserData = currentUserDoc.data() as Map<String, dynamic>?;
+    final currentUserData = currentUserDoc.data();
     final List<String> pendingRequestUids = List<String>.from(currentUserData?['pendingRequests'] ?? []);
 
     if (pendingRequestUids.isEmpty) return [];
@@ -40,7 +40,7 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen> {
         .where(FieldPath.documentId, whereIn: pendingRequestUids)
         .get();
     return snapshot.docs
-        .map((doc) => UserModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+        .map((doc) => UserModel.fromMap(doc.data() as Map<String, dynamic>))
         .toList();
   }
 

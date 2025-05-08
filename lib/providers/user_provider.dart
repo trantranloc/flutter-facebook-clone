@@ -29,7 +29,7 @@ class UserProvider with ChangeNotifier {
 
     // Check cache first
     UserModel? cachedUser = await _getCachedUser();
-    if (cachedUser != null) {
+    if (cachedUser != null && cachedUser.uid == uid ) {
       _userModel = cachedUser;
       _isLoading = false;
       _error = null;

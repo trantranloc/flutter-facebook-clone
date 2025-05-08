@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_facebook_clone/services/auth_service.dart';
+import 'package:flutter_facebook_clone/widgets/personal_info_screen.dart';
 import 'package:go_router/go_router.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -154,7 +155,18 @@ class _LoginScreenState extends State<LoginScreen> {
                     height: 45,
                     child: OutlinedButton(
                       onPressed: () {
-                        context.go("/personal-info");
+                        try {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const PersonalInfoScreen(),
+                            ),
+                          );
+                        } catch (e) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Lỗi điều hướng: $e')),
+                          );
+                        }
                       },
                       style: OutlinedButton.styleFrom(
                         side: const BorderSide(color: Color(0xFF1778F2)),

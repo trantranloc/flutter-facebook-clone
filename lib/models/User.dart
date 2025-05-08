@@ -4,12 +4,11 @@ class UserModel {
   final String email;
   final String avatarUrl;
   final String coverUrl;
-   final String bio;
+  final String bio;
   final String gender;
   final DateTime createdAt;
   final List<String> friends;
   final List<String> pendingRequests;
-
 
   const UserModel({
     required this.uid,
@@ -38,9 +37,10 @@ class UserModel {
               ? DateTime.parse(map['createdAt'])
               : (map['createdAt'] as dynamic)?.toDate() ?? DateTime.now(),
       friends: List<String>.from(map['friends'] ?? []),
-      pendingRequests: map['pendingRequests'] != null
-          ? List<String>.from(map['pendingRequests'])
-          : [],
+      pendingRequests:
+          map['pendingRequests'] != null
+              ? List<String>.from(map['pendingRequests'])
+              : [],
     );
   }
 
@@ -56,6 +56,7 @@ class UserModel {
       'pendingRequests': pendingRequests,
     };
   }
+
   Map<String, dynamic> toJson() => {
     'uid': uid,
     'name': name,
@@ -93,7 +94,6 @@ class UserModel {
       pendingRequests: pendingRequests ?? this.pendingRequests,
     );
   }
-}
 
   static UserModel? tryParse(dynamic json) {
     if (json == null || json is! Map<String, dynamic>) return null;
@@ -104,3 +104,4 @@ class UserModel {
     }
   }
 }
+

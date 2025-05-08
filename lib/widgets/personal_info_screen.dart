@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_facebook_clone/widgets/email_screen.dart';
 
 class PersonalInfoScreen extends StatefulWidget {
   const PersonalInfoScreen({super.key});
@@ -23,14 +24,25 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
 
   void _nextScreen() {
     if (_formKey.currentState!.validate() && _selectedGender != null) {
-      context.push(
-        '/email',
-        extra: {
-          'firstName': _firstNameController.text,
-          'lastName': _lastNameController.text,
-          'gender': _selectedGender,
-        },
-      );
+      try {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const EmailScreen(),
+            settings: RouteSettings(
+              arguments: {
+                'firstName': _firstNameController.text,
+                'lastName': _lastNameController.text,
+                'gender': _selectedGender,
+              },
+            ),
+          ),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Lỗi điều hướng: $e')));
+      }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -46,6 +58,10 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
       appBar: AppBar(
         title: const Text('Đăng ký'),
         backgroundColor: Colors.blue[800],
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.pop(),
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),

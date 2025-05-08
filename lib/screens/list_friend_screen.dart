@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_facebook_clone/models/user.dart';
-import 'package:flutter_facebook_clone/screens/friend_screen.dart';
 import 'package:go_router/go_router.dart';
 
 class FriendListScreen extends StatefulWidget {
@@ -37,7 +36,7 @@ class _FriendListScreenState extends State<FriendListScreen> {
     }
 
     final currentUserDoc = await _firestore.collection('users').doc(currentUser.uid).get();
-    final currentUserData = currentUserDoc.data() as Map<String, dynamic>?;
+    final currentUserData = currentUserDoc.data();
     final List<String> friendUids = List<String>.from(currentUserData?['friends'] ?? []);
 
     if (friendUids.isEmpty) return [];
@@ -47,7 +46,7 @@ class _FriendListScreenState extends State<FriendListScreen> {
         .where(FieldPath.documentId, whereIn: friendUids)
         .get();
     return snapshot.docs
-        .map((doc) => UserModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+        .map((doc) => UserModel.fromMap(doc.data() as Map<String, dynamic>))
         .toList();
   }
 
@@ -241,7 +240,7 @@ class _FriendListScreenState extends State<FriendListScreen> {
                   ),
                   const Divider(),
                 ],
-              )).toList(),
+              )),
             ],
           );
         },

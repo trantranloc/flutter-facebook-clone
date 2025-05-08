@@ -52,7 +52,7 @@ class _SearchScreenState extends State<SearchScreen> {
     try {
       final userSnapshot = await FirebaseFirestore.instance.collection('users').get();
       final userResults = userSnapshot.docs
-          .map((doc) => UserModel.fromMap(doc.data(), doc.id))
+          .map((doc) => UserModel.fromMap(doc.data()))
           .where((user) => user.name.toLowerCase().contains(query))
           .toList();
 

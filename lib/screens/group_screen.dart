@@ -42,7 +42,11 @@ class _GroupScreenState extends State<GroupScreen> {
         ),
         title: const Text(
           'Nhóm',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.black),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+            color: Colors.black,
+          ),
         ),
         backgroundColor: Colors.white,
         actions: [
@@ -95,7 +99,10 @@ class _GroupScreenState extends State<GroupScreen> {
                             children: [
                               Icon(Icons.group, color: Color(0xFF1877F2)),
                               SizedBox(width: 4),
-                              Text('Nhóm của bạn', style: TextStyle(color: Color(0xFF1877F2))),
+                              Text(
+                                'Nhóm của bạn',
+                                style: TextStyle(color: Color(0xFF1877F2)),
+                              ),
                             ],
                           ),
                         ),
@@ -106,7 +113,10 @@ class _GroupScreenState extends State<GroupScreen> {
                             children: [
                               Icon(Icons.explore, color: Color(0xFF1877F2)),
                               SizedBox(width: 4),
-                              Text('Khám phá', style: TextStyle(color: Color(0xFF1877F2))),
+                              Text(
+                                'Khám phá',
+                                style: TextStyle(color: Color(0xFF1877F2)),
+                              ),
                             ],
                           ),
                         ),
@@ -117,7 +127,10 @@ class _GroupScreenState extends State<GroupScreen> {
                             children: [
                               Icon(Icons.mail, color: Color(0xFF1877F2)),
                               SizedBox(width: 4),
-                              Text('Lời mời', style: TextStyle(color: Color(0xFF1877F2))),
+                              Text(
+                                'Lời mời',
+                                style: TextStyle(color: Color(0xFF1877F2)),
+                              ),
                             ],
                           ),
                         ),
@@ -137,7 +150,10 @@ class _GroupScreenState extends State<GroupScreen> {
                   children: [
                     const Text(
                       'Truy cập thường xuyên nhất',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
                     ),
                     TextButton(
                       onPressed: () {},
@@ -152,35 +168,44 @@ class _GroupScreenState extends State<GroupScreen> {
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => const CreateGroupScreen()),
+                    MaterialPageRoute(
+                      builder: (context) => const CreateGroupScreen(),
+                    ),
                   ).then((_) {
                     setState(() {});
                   });
                 },
               ),
               const Divider(),
-              ...groups.map((group) => Column(
-                children: [
-                  ListTile(
-                    leading: Image.network(
-                      group.coverImageUrl.isNotEmpty
-                          ? group.coverImageUrl
-                          : 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-4.0.3&auto=format&fit=crop&w=1350&q=80',
-                      width: 50,
-                      height: 50,
+              ...groups.map(
+                (group) => Column(
+                  children: [
+                    ListTile(
+                      leading: Image.network(
+                        group.coverImageUrl.isNotEmpty
+                            ? group.coverImageUrl
+                            : 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-4.0.3&auto=format&fit=crop&w=1350&q=80',
+                        width: 50,
+                        height: 50,
+                      ),
+                      title: Text(group.name),
+                      subtitle: Text(
+                        '• ${group.description.isNotEmpty ? group.description : 'Hơn 25 bài viết mới'}',
+                      ),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder:
+                                (context) => GroupHomeScreen(groupId: group.id),
+                          ),
+                        );
+                      },
                     ),
-                    title: Text(group.name),
-                    subtitle: Text('• ${group.description.isNotEmpty ? group.description : 'Hơn 25 bài viết mới'}'),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => GroupHomeScreen(groupId: group.id)),
-                      );
-                    },
-                  ),
-                  const Divider(),
-                ],
-              )).toList(),
+                    const Divider(),
+                  ],
+                ),
+              ),
             ],
           );
         },

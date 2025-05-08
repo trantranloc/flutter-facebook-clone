@@ -18,6 +18,8 @@ import 'package:flutter_facebook_clone/screens/edit_profile_screen.dart';
 import 'package:flutter_facebook_clone/screens/forgot_password_screen.dart';
 import 'package:flutter_facebook_clone/screens/verify_reset_code_screen.dart';
 import 'package:flutter_facebook_clone/screens/reset_password_screen.dart';
+import 'package:flutter_facebook_clone/screens/other_user_profile_screen.dart';
+import 'package:flutter_facebook_clone/screens/friend_requests_screen.dart';
 import 'package:go_router/go_router.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -36,10 +38,23 @@ final GoRouter router = GoRouter(
       '/menu',
       '/profile',
       '/search',
+      '/other-profile',
+      '/friend-requests',
+      '/list-friend',
     ];
-
+        final registrationRoutes = [
+      '/personal-info',
+      '/email',
+      '/verification',
+      '/password',
+      '/avatar',
+    ];
+    if (registrationRoutes.any((route) => currentPath.startsWith(route))) {
+      return null; // Không chuyển hướng
+    }
     // Nếu chưa đăng nhập và cố gắng vào tuyến đường được bảo vệ, chuyển hướng đến /login
-    if (!isLoggedIn && protectedRoutes.contains(currentPath)) {
+    if (!isLoggedIn &&
+        protectedRoutes.any((route) => currentPath.startsWith(route))) {
       return '/login';
     }
     // Nếu đã đăng nhập và ở trang đăng nhập, chuyển hướng đến /home
@@ -143,7 +158,24 @@ final GoRouter router = GoRouter(
     ),
     GoRoute(
       path: '/list-friend',
-      builder: (context, state) => FriendListScreen(),
+      builder: (context, state) => const FriendListScreen(),
+    ),
+    GoRoute(
+      path: '/friend-requests',
+      builder: (context, state) => const FriendRequestsScreen(),
+    ),
+    GoRoute(
+      path: '/other-profile/:uid',
+      builder: (context, state) {
+        final uid = state.pathParameters['uid'];
+        if (uid == null || uid.isEmpty) {
+          // Nếu không có UID, chuyển về trang chủ
+          Future.microtask(() => context.go('/'));
+          return const Center(child: CircularProgressIndicator());
+        }
+        print('Navigating to profile with UID: $uid'); // Debug log
+        return OtherUserProfileScreen(uid: uid);
+      },
     ),
   ],
 );
