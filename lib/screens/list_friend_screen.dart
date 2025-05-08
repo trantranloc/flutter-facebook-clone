@@ -35,14 +35,12 @@ class _FriendListScreenState extends State<FriendListScreen> {
       throw Exception('No user is currently logged in');
     }
 
-    // Fetch the current user's document to get their friends list
     final currentUserDoc = await _firestore.collection('users').doc(currentUser.uid).get();
     final currentUserData = currentUserDoc.data() as Map<String, dynamic>?;
     final List<String> friendUids = List<String>.from(currentUserData?['friends'] ?? []);
 
     if (friendUids.isEmpty) return [];
 
-    // Fetch the user documents for all friends
     final QuerySnapshot snapshot = await _firestore
         .collection('users')
         .where(FieldPath.documentId, whereIn: friendUids)
@@ -174,7 +172,7 @@ class _FriendListScreenState extends State<FriendListScreen> {
           }
           final friends = snapshot.data ?? [];
 
-          // Filter friends based on search query
+
           final filteredFriends = friends
               .where((friend) => friend.name.toLowerCase().contains(_searchQuery))
               .toList();
@@ -201,7 +199,7 @@ class _FriendListScreenState extends State<FriendListScreen> {
                     ),
                     TextButton(
                       onPressed: () {
-                        // Implement sorting logic if needed
+
                       },
                       child: const Text(
                         'Sắp xếp',
@@ -235,7 +233,7 @@ class _FriendListScreenState extends State<FriendListScreen> {
                           value: 'unfriend',
                           child: Text('Hủy kết bạn'),
                         ),
-                        // Add more menu items here if needed
+
                       ],
                     ),
                   ),

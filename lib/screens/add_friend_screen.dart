@@ -28,14 +28,13 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen> {
       throw Exception('No user is currently logged in');
     }
 
-    // Fetch the current user's document to get their pendingRequests list
+    
     final currentUserDoc = await _firestore.collection('users').doc(currentUser.uid).get();
     final currentUserData = currentUserDoc.data() as Map<String, dynamic>?;
     final List<String> pendingRequestUids = List<String>.from(currentUserData?['pendingRequests'] ?? []);
 
     if (pendingRequestUids.isEmpty) return [];
 
-    // Fetch the user documents for all pending requests
     final QuerySnapshot snapshot = await _firestore
         .collection('users')
         .where(FieldPath.documentId, whereIn: pendingRequestUids)

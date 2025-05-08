@@ -4,7 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_facebook_clone/models/user.dart';
 import 'package:flutter_facebook_clone/screens/add_friend_screen.dart';
 import 'package:flutter_facebook_clone/screens/list_friend_screen.dart';
-import 'package:flutter_facebook_clone/screens/profile_screen.dart'; // Import ProfileScreen
+import 'package:flutter_facebook_clone/screens/profile_screen.dart';
 
 class FriendScreen extends StatefulWidget {
   const FriendScreen({super.key});
@@ -229,7 +229,6 @@ class _FriendScreenState extends State<FriendScreen> {
                 children: [
                   ListTile(
                     onTap: () {
-                      // Navigate to ProfileScreen when avatar or name is tapped
                       Navigator.push(
                         context,
                         MaterialPageRoute(
