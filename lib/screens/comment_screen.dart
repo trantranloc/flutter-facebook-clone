@@ -1,14 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/CommentService.dart';
 
 class CommentScreen extends StatefulWidget {
+  final String postId;
   final String username;
   final String caption;
+  final ScrollController scrollController;
 
   const CommentScreen({
     super.key,
+    required this.postId,
     required this.username,
     required this.caption,
+    required this.scrollController,
   });
 
   @override
@@ -16,42 +22,28 @@ class CommentScreen extends StatefulWidget {
 }
 
 class _CommentScreenState extends State<CommentScreen> {
+  final CommentService _commentService = CommentService();
   final TextEditingController _controller = TextEditingController();
+
+  List<Map<String, dynamic>> _comments = [];
   int? _replyingToIndex;
   bool _isEditing = false;
-  int? _editingIndex;
+  String? _editingCommentId;
   final Map<int, bool> _showAllReplies = {};
 
-  final List<Map<String, dynamic>> _comments = [
-    {
-      "name": "Người A",
-      "text": "Bài viết hay quá!",
-      "liked": false,
-      "time": DateTime.now().subtract(const Duration(minutes: 2)),
-      "replies": List.generate(
-        3,
-        (i) => {
-          "name": "Reply $i",
-          "text": "Phản hồi số $i",
-          "liked": false,
-          "time": DateTime.now().subtract(Duration(minutes: i + 1)),
-        },
-      ),
-      "isAuthor": true,
-      "topComment": true,
-    },
-    {
-      "name": "Người B",
-      "text": "Tôi đồng ý! 😊",
-      "liked": false,
-      "time": DateTime.now().subtract(const Duration(hours: 1)),
-      "replies": [],
-      "isAuthor": false,
-      "topComment": false,
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadComments();
+  }
 
-  String formatTime(DateTime time) {
+  Future<void> _loadComments() async {
+    final data = await _commentService.loadComments(widget.postId);
+    setState(() => _comments = data);
+  }
+
+  String formatTime(Timestamp timestamp) {
+    final time = timestamp.toDate();
     final diff = DateTime.now().difference(time);
     if (diff.inMinutes < 1) return "Vừa xong";
     if (diff.inMinutes < 60) return "${diff.inMinutes} phút trước";
@@ -59,56 +51,75 @@ class _CommentScreenState extends State<CommentScreen> {
     return DateFormat('dd/MM/yyyy HH:mm').format(time);
   }
 
-  void _addOrUpdateComment(String text) {
-    final now = DateTime.now();
-    if (_isEditing && _editingIndex != null) {
-      setState(() {
-        _comments[_editingIndex!]["text"] = text;
-        _comments[_editingIndex!]["time"] = now;
-      });
+  Future<void> _addOrUpdateComment(String text) async {
+    if (text.trim().isEmpty) return;
+
+    if (_isEditing && _editingCommentId != null) {
+      await _commentService.updateComment(
+        widget.postId,
+        _editingCommentId!,
+        text,
+      );
       _isEditing = false;
-      _editingIndex = null;
+      _editingCommentId = null;
     } else if (_replyingToIndex != null) {
-      setState(() {
-        _comments[_replyingToIndex!]["replies"].insert(0, {
-          "name": "Bạn",
-          "text": text,
-          "liked": false,
-          "time": now,
-        });
-        _replyingToIndex = null;
+      final parent = _comments[_replyingToIndex!];
+      final replies = List<Map<String, dynamic>>.from(parent["replies"] ?? []);
+      replies.insert(0, {
+        "name": "Bạn",
+        "text": text,
+        "liked": false,
+        "time": Timestamp.now(),
       });
+
+      await _commentService.toggleLikeOrReplies(
+        postId: widget.postId,
+        commentId: parent["id"],
+        updates: {"replies": replies},
+      );
+      _replyingToIndex = null;
     } else {
-      setState(() {
-        _comments.insert(0, {
-          "name": "Bạn",
-          "text": text,
-          "liked": false,
-          "time": now,
-          "replies": [],
-          "isAuthor": false,
-          "topComment": false,
-        });
+      await _commentService.addComment(widget.postId, {
+        "name": "Bạn",
+        "text": text.trim(),
+        "liked": false,
+        "time": Timestamp.now(),
+        "isAuthor": false,
+        "topComment": false,
+        "replies": [],
       });
     }
+
     _controller.clear();
+    _loadComments();
   }
 
-  void _toggleLike(int index, {int? replyIndex}) {
-    setState(() {
-      if (replyIndex != null) {
-        _comments[index]["replies"][replyIndex]["liked"] =
-            !_comments[index]["replies"][replyIndex]["liked"];
-      } else {
-        _comments[index]["liked"] = !_comments[index]["liked"];
-      }
-    });
+  Future<void> _toggleLike(int index, {int? replyIndex}) async {
+    final comment = _comments[index];
+
+    if (replyIndex != null) {
+      final replies = List<Map<String, dynamic>>.from(comment["replies"]);
+      replies[replyIndex]["liked"] = !replies[replyIndex]["liked"];
+      await _commentService.toggleLikeOrReplies(
+        postId: widget.postId,
+        commentId: comment["id"],
+        updates: {"replies": replies},
+      );
+    } else {
+      await _commentService.toggleLikeOrReplies(
+        postId: widget.postId,
+        commentId: comment["id"],
+        updates: {"liked": !(comment["liked"] ?? false)},
+      );
+    }
+
+    _loadComments();
   }
 
   void _editComment(int index) {
     _controller.text = _comments[index]["text"];
     _isEditing = true;
-    _editingIndex = index;
+    _editingCommentId = _comments[index]["id"];
     _replyingToIndex = null;
   }
 
@@ -121,10 +132,10 @@ class _CommentScreenState extends State<CommentScreen> {
     _isEditing = false;
   }
 
-  void _deleteComment(int index) {
-    setState(() {
-      _comments.removeAt(index);
-    });
+  Future<void> _deleteComment(int index) async {
+    final commentId = _comments[index]["id"];
+    await _commentService.deleteComment(widget.postId, commentId);
+    _loadComments();
   }
 
   void _reportComment() {
@@ -166,6 +177,18 @@ class _CommentScreenState extends State<CommentScreen> {
     );
   }
 
+  Widget _buildTag(String label, Color color) {
+    return Container(
+      margin: const EdgeInsets.only(left: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(label, style: TextStyle(fontSize: 10, color: color)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -182,6 +205,7 @@ class _CommentScreenState extends State<CommentScreen> {
           const Divider(),
           Expanded(
             child: ListView.builder(
+              controller: widget.scrollController,
               reverse: true,
               itemCount: _comments.length,
               itemBuilder: (context, index) {
@@ -237,16 +261,13 @@ class _CommentScreenState extends State<CommentScreen> {
                           }
                         },
                         itemBuilder:
-                            (_) => [
-                              const PopupMenuItem(
-                                value: 'edit',
-                                child: Text('Sửa'),
-                              ),
-                              const PopupMenuItem(
+                            (_) => const [
+                              PopupMenuItem(value: 'edit', child: Text('Sửa')),
+                              PopupMenuItem(
                                 value: 'delete',
                                 child: Text('Xoá'),
                               ),
-                              const PopupMenuItem(
+                              PopupMenuItem(
                                 value: 'report',
                                 child: Text('Báo cáo'),
                               ),
@@ -332,18 +353,6 @@ class _CommentScreenState extends State<CommentScreen> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildTag(String label, Color color) {
-    return Container(
-      margin: const EdgeInsets.only(left: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Text(label, style: TextStyle(fontSize: 10, color: color)),
     );
   }
 }

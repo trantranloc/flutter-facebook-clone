@@ -10,6 +10,18 @@ import '../widgets/post_card.dart';
 import '../models/Story.dart';
 import '../models/Post.dart'; // 👈 Thêm model Post
 
+String timeAgo(Timestamp timestamp) {
+  final now = DateTime.now();
+  final postTime = timestamp.toDate();
+  final diff = now.difference(postTime);
+
+  if (diff.inMinutes < 1) return 'Vừa xong';
+  if (diff.inMinutes < 60) return '${diff.inMinutes} phút trước';
+  if (diff.inHours < 24) return '${diff.inHours} giờ trước';
+  if (diff.inDays < 7) return '${diff.inDays} ngày trước';
+  return '${postTime.day}/${postTime.month}/${postTime.year}';
+}
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -368,8 +380,11 @@ class _HomeScreenState extends State<HomeScreen> {
           // Posts from Firestore
           ...posts.map(
             (post) => PostCard(
+              postId: post.id,
               username: post.userId, // giả sử userId là tên người dùng demo
-              time: '1 ngày trước', // bạn có thể định dạng từ post.createdAt
+              time: timeAgo(
+                post.createdAt,
+              ), // bạn có thể định dạng từ post.createdAt
               caption: post.content,
               imageUrl: post.imageUrls.isNotEmpty ? post.imageUrls.first : '',
               likes: post.likes,

@@ -5,6 +5,7 @@ import 'package:share_plus/share_plus.dart';
 import '../screens/comment_screen.dart';
 
 class PostCard extends StatefulWidget {
+  final String postId;
   final String username;
   final String time;
   final String caption;
@@ -19,6 +20,7 @@ class PostCard extends StatefulWidget {
 
   const PostCard({
     super.key,
+    required this.postId,
     required this.username,
     required this.time,
     required this.caption,
@@ -181,15 +183,32 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
   }
 
   void _openCommentSection() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder:
-            (_) => CommentScreen(
-              username: widget.username,
-              caption: widget.caption,
-            ),
-      ),
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder:
+          (_) => DraggableScrollableSheet(
+            initialChildSize: 0.6,
+            minChildSize: 0.4,
+            maxChildSize: 0.95,
+            expand: false,
+            builder:
+                (_, scrollController) => Container(
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(16),
+                    ),
+                  ),
+                  child: CommentScreen(
+                    postId: widget.postId,
+                    username: widget.username,
+                    caption: widget.caption,
+                    scrollController: scrollController,
+                  ),
+                ),
+          ),
     );
   }
 
