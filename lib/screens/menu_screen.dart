@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_facebook_clone/screens/group_screen.dart';
 import 'package:flutter_facebook_clone/services/auth_service.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -175,7 +176,14 @@ class _MenuScreenState extends State<MenuScreen> {
                               _buildMenuItem(
                                 icon: Icons.group_work,
                                 title: 'Nhóm',
-                                onTap: () {},
+                                onTap: () {
+                                  Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const GroupScreen(),
+                              ),
+                            );
+                                },
                               ),
                               _buildMenuItem(
                                 icon: Icons.settings,
