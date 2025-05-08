@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'background_tasks.dart';
 import 'firebase_options.dart';
 import 'router.dart';
+import 'providers/theme_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -34,26 +35,22 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (context) => UserProvider(),
-      child: MaterialApp.router(
-        title: 'FB Lite',
-        routerConfig: router,
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          primaryColor: const Color(0xFF0866FF),
-          scaffoldBackgroundColor: Colors.white,
-          appBarTheme: const AppBarTheme(
-            backgroundColor: Color(0xFF0866FF),
-            foregroundColor: Colors.white,
-            elevation: 2, // Thêm bóng nhẹ cho AppBar
-          ),
-          textTheme: const TextTheme(
-            bodyMedium: TextStyle(color: Colors.black87),
-            labelSmall: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-          ),
-          iconTheme: const IconThemeData(color: Colors.grey),
-        ),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (context) => UserProvider()),
+        ChangeNotifierProvider(create: (context) => ThemeProvider()),
+      ],
+      child: Consumer<ThemeProvider>(
+        builder: (context, themeProvider, child) {
+          return MaterialApp.router(
+            title: 'FB Lite',
+            routerConfig: router,
+            debugShowCheckedModeBanner: false,
+            theme: ThemeProvider.lightTheme,
+            darkTheme: ThemeProvider.darkTheme,
+            themeMode: themeProvider.themeMode,
+          );
+        },
       ),
     );
   }

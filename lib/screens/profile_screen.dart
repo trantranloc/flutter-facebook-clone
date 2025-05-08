@@ -8,6 +8,7 @@ import 'package:cloudinary_public/cloudinary_public.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_facebook_clone/providers/user_provider.dart';
 import 'package:flutter_facebook_clone/models/User.dart';
+import 'package:flutter_facebook_clone/providers/theme_provider.dart'; // Import ThemeProvider
 
 class ProfileScreen extends StatefulWidget {
   final String uid;
@@ -209,11 +210,9 @@ class _ProfileScreenState extends State<ProfileScreen>
   void _showEditOptions() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.transparent,
       builder: (context) {
         return Container(
           decoration: const BoxDecoration(
-            color: Colors.white,
             borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
           ),
           child: Column(
@@ -250,6 +249,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                   decoration: BoxDecoration(
                     color: Colors.purple.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
+                    
                   ),
                   child: const Icon(Icons.face, color: Colors.purple),
                 ),
@@ -316,7 +316,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   void _showAvatarOptions() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.transparent,
+      backgroundColor: Theme.of(context).primaryColor,
       builder: (context) {
         return Container(
           decoration: const BoxDecoration(
@@ -418,423 +418,464 @@ class _ProfileScreenState extends State<ProfileScreen>
           _animationController.forward();
         }
 
-        return Scaffold(
-          backgroundColor: Colors.grey[100],
-          appBar: AppBar(
-            elevation: 0,
-            backgroundColor: Colors.white,
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back, color: Colors.black),
-              onPressed: () => context.go('/menu'),
-            ),
-            title: Text(
-              userModel?.name ?? 'Profile',
-              style: const TextStyle(
-                color: Colors.black,
-                fontWeight: FontWeight.bold,
-                fontSize: 20,
-              ),
-            ),
-            actions: [
-              if (isCurrentUserProfile)
-                IconButton(
-                  icon: const Icon(Icons.qr_code, color: Colors.black),
-                  onPressed: () {
-                    // Show QR code
-                  },
+        return Consumer<ThemeProvider>(
+          builder: (context, themeProvider, _) {
+            return Scaffold(
+              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+              appBar: AppBar(
+                elevation: 0,
+                backgroundColor: Theme.of(context).cardColor,
+                leading: IconButton(
+                  icon: Icon(
+                    Icons.arrow_back,
+                    color: Theme.of(context).iconTheme.color,
+                  ),
+                  onPressed: () => context.go('/menu'),
                 ),
-            ],
-          ),
-          body:
-              isLoading && userModel == null
-                  ? const Center(child: CircularProgressIndicator())
-                  : userModel == null
-                  ? const Center(
-                    child: Text('Không tìm thấy thông tin người dùng'),
-                  )
-                  : FadeTransition(
-                    opacity: _fadeAnimation,
-                    child: SingleChildScrollView(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Cover Photo and Profile Picture
-                          Stack(
-                            clipBehavior: Clip.none,
+                title: Text(
+                  userModel?.name ?? 'Profile',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                actions: [
+                  if (isCurrentUserProfile)
+                    IconButton(
+                      icon: Icon(
+                        Icons.qr_code,
+                        color: Theme.of(context).iconTheme.color,
+                      ),
+                      onPressed: () {
+                        // Show QR code
+                      },
+                    ),
+                ],
+              ),
+              body:
+                  isLoading && userModel == null
+                      ? const Center(child: CircularProgressIndicator())
+                      : userModel == null
+                      ? Center(
+                        child: Text(
+                          'Không tìm thấy thông tin người dùng',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                      )
+                      : FadeTransition(
+                        opacity: _fadeAnimation,
+                        child: SingleChildScrollView(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // Cover Photo
-                              Container(
-                                height: 200,
-                                width: double.infinity,
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[300],
-                                ),
-                                child:
-                                    userModel.coverUrl.isNotEmpty
-                                        ? Image.network(
-                                          userModel.coverUrl,
-                                          fit: BoxFit.cover,
-                                          errorBuilder:
-                                              (
-                                                context,
-                                                error,
-                                                stackTrace,
-                                              ) => Center(
-                                                child: Column(
-                                                  mainAxisAlignment:
-                                                      MainAxisAlignment.center,
-                                                  children: [
-                                                    Icon(
-                                                      Icons.image,
-                                                      size: 40,
-                                                      color: Colors.grey[400],
+                              // Cover Photo and Profile Picture
+                              Stack(
+                                clipBehavior: Clip.none,
+                                children: [
+                                  // Cover Photo
+                                  Container(
+                                    height: 200,
+                                    width: double.infinity,
+                                    decoration: BoxDecoration(
+                                      color: Theme.of(context).dividerColor,
+                                    ),
+                                    child:
+                                        userModel.coverUrl.isNotEmpty
+                                            ? Image.network(
+                                              userModel.coverUrl,
+                                              fit: BoxFit.cover,
+                                              errorBuilder:
+                                                  (
+                                                    context,
+                                                    error,
+                                                    stackTrace,
+                                                  ) => Center(
+                                                    child: Column(
+                                                      mainAxisAlignment:
+                                                          MainAxisAlignment
+                                                              .center,
+                                                      children: [
+                                                        Icon(
+                                                          Icons.image,
+                                                          size: 40,
+                                                          color:
+                                                              Theme.of(
+                                                                context,
+                                                              ).disabledColor,
+                                                        ),
+                                                        const SizedBox(
+                                                          height: 8,
+                                                        ),
+                                                        Text(
+                                                          'Ảnh bìa',
+                                                          style:
+                                                              Theme.of(context)
+                                                                  .textTheme
+                                                                  .bodyMedium,
+                                                        ),
+                                                      ],
                                                     ),
-                                                    const SizedBox(height: 8),
-                                                    Text(
-                                                      'Ảnh bìa',
-                                                      style: TextStyle(
-                                                        color: Colors.grey[600],
-                                                        fontSize: 16,
+                                                  ),
+                                            )
+                                            : Center(
+                                              child: Column(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
+                                                children: [
+                                                  Icon(
+                                                    Icons.image,
+                                                    size: 40,
+                                                    color:
+                                                        Theme.of(
+                                                          context,
+                                                        ).disabledColor,
+                                                  ),
+                                                  const SizedBox(height: 8),
+                                                  Text(
+                                                    'Ảnh bìa',
+                                                    style:
+                                                        Theme.of(
+                                                          context,
+                                                        ).textTheme.bodyMedium,
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                  ),
+                                  // Profile Picture
+                                  Positioned(
+                                    left: 16.0,
+                                    top: 140.0,
+                                    child: GestureDetector(
+                                      onTap:
+                                          isCurrentUserProfile
+                                              ? _showAvatarOptions
+                                              : null,
+                                      child: Stack(
+                                        children: [
+                                          Container(
+                                            decoration: BoxDecoration(
+                                              shape: BoxShape.circle,
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: Theme.of(context)
+                                                      .shadowColor
+                                                      .withOpacity(0.2),
+                                                  blurRadius: 10,
+                                                  offset: const Offset(0, 5),
+                                                ),
+                                              ],
+                                            ),
+                                            child: CircleAvatar(
+                                              radius: 60,
+                                              backgroundColor:
+                                                  Theme.of(context).cardColor,
+                                              child: CircleAvatar(
+                                                radius: 56,
+                                                backgroundColor:
+                                                    Theme.of(
+                                                      context,
+                                                    ).dividerColor,
+                                                child:
+                                                    userModel
+                                                            .avatarUrl
+                                                            .isNotEmpty
+                                                        ? ClipOval(
+                                                          child: Image.network(
+                                                            userModel.avatarUrl,
+                                                            width: 112,
+                                                            height: 112,
+                                                            fit: BoxFit.cover,
+                                                            errorBuilder:
+                                                                (
+                                                                  context,
+                                                                  error,
+                                                                  stackTrace,
+                                                                ) => Icon(
+                                                                  Icons.person,
+                                                                  size: 56,
+                                                                  color:
+                                                                      Theme.of(
+                                                                        context,
+                                                                      ).disabledColor,
+                                                                ),
+                                                          ),
+                                                        )
+                                                        : Icon(
+                                                          Icons.person,
+                                                          size: 56,
+                                                          color:
+                                                              Theme.of(
+                                                                context,
+                                                              ).disabledColor,
+                                                        ),
+                                              ),
+                                            ),
+                                          ),
+                                          if (isCurrentUserProfile)
+                                            Positioned(
+                                              bottom: 0,
+                                              right: 0,
+                                              child: Container(
+                                                padding: const EdgeInsets.all(
+                                                  8,
+                                                ),
+                                                decoration: const BoxDecoration(
+                                                  shape: BoxShape.circle,
+                                                  color: Color(0xFF1877F2),
+                                                  boxShadow: [
+                                                    BoxShadow(
+                                                      color: Colors.black26,
+                                                      blurRadius: 4,
+                                                      offset: Offset(0, 2),
+                                                    ),
+                                                  ],
+                                                ),
+                                                child: const Icon(
+                                                  Icons.camera_alt,
+                                                  color: Colors.white,
+                                                  size: 20,
+                                                ),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              // Name and Bio
+                              Container(
+                                width: double.infinity,
+                                margin: const EdgeInsets.only(top: 80),
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).cardColor,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            userModel.name,
+                                            style:
+                                                Theme.of(
+                                                  context,
+                                                ).textTheme.titleLarge,
+                                          ),
+                                        ),
+                                        if (isCurrentUserProfile)
+                                          IconButton(
+                                            icon: const Icon(Icons.more_horiz),
+                                            onPressed: _showEditOptions,
+                                          ),
+                                      ],
+                                    ),
+                                    if (userModel.bio.isNotEmpty) ...[
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        userModel.bio,
+                                        style:
+                                            Theme.of(
+                                              context,
+                                            ).textTheme.bodyMedium,
+                                      ),
+                                    ],
+                                    const SizedBox(height: 16),
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.info_outline,
+                                          color: Colors.blue[700],
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          'Thông tin cá nhân',
+                                          style:
+                                              Theme.of(
+                                                context,
+                                              ).textTheme.titleMedium,
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 16),
+                                    _buildInfoRow(
+                                      Icons.person_outline,
+                                      'Giới tính',
+                                      userModel.gender,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    _buildInfoRow(
+                                      Icons.email_outlined,
+                                      'Email',
+                                      userModel.email,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    _buildInfoRow(
+                                      Icons.calendar_today,
+                                      'Tham gia',
+                                      '${userModel.createdAt.day}/${userModel.createdAt.month}/${userModel.createdAt.year}',
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              // Friends Section
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).cardColor,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.people_outline,
+                                          color: Colors.blue[700],
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          'Bạn bè',
+                                          style:
+                                              Theme.of(
+                                                context,
+                                              ).textTheme.titleMedium,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          '(${_friends.length})',
+                                          style:
+                                              Theme.of(
+                                                context,
+                                              ).textTheme.bodyMedium,
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 16),
+                                    _friends.isEmpty
+                                        ? Center(
+                                          child: Column(
+                                            children: [
+                                              Icon(
+                                                Icons.people_outline,
+                                                size: 40,
+                                                color:
+                                                    Theme.of(
+                                                      context,
+                                                    ).disabledColor,
+                                              ),
+                                              const SizedBox(height: 8),
+                                              Text(
+                                                'Chưa có bạn bè nào',
+                                                style:
+                                                    Theme.of(
+                                                      context,
+                                                    ).textTheme.bodyMedium,
+                                              ),
+                                            ],
+                                          ),
+                                        )
+                                        : SizedBox(
+                                          height: 100,
+                                          child: ListView.builder(
+                                            scrollDirection: Axis.horizontal,
+                                            itemCount: _friends.length,
+                                            itemBuilder: (context, index) {
+                                              final friend = _friends[index];
+                                              return Padding(
+                                                padding: const EdgeInsets.only(
+                                                  right: 16.0,
+                                                ),
+                                                child: Column(
+                                                  key: ValueKey(
+                                                    'friend_${friend.uid}_$index',
+                                                  ),
+                                                  children: [
+                                                    Container(
+                                                      decoration: BoxDecoration(
+                                                        shape: BoxShape.circle,
+                                                      ),
+                                                      child: CircleAvatar(
+                                                        radius: 30,
+                                                        backgroundColor:
+                                                            Theme.of(
+                                                              context,
+                                                            ).dividerColor,
+                                                        child:
+                                                            friend
+                                                                    .avatarUrl
+                                                                    .isNotEmpty
+                                                                ? ClipOval(
+                                                                  child: Image.network(
+                                                                    friend
+                                                                        .avatarUrl,
+                                                                    width: 60,
+                                                                    height: 60,
+                                                                    fit:
+                                                                        BoxFit
+                                                                            .cover,
+                                                                    errorBuilder:
+                                                                        (
+                                                                          context,
+                                                                          error,
+                                                                          stackTrace,
+                                                                        ) => Icon(
+                                                                          Icons
+                                                                              .person,
+                                                                          size:
+                                                                              30,
+                                                                          color:
+                                                                              Theme.of(
+                                                                                context,
+                                                                              ).disabledColor,
+                                                                        ),
+                                                                  ),
+                                                                )
+                                                                : Icon(
+                                                                  Icons.person,
+                                                                  size: 30,
+                                                                  color:
+                                                                      Theme.of(
+                                                                        context,
+                                                                      ).disabledColor,
+                                                                ),
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 4),
+                                                    SizedBox(
+                                                      width: 60,
+                                                      child: Text(
+                                                        friend.name,
+                                                        style:
+                                                            Theme.of(context)
+                                                                .textTheme
+                                                                .bodySmall,
+                                                        textAlign:
+                                                            TextAlign.center,
+                                                        overflow:
+                                                            TextOverflow
+                                                                .ellipsis,
+                                                        maxLines: 1,
                                                       ),
                                                     ),
                                                   ],
                                                 ),
-                                              ),
-                                        )
-                                        : Center(
-                                          child: Column(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.center,
-                                            children: [
-                                              Icon(
-                                                Icons.image,
-                                                size: 40,
-                                                color: Colors.grey[400],
-                                              ),
-                                              const SizedBox(height: 8),
-                                              Text(
-                                                'Ảnh bìa',
-                                                style: TextStyle(
-                                                  color: Colors.grey[600],
-                                                  fontSize: 16,
-                                                ),
-                                              ),
-                                            ],
+                                              );
+                                            },
                                           ),
                                         ),
-                              ),
-                              // Profile Picture
-                              Positioned(
-                                left: 16.0,
-                                top: 140.0,
-                                child: GestureDetector(
-                                  onTap:
-                                      isCurrentUserProfile
-                                          ? _showAvatarOptions
-                                          : null,
-                                  child: Stack(
-                                    children: [
-                                      Container(
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: Colors.black.withOpacity(
-                                                0.2,
-                                              ),
-                                              blurRadius: 10,
-                                              offset: const Offset(0, 5),
-                                            ),
-                                          ],
-                                        ),
-                                        child: CircleAvatar(
-                                          radius: 60,
-                                          backgroundColor: Colors.white,
-                                          child: CircleAvatar(
-                                            radius: 56,
-                                            backgroundColor: Colors.grey[200],
-                                            child:
-                                                userModel.avatarUrl.isNotEmpty
-                                                    ? ClipOval(
-                                                      child: Image.network(
-                                                        userModel.avatarUrl,
-                                                        width: 112,
-                                                        height: 112,
-                                                        fit: BoxFit.cover,
-                                                        errorBuilder:
-                                                            (
-                                                              context,
-                                                              error,
-                                                              stackTrace,
-                                                            ) => const Icon(
-                                                              Icons.person,
-                                                              size: 56,
-                                                              color:
-                                                                  Colors.grey,
-                                                            ),
-                                                      ),
-                                                    )
-                                                    : const Icon(
-                                                      Icons.person,
-                                                      size: 56,
-                                                      color: Colors.grey,
-                                                    ),
-                                          ),
-                                        ),
-                                      ),
-                                      if (isCurrentUserProfile)
-                                        Positioned(
-                                          bottom: 0,
-                                          right: 0,
-                                          child: Container(
-                                            padding: const EdgeInsets.all(8),
-                                            decoration: const BoxDecoration(
-                                              shape: BoxShape.circle,
-                                              color: Color(0xFF1877F2),
-                                              boxShadow: [
-                                                BoxShadow(
-                                                  color: Colors.black26,
-                                                  blurRadius: 4,
-                                                  offset: Offset(0, 2),
-                                                ),
-                                              ],
-                                            ),
-                                            child: const Icon(
-                                              Icons.camera_alt,
-                                              color: Colors.white,
-                                              size: 20,
-                                            ),
-                                          ),
-                                        ),
-                                    ],
-                                  ),
+                                  ],
                                 ),
                               ),
                             ],
                           ),
-                          // Name and Bio
-                          Container(
-                            width: double.infinity,
-                            margin: const EdgeInsets.only(top: 80),
-                            padding: const EdgeInsets.all(16),
-                            decoration: const BoxDecoration(
-                              color: Colors.white,
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        userModel.name,
-                                        style: const TextStyle(
-                                          fontSize: 24,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                    if (isCurrentUserProfile)
-                                      IconButton(
-                                        icon: const Icon(Icons.more_horiz),
-                                        onPressed: _showEditOptions,
-                                      ),
-                                  ],
-                                ),
-                                if (userModel.bio.isNotEmpty) ...[
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    userModel.bio,
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      color: Colors.grey[700],
-                                    ),
-                                  ),
-                                ],
-                                const SizedBox(height: 16),
-                                Row(
-                                  children: [
-                                    Icon(
-                                      Icons.info_outline,
-                                      color: Colors.blue[700],
-                                    ),
-                                    const SizedBox(width: 8),
-                                    const Text(
-                                      'Thông tin cá nhân',
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 16),
-                                _buildInfoRow(
-                                  Icons.person_outline,
-                                  'Giới tính',
-                                  userModel.gender,
-                                ),
-                                const SizedBox(height: 8),
-                                _buildInfoRow(
-                                  Icons.email_outlined,
-                                  'Email',
-                                  userModel.email,
-                                ),
-                                const SizedBox(height: 8),
-                                _buildInfoRow(
-                                  Icons.calendar_today,
-                                  'Tham gia',
-                                  '${userModel.createdAt.day}/${userModel.createdAt.month}/${userModel.createdAt.year}',
-                                ),
-                              ],
-                            ),
-                          ),
-                          // Friends Section
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(16),
-                            decoration: const BoxDecoration(
-                              color: Colors.white,
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Icon(
-                                      Icons.people_outline,
-                                      color: Colors.blue[700],
-                                    ),
-                                    const SizedBox(width: 8),
-                                    const Text(
-                                      'Bạn bè',
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      '(${_friends.length})',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        color: Colors.grey[600],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 16),
-                                _friends.isEmpty
-                                    ? Center(
-                                      child: Column(
-                                        children: [
-                                          Icon(
-                                            Icons.people_outline,
-                                            size: 40,
-                                            color: Colors.grey[400],
-                                          ),
-                                          const SizedBox(height: 8),
-                                          Text(
-                                            'Chưa có bạn bè nào',
-                                            style: TextStyle(
-                                              color: Colors.grey[600],
-                                              fontSize: 16,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    )
-                                    : SizedBox(
-                                      height: 100,
-                                      child: ListView.builder(
-                                        scrollDirection: Axis.horizontal,
-                                        itemCount: _friends.length,
-                                        itemBuilder: (context, index) {
-                                          final friend = _friends[index];
-                                          return Padding(
-                                            padding: const EdgeInsets.only(
-                                              right: 16.0,
-                                            ),
-                                            child: Column(
-                                              key: ValueKey(
-                                                'friend_${friend.uid}_$index',
-                                              ),
-                                              children: [
-                                                Container(
-                                                  decoration: BoxDecoration(
-                                                    shape: BoxShape.circle,
-                                                  ),
-                                                  child: CircleAvatar(
-                                                    radius: 30,
-                                                    backgroundColor:
-                                                        Colors.grey[200],
-                                                    child:
-                                                        friend
-                                                                .avatarUrl
-                                                                .isNotEmpty
-                                                            ? ClipOval(
-                                                              child: Image.network(
-                                                                friend
-                                                                    .avatarUrl,
-                                                                width: 60,
-                                                                height: 60,
-                                                                fit:
-                                                                    BoxFit
-                                                                        .cover,
-                                                                errorBuilder:
-                                                                    (
-                                                                      context,
-                                                                      error,
-                                                                      stackTrace,
-                                                                    ) => const Icon(
-                                                                      Icons
-                                                                          .person,
-                                                                      size: 30,
-                                                                      color:
-                                                                          Colors
-                                                                              .grey,
-                                                                    ),
-                                                              ),
-                                                            )
-                                                            : const Icon(
-                                                              Icons.person,
-                                                              size: 30,
-                                                              color:
-                                                                  Colors.grey,
-                                                            ),
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 4),
-                                                SizedBox(
-                                                  width: 60,
-                                                  child: Text(
-                                                    friend.name,
-                                                    style: const TextStyle(
-                                                      fontSize: 12,
-                                                      fontWeight:
-                                                          FontWeight.w500,
-                                                    ),
-                                                    textAlign: TextAlign.center,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                    maxLines: 1,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          );
-                                        },
-                                      ),
-                                    ),
-                              ],
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
-                    ),
-                  ),
+            );
+          },
         );
       },
     );
@@ -843,15 +884,14 @@ class _ProfileScreenState extends State<ProfileScreen>
   Widget _buildInfoRow(IconData icon, String label, String value) {
     return Row(
       children: [
-        Icon(icon, size: 20, color: Colors.grey[600]),
+        Icon(icon, size: 20, color: Theme.of(context).iconTheme.color),
         const SizedBox(width: 8),
-        Text(
-          '$label: ',
-          style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-        ),
+        Text('$label: ', style: Theme.of(context).textTheme.bodyMedium),
         Text(
           value,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+          style: Theme.of(
+            context,
+          ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
         ),
       ],
     );

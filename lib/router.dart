@@ -4,7 +4,7 @@ import 'package:flutter_facebook_clone/widgets/avatar_selection_screen.dart';
 import 'package:flutter_facebook_clone/widgets/email_screen.dart';
 import 'package:flutter_facebook_clone/screens/friend_screen.dart';
 import 'package:flutter_facebook_clone/screens/home_screen.dart';
-import 'package:flutter_facebook_clone/screens/login_screeen.dart';
+import 'package:flutter_facebook_clone/screens/login_screen.dart';
 import 'package:flutter_facebook_clone/screens/menu_screen.dart';
 import 'package:flutter_facebook_clone/screens/message_screen.dart';
 import 'package:flutter_facebook_clone/screens/notification_screen.dart';
@@ -20,6 +20,7 @@ import 'package:flutter_facebook_clone/screens/verify_reset_code_screen.dart';
 import 'package:flutter_facebook_clone/screens/reset_password_screen.dart';
 import 'package:flutter_facebook_clone/screens/other_user_profile_screen.dart';
 import 'package:flutter_facebook_clone/screens/friend_requests_screen.dart';
+import 'package:flutter_facebook_clone/screens/setting_screen.dart';
 import 'package:go_router/go_router.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -42,7 +43,7 @@ final GoRouter router = GoRouter(
       '/friend-requests',
       '/list-friend',
     ];
-        final registrationRoutes = [
+    final registrationRoutes = [
       '/personal-info',
       '/email',
       '/verification',
@@ -177,6 +178,10 @@ final GoRouter router = GoRouter(
         return OtherUserProfileScreen(uid: uid);
       },
     ),
+    GoRoute(
+      path: '/setting',
+      builder: (context, state) => const SettingsScreen(),
+    ),
   ],
 );
 
@@ -303,17 +308,17 @@ class _ScaffoldWithNavBarState extends State<ScaffoldWithNavBar> {
   @override
   Widget build(BuildContext context) {
     final selectedIndex = _getSelectedIndex(context);
+    final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF0F2F5), // Facebook background color
+      backgroundColor: theme.colorScheme.background, // Theme-aware backgroun
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1877F2), // Facebook blue
+        backgroundColor: theme.primaryColorDark, 
         title: const Text(
-          'Facebook',
+          'LiteLine',
           style: TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 24,
-            color: Colors.white,
           ),
         ),
         actions: [
@@ -341,7 +346,7 @@ class _ScaffoldWithNavBarState extends State<ScaffoldWithNavBar> {
         children: [
           // Top Navigation Bar
           Container(
-            color: Colors.white,
+            color: theme.cardColor, // Theme-aware container color
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -359,8 +364,10 @@ class _ScaffoldWithNavBarState extends State<ScaffoldWithNavBar> {
                       tabIcons[index],
                       color:
                           isSelected
-                              ? const Color(0xFF1877F2) // Facebook blue
-                              : Colors.grey[600], // Grey
+                              ? theme
+                                  .primaryColor // Theme-aware selected icon color
+                              : theme
+                                  .unselectedWidgetColor, // Theme-aware unselected icon color
                       size: 24,
                     ),
                   ),

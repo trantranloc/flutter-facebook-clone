@@ -6,6 +6,7 @@ import 'package:flutter_facebook_clone/services/user_service.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_facebook_clone/providers/theme_provider.dart'; // Import ThemeProvider
 
 class MenuScreen extends StatefulWidget {
   const MenuScreen({super.key});
@@ -17,21 +18,15 @@ class MenuScreen extends StatefulWidget {
 class _MenuScreenState extends State<MenuScreen> {
   final AuthService _auth = AuthService();
   final UserService _userService = UserService();
-
-  // Lưu trữ UID của người dùng đã đăng nhập
   String? _loggedInUserId;
 
   @override
   void initState() {
     super.initState();
-    // Lấy UID của người dùng đã đăng nhập
     _loggedInUserId = FirebaseAuth.instance.currentUser?.uid;
 
-    // Load dữ liệu người dùng sau khi frame được xây dựng
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final userProvider = Provider.of<UserProvider>(context, listen: false);
-
-      // Kiểm tra nếu UID hợp lệ và userModel chưa được tải hoặc không khớp với người dùng đã đăng nhập
       if (_loggedInUserId != null &&
           (userProvider.userModel == null ||
               userProvider.userModel?.uid != _loggedInUserId)) {
@@ -44,227 +39,247 @@ class _MenuScreenState extends State<MenuScreen> {
   Widget build(BuildContext context) {
     return Consumer<UserProvider>(
       builder: (context, userProvider, child) {
-        // Chỉ hiển thị userModel nếu nó khớp với người dùng đã đăng nhập
         final userModel =
             (userProvider.userModel != null &&
                     userProvider.userModel!.uid == _loggedInUserId)
                 ? userProvider.userModel
                 : null;
 
-        return Scaffold(
-          backgroundColor: const Color(0xFFF0F2F5),
-          body:
-              userProvider.isLoading && userModel == null
-                  ? const Center(child: CircularProgressIndicator())
-                  : CustomScrollView(
-                    slivers: [
-                      SliverToBoxAdapter(
-                        child: Column(
-                          children: [
-                            // Profile Header
-                            Container(
-                              color: Colors.white,
-                              padding: const EdgeInsets.all(16.0),
-                              child: GestureDetector(
-                                onTap: () {
-                                  if (userModel != null) {
-                                    context.go(
-                                      '/profile',
-                                      extra: userModel.uid,
-                                    );
-                                  }
-                                },
-                                child: Row(
-                                  children: [
-                                    CircleAvatar(
-                                      radius: 30,
-                                      backgroundColor: Colors.grey[300],
-                                      child:
-                                          userModel?.avatarUrl.isNotEmpty ??
-                                                  false
-                                              ? ClipOval(
-                                                child: Image.network(
-                                                  userModel!.avatarUrl,
-                                                  width: 60,
-                                                  height: 60,
-                                                  fit: BoxFit.cover,
-                                                  loadingBuilder: (
-                                                    context,
-                                                    child,
-                                                    loadingProgress,
-                                                  ) {
-                                                    if (loadingProgress ==
-                                                        null) {
-                                                      return child;
-                                                    }
-                                                    return const CircularProgressIndicator();
-                                                  },
-                                                  errorBuilder:
-                                                      (
-                                                        context,
-                                                        error,
-                                                        stackTrace,
-                                                      ) => const Icon(
-                                                        Icons.person,
-                                                        size: 30,
-                                                        color: Colors.grey,
-                                                      ),
-                                                ),
-                                              )
-                                              : const Icon(
-                                                Icons.person,
-                                                size: 30,
-                                                color: Colors.grey,
-                                              ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
+        return Consumer<ThemeProvider>(
+          // Wrap with ThemeProvider Consumer
+          builder: (context, themeProvider, _) {
+            return MaterialApp(
+              debugShowCheckedModeBanner: false,
+              // Or Scaffold, depending on your layout
+              theme:
+                  themeProvider.themeMode == ThemeMode.dark
+                      ? ThemeProvider.darkTheme
+                      : ThemeProvider.lightTheme,
+              home: Scaffold(
+                backgroundColor:
+                    Theme.of(
+                      context,
+                    ).scaffoldBackgroundColor, // Use theme color
+                body:
+                    userProvider.isLoading && userModel == null
+                        ? const Center(child: CircularProgressIndicator())
+                        : CustomScrollView(
+                          slivers: [
+                            SliverToBoxAdapter(
+                              child: Column(
+                                children: [
+                                  // Profile header
+                                  Container(
+                                    color:
+                                        Theme.of(
+                                          context,
+                                        ).cardColor, // Use theme color
+                                    padding: const EdgeInsets.all(16.0),
+                                    child: GestureDetector(
+                                      onTap: () {
+                                        if (userModel != null) {
+                                          context.go(
+                                            '/profile',
+                                            extra: userModel.uid,
+                                          );
+                                        }
+                                      },
+                                      child: Row(
                                         children: [
-                                          Text(
-                                            userModel?.name ?? 'Đang tải...',
-                                            style: const TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.bold,
-                                            ),
+                                          CircleAvatar(
+                                            radius: 30,
+                                            backgroundColor: Colors.grey[300],
+                                            child:
+                                                userModel
+                                                            ?.avatarUrl
+                                                            .isNotEmpty ??
+                                                        false
+                                                    ? ClipOval(
+                                                      child: Image.network(
+                                                        userModel!.avatarUrl,
+                                                        width: 60,
+                                                        height: 60,
+                                                        fit: BoxFit.cover,
+                                                        loadingBuilder: (
+                                                          context,
+                                                          child,
+                                                          loadingProgress,
+                                                        ) {
+                                                          if (loadingProgress ==
+                                                              null) {
+                                                            return child;
+                                                          }
+                                                          return const CircularProgressIndicator();
+                                                        },
+                                                        errorBuilder:
+                                                            (
+                                                              context,
+                                                              error,
+                                                              stackTrace,
+                                                            ) => const Icon(
+                                                              Icons.person,
+                                                              size: 30,
+                                                              color:
+                                                                  Colors.grey,
+                                                            ),
+                                                      ),
+                                                    )
+                                                    : const Icon(
+                                                      Icons.person,
+                                                      size: 30,
+                                                      color: Colors.grey,
+                                                    ),
                                           ),
-                                          const SizedBox(height: 4),
-                                          const Text(
-                                            'Xem trang cá nhân của bạn',
-                                            style: TextStyle(
-                                              fontSize: 14,
-                                              color: Colors.grey,
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  userModel?.name ??
+                                                      'Đang tải...',
+                                                  style:
+                                                      Theme.of(context)
+                                                          .textTheme
+                                                          .titleLarge, // Use theme text style
+                                                ),
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  'Xem trang cá nhân của bạn',
+                                                  style:
+                                                      Theme.of(context)
+                                                          .textTheme
+                                                          .bodyMedium, // Use theme text style
+                                                ),
+                                              ],
                                             ),
                                           ),
                                         ],
                                       ),
                                     ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            Container(
-                              color: Colors.white,
-                              margin: const EdgeInsets.only(top: 8),
-                              child: Column(
-                                children: [
-                                  _buildMenuItem(
-                                    key: 'friends',
-                                    icon: Icons.group,
-                                    title: 'Bạn bè',
-                                    onTap: () => context.go('/list-friend'),
                                   ),
-                                  _buildMenuItem(
-                                    key: 'marketplace',
-                                    icon: Icons.store,
-                                    title: 'Marketplace',
-                                    onTap:
-                                        () => ScaffoldMessenger.of(
+
+                                  // Menu items
+                                  Container(
+                                    color:
+                                        Theme.of(
                                           context,
-                                        ).showSnackBar(
-                                          const SnackBar(
-                                            content: Text(
-                                              'Tính năng đang phát triển',
-                                            ),
-                                          ),
+                                        ).cardColor, // Use theme color
+                                    margin: const EdgeInsets.only(top: 8),
+                                    child: Column(
+                                      children: [
+                                        _buildMenuItem(
+                                          key: 'friends',
+                                          icon: Icons.group,
+                                          title: 'Bạn bè',
+                                          onTap:
+                                              () => context.go('/list-friend'),
                                         ),
-                                  ),
-                                  _buildMenuItem(
-                                    key: 'memories',
-                                    icon: Icons.history,
-                                    title: 'Ký ức',
-                                    onTap:
-                                        () => ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          const SnackBar(
-                                            content: Text(
-                                              'Tính năng đang phát triển',
-                                            ),
-                                          ),
+                                        _buildMenuItem(
+                                          key: 'marketplace',
+                                          icon: Icons.store,
+                                          title: 'Marketplace',
+                                          onTap:
+                                              () => ScaffoldMessenger.of(
+                                                context,
+                                              ).showSnackBar(
+                                                const SnackBar(
+                                                  content: Text(
+                                                    'Tính năng đang phát triển',
+                                                  ),
+                                                ),
+                                              ),
                                         ),
-                                  ),
-                                  _buildMenuItem(
-                                    key: 'events',
-                                    icon: Icons.event,
-                                    title: 'Sự kiện',
-                                    onTap:
-                                        () => ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          const SnackBar(
-                                            content: Text(
-                                              'Tính năng đang phát triển',
-                                            ),
-                                          ),
+                                        _buildMenuItem(
+                                          key: 'memories',
+                                          icon: Icons.history,
+                                          title: 'Ký ức',
+                                          onTap:
+                                              () => ScaffoldMessenger.of(
+                                                context,
+                                              ).showSnackBar(
+                                                const SnackBar(
+                                                  content: Text(
+                                                    'Tính năng đang phát triển',
+                                                  ),
+                                                ),
+                                              ),
                                         ),
-                                  ),
-                                  _buildMenuItem(
-                                    key: 'groups',
-                                    icon: Icons.group_work,
-                                    title: 'Nhóm',
-                                    onTap: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder:
-                                              (context) => const GroupScreen(),
+                                        _buildMenuItem(
+                                          key: 'events',
+                                          icon: Icons.event,
+                                          title: 'Sự kiện',
+                                          onTap:
+                                              () => ScaffoldMessenger.of(
+                                                context,
+                                              ).showSnackBar(
+                                                const SnackBar(
+                                                  content: Text(
+                                                    'Tính năng đang phát triển',
+                                                  ),
+                                                ),
+                                              ),
                                         ),
-                                      );
-                                    },
-                                  ),
-                                  _buildMenuItem(
-                                    key: 'settings',
-                                    icon: Icons.settings,
-                                    title: 'Cài đặt & quyền riêng tư',
-                                    onTap:
-                                        () => ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          const SnackBar(
-                                            content: Text(
-                                              'Tính năng đang phát triển',
-                                            ),
-                                          ),
+                                        _buildMenuItem(
+                                          key: 'groups',
+                                          icon: Icons.group_work,
+                                          title: 'Nhóm',
+                                          onTap: () {
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder:
+                                                    (context) =>
+                                                        const GroupScreen(),
+                                              ),
+                                            );
+                                          },
                                         ),
-                                  ),
-                                  _buildMenuItem(
-                                    key: 'help',
-                                    icon: Icons.help,
-                                    title: 'Trợ giúp & hỗ trợ',
-                                    onTap:
-                                        () => ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          const SnackBar(
-                                            content: Text(
-                                              'Tính năng đang phát triển',
-                                            ),
-                                          ),
+                                        _buildMenuItem(
+                                          key: 'settings',
+                                          icon: Icons.settings,
+                                          title: 'Cài đặt & quyền riêng tư',
+                                          onTap: () => context.go('/setting'),
                                         ),
-                                  ),
-                                  _buildMenuItem(
-                                    key: 'logout',
-                                    icon: Icons.logout,
-                                    title: 'Đăng xuất',
-                                    onTap: () async {
-                                      await _auth.signOut();
-                                      await userProvider.clearUser();
-                                      if (mounted) {
-                                        context.go('/login');
-                                      }
-                                    },
+                                        _buildMenuItem(
+                                          key: 'help',
+                                          icon: Icons.help,
+                                          title: 'Trợ giúp & hỗ trợ',
+                                          onTap:
+                                              () => ScaffoldMessenger.of(
+                                                context,
+                                              ).showSnackBar(
+                                                const SnackBar(
+                                                  content: Text(
+                                                    'Tính năng đang phát triển',
+                                                  ),
+                                                ),
+                                              ),
+                                        ),
+                                        _buildMenuItem(
+                                          key: 'logout',
+                                          icon: Icons.logout,
+                                          title: 'Đăng xuất',
+                                          onTap: () async {
+                                            await _auth.signOut();
+                                            await userProvider.clearUser();
+                                            if (mounted) {
+                                              context.go('/login');
+                                            }
+                                          },
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ],
                               ),
                             ),
                           ],
                         ),
-                      ),
-                    ],
-                  ),
+              ),
+            );
+          },
         );
       },
     );
@@ -281,10 +296,14 @@ class _MenuScreenState extends State<MenuScreen> {
       leading: Icon(icon, color: const Color(0xFF1877F2), size: 28),
       title: Text(
         title,
-        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+        style: Theme.of(context).textTheme.bodyMedium, // Use theme text style
       ),
       onTap: onTap,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      tileColor: Theme.of(context).cardColor, // Use theme color
+      hoverColor: const Color(0xFFE4E6EB),
+      selectedTileColor: const Color(0xFFD8DADF),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
     );
   }
 }

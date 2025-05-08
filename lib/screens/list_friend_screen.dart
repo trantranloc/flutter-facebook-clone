@@ -116,7 +116,7 @@ class _FriendListScreenState extends State<FriendListScreen> {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: const Icon(Icons.arrow_back),
           onPressed: () {
             context.go('/friend');
           },
@@ -126,10 +126,9 @@ class _FriendListScreenState extends State<FriendListScreen> {
           style: TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 18,
-            color: Colors.black,
           ),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).primaryColorDark, 
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(56.0),
           child: Padding(
