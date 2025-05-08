@@ -34,7 +34,7 @@ class _ChatScreenState extends State<ChatScreen> {
     },
   ];
 
-  bool _isOnline = true;
+  final bool _isOnline = true;
 
   void _sendMessage() {
     if (_messageController.text.isNotEmpty) {

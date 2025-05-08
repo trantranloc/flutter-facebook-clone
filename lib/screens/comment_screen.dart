@@ -1,5 +1,5 @@
-// lib/screens/comment_screen.dart
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 class CommentScreen extends StatefulWidget {
   final String username;
@@ -16,43 +16,82 @@ class CommentScreen extends StatefulWidget {
 }
 
 class _CommentScreenState extends State<CommentScreen> {
+  final TextEditingController _controller = TextEditingController();
+  int? _replyingToIndex;
+  bool _isEditing = false;
+  int? _editingIndex;
+  final Map<int, bool> _showAllReplies = {};
+
   final List<Map<String, dynamic>> _comments = [
     {
       "name": "Người A",
       "text": "Bài viết hay quá!",
       "liked": false,
+      "time": DateTime.now().subtract(const Duration(minutes: 2)),
       "replies": List.generate(
-        5,
-        (i) => {"name": "ReplyUser $i", "text": "Phản hồi $i", "liked": false},
+        3,
+        (i) => {
+          "name": "Reply $i",
+          "text": "Phản hồi số $i",
+          "liked": false,
+          "time": DateTime.now().subtract(Duration(minutes: i + 1)),
+        },
       ),
+      "isAuthor": true,
+      "topComment": true,
     },
-    {"name": "Người B", "text": "Tôi đồng ý!", "liked": false, "replies": []},
+    {
+      "name": "Người B",
+      "text": "Tôi đồng ý! 😊",
+      "liked": false,
+      "time": DateTime.now().subtract(const Duration(hours: 1)),
+      "replies": [],
+      "isAuthor": false,
+      "topComment": false,
+    },
   ];
 
-  final TextEditingController _commentController = TextEditingController();
-  int? _replyingToIndex;
-  final Map<int, bool> _showAllReplies = {};
+  String formatTime(DateTime time) {
+    final diff = DateTime.now().difference(time);
+    if (diff.inMinutes < 1) return "Vừa xong";
+    if (diff.inMinutes < 60) return "${diff.inMinutes} phút trước";
+    if (diff.inHours < 24) return "${diff.inHours} giờ trước";
+    return DateFormat('dd/MM/yyyy HH:mm').format(time);
+  }
 
-  void _addComment(String text) {
-    if (text.trim().isEmpty) return;
-    setState(() {
-      if (_replyingToIndex != null) {
+  void _addOrUpdateComment(String text) {
+    final now = DateTime.now();
+    if (_isEditing && _editingIndex != null) {
+      setState(() {
+        _comments[_editingIndex!]["text"] = text;
+        _comments[_editingIndex!]["time"] = now;
+      });
+      _isEditing = false;
+      _editingIndex = null;
+    } else if (_replyingToIndex != null) {
+      setState(() {
         _comments[_replyingToIndex!]["replies"].insert(0, {
           "name": "Bạn",
           "text": text,
           "liked": false,
+          "time": now,
         });
         _replyingToIndex = null;
-      } else {
+      });
+    } else {
+      setState(() {
         _comments.insert(0, {
           "name": "Bạn",
           "text": text,
           "liked": false,
+          "time": now,
           "replies": [],
+          "isAuthor": false,
+          "topComment": false,
         });
-      }
-    });
-    _commentController.clear();
+      });
+    }
+    _controller.clear();
   }
 
   void _toggleLike(int index, {int? replyIndex}) {
@@ -66,41 +105,62 @@ class _CommentScreenState extends State<CommentScreen> {
     });
   }
 
-  void _replyToComment(int index) {
-    setState(() {
-      _replyingToIndex = index;
-    });
-    _commentController.text = "@${_comments[index]["name"]} ";
-    _commentController.selection = TextSelection.fromPosition(
-      TextPosition(offset: _commentController.text.length),
-    );
+  void _editComment(int index) {
+    _controller.text = _comments[index]["text"];
+    _isEditing = true;
+    _editingIndex = index;
+    _replyingToIndex = null;
   }
 
-  Widget _buildReplyTile(int index, int replyIndex) {
-    final reply = _comments[index]["replies"][replyIndex];
+  void _replyToComment(int index) {
+    _controller.text = "@${_comments[index]["name"]} ";
+    _controller.selection = TextSelection.fromPosition(
+      TextPosition(offset: _controller.text.length),
+    );
+    _replyingToIndex = index;
+    _isEditing = false;
+  }
+
+  void _deleteComment(int index) {
+    setState(() {
+      _comments.removeAt(index);
+    });
+  }
+
+  void _reportComment() {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text("Đã báo cáo bình luận.")));
+  }
+
+  Widget _buildReply(int parentIndex, int replyIndex) {
+    final reply = _comments[parentIndex]["replies"][replyIndex];
     return Padding(
       padding: const EdgeInsets.only(left: 56.0),
-      child: AnimatedSize(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-        child: ListTile(
-          leading: const CircleAvatar(
-            radius: 14,
-            child: Icon(Icons.person, size: 16),
-          ),
-          title: Text(
-            reply["name"],
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-          subtitle: Text(reply["text"]),
-          trailing: IconButton(
-            icon: Icon(
-              reply["liked"] ? Icons.favorite : Icons.favorite_border,
-              color: reply["liked"] ? Colors.red : Colors.grey,
-              size: 18,
+      child: ListTile(
+        leading: const CircleAvatar(child: Icon(Icons.person, size: 14)),
+        title: Text(
+          reply["name"],
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(reply["text"]),
+            const SizedBox(height: 2),
+            Text(
+              formatTime(reply["time"]),
+              style: const TextStyle(fontSize: 11, color: Colors.grey),
             ),
-            onPressed: () => _toggleLike(index, replyIndex: replyIndex),
+          ],
+        ),
+        trailing: IconButton(
+          icon: Icon(
+            reply["liked"] ? Icons.favorite : Icons.favorite_border,
+            color: reply["liked"] ? Colors.red : Colors.grey,
+            size: 18,
           ),
+          onPressed: () => _toggleLike(parentIndex, replyIndex: replyIndex),
         ),
       ),
     );
@@ -125,10 +185,10 @@ class _CommentScreenState extends State<CommentScreen> {
               reverse: true,
               itemCount: _comments.length,
               itemBuilder: (context, index) {
-                final comment = _comments[index];
+                final c = _comments[index];
+                final replies = c["replies"] as List;
                 final showAll = _showAllReplies[index] ?? false;
-                final replies = comment["replies"];
-                final displayReplies =
+                final visibleReplies =
                     showAll ? replies : replies.take(2).toList();
 
                 return Column(
@@ -136,61 +196,103 @@ class _CommentScreenState extends State<CommentScreen> {
                   children: [
                     ListTile(
                       leading: const CircleAvatar(child: Icon(Icons.person)),
-                      title: Text(
-                        comment["name"],
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      title: Row(
+                        children: [
+                          Text(
+                            c["name"],
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          if (c["isAuthor"])
+                            _buildTag("Tác giả", Colors.orange),
+                          if (c["topComment"])
+                            _buildTag("Top bình luận", Colors.green),
+                        ],
                       ),
-                      subtitle: Text(comment["text"]),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(c["text"]),
+                          const SizedBox(height: 2),
+                          Text(
+                            formatTime(c["time"]),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                      trailing: PopupMenuButton<String>(
+                        onSelected: (value) {
+                          switch (value) {
+                            case 'edit':
+                              _editComment(index);
+                              break;
+                            case 'delete':
+                              _deleteComment(index);
+                              break;
+                            case 'report':
+                              _reportComment();
+                              break;
+                          }
+                        },
+                        itemBuilder:
+                            (_) => [
+                              const PopupMenuItem(
+                                value: 'edit',
+                                child: Text('Sửa'),
+                              ),
+                              const PopupMenuItem(
+                                value: 'delete',
+                                child: Text('Xoá'),
+                              ),
+                              const PopupMenuItem(
+                                value: 'report',
+                                child: Text('Báo cáo'),
+                              ),
+                            ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 56),
+                      child: Row(
                         children: [
                           IconButton(
                             icon: Icon(
-                              comment["liked"]
+                              c["liked"]
                                   ? Icons.favorite
                                   : Icons.favorite_border,
-                              color:
-                                  comment["liked"] ? Colors.red : Colors.grey,
+                              color: c["liked"] ? Colors.red : Colors.grey,
                             ),
                             onPressed: () => _toggleLike(index),
                           ),
-                          IconButton(
-                            icon: const Icon(Icons.reply, color: Colors.grey),
+                          TextButton(
                             onPressed: () => _replyToComment(index),
+                            child: const Text("Phản hồi"),
                           ),
                         ],
                       ),
                     ),
-                    AnimatedSize(
-                      duration: const Duration(milliseconds: 300),
-                      curve: Curves.easeInOut,
-                      child: Column(
-                        children: [
-                          ...List.generate(
-                            displayReplies.length,
-                            (i) => _buildReplyTile(index, i),
-                          ),
-                          if (!showAll && replies.length > 2)
-                            Padding(
-                              padding: const EdgeInsets.only(left: 56.0),
-                              child: TextButton(
-                                onPressed: () {
-                                  setState(() {
-                                    _showAllReplies[index] = true;
-                                  });
-                                },
-                                child: const Text("Xem thêm phản hồi..."),
-                              ),
-                            ),
-                        ],
-                      ),
+                    ...List.generate(
+                      visibleReplies.length,
+                      (i) => _buildReply(index, i),
                     ),
+                    if (!showAll && replies.length > 2)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 56),
+                        child: TextButton(
+                          onPressed: () {
+                            setState(() => _showAllReplies[index] = true);
+                          },
+                          child: const Text("Xem thêm phản hồi..."),
+                        ),
+                      ),
                   ],
                 );
               },
             ),
           ),
-          const Divider(height: 1),
+          const Divider(),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: Row(
@@ -199,24 +301,49 @@ class _CommentScreenState extends State<CommentScreen> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: TextField(
-                    controller: _commentController,
-                    decoration: const InputDecoration(
-                      hintText: "Viết bình luận...",
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12),
+                    controller: _controller,
+                    decoration: InputDecoration(
+                      hintText:
+                          _isEditing
+                              ? "Chỉnh sửa bình luận..."
+                              : "Viết bình luận...",
+                      border: const OutlineInputBorder(),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                      ),
+                      suffixIcon: IconButton(
+                        icon: const Icon(Icons.emoji_emotions),
+                        onPressed: () {
+                          _controller.text += " 😊";
+                          _controller.selection = TextSelection.fromPosition(
+                            TextPosition(offset: _controller.text.length),
+                          );
+                        },
+                      ),
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
                 IconButton(
                   icon: const Icon(Icons.send, color: Colors.blue),
-                  onPressed: () => _addComment(_commentController.text),
+                  onPressed: () => _addOrUpdateComment(_controller.text),
                 ),
               ],
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildTag(String label, Color color) {
+    return Container(
+      margin: const EdgeInsets.only(left: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(label, style: TextStyle(fontSize: 10, color: color)),
     );
   }
 }

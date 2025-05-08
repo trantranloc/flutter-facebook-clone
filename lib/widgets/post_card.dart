@@ -1,6 +1,7 @@
-// lib/widgets/post_card.dart
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
 import '../screens/comment_screen.dart';
 
 class PostCard extends StatefulWidget {
@@ -86,6 +87,27 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
     super.dispose();
   }
 
+  void _handleReaction(String newReaction) {
+    setState(() {
+      if (_localReaction != null &&
+          widget.reactionCounts != null &&
+          widget.reactionCounts!.containsKey(_localReaction)) {
+        widget.reactionCounts![_localReaction!] =
+            (widget.reactionCounts![_localReaction!] ?? 1) - 1;
+      }
+      if (widget.reactionCounts != null) {
+        widget.reactionCounts![newReaction] =
+            (widget.reactionCounts![newReaction] ?? 0) + 1;
+      }
+
+      _localReaction = newReaction;
+    });
+
+    _animController.forward(from: 0);
+    widget.onReact?.call(newReaction);
+    _removeOverlay();
+  }
+
   void _showOverlayReaction() {
     final RenderBox box =
         _likeKey.currentContext!.findRenderObject() as RenderBox;
@@ -121,38 +143,16 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
                       mainAxisSize: MainAxisSize.min,
                       children:
                           reactionIcons.entries.map((entry) {
-                            return GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  _localReaction = entry.key;
-                                });
-                                _animController.forward(from: 0);
-                                widget.onReact?.call(entry.key);
-                                _removeOverlay();
-                              },
+                            return InkWell(
+                              onTap: () => _handleReaction(entry.key),
+                              borderRadius: BorderRadius.circular(30),
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 6,
                                 ),
-                                child: TweenAnimationBuilder<double>(
-                                  duration: const Duration(milliseconds: 150),
-                                  tween: Tween(begin: 1.0, end: 1.0),
-                                  builder:
-                                      (context, scale, child) => MouseRegion(
-                                        cursor: SystemMouseCursors.click,
-                                        child: AnimatedScale(
-                                          duration: const Duration(
-                                            milliseconds: 150,
-                                          ),
-                                          scale: 1.0,
-                                          child: Text(
-                                            entry.value,
-                                            style: const TextStyle(
-                                              fontSize: 26,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
+                                child: Text(
+                                  entry.value,
+                                  style: const TextStyle(fontSize: 26),
                                 ),
                               ),
                             );
@@ -204,23 +204,32 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
             padding: const EdgeInsets.all(20),
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              children: const [
-                Text(
+              children: [
+                const Text(
                   "Chia sẻ bài viết",
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
-                SizedBox(height: 20),
+                const SizedBox(height: 20),
                 ListTile(
-                  leading: Icon(Icons.share),
-                  title: Text('Chia sẻ ngay bây giờ'),
+                  leading: const Icon(Icons.copy),
+                  title: const Text('Sao chép liên kết'),
+                  onTap: () {
+                    Clipboard.setData(
+                      const ClipboardData(text: "https://link.to/post"),
+                    );
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("Đã sao chép liên kết!")),
+                    );
+                  },
                 ),
                 ListTile(
-                  leading: Icon(Icons.send),
-                  title: Text('Gửi qua tin nhắn'),
-                ),
-                ListTile(
-                  leading: Icon(Icons.copy),
-                  title: Text('Sao chép liên kết'),
+                  leading: const Icon(Icons.share),
+                  title: const Text('Chia sẻ qua ứng dụng khác'),
+                  onTap: () {
+                    Share.share("Xem bài viết: https://link.to/post");
+                    Navigator.pop(context);
+                  },
                 ),
               ],
             ),
@@ -252,6 +261,9 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final String displayReaction = reactionIcons[_localReaction ?? 'like']!;
+    final totalLikes =
+        widget.reactionCounts?.values.fold(0, (sum, e) => sum + e) ??
+        widget.likes;
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -262,6 +274,7 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Header
             Row(
               children: [
                 CircleAvatar(
@@ -311,29 +324,38 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
                 ),
               ],
             ),
+
             const SizedBox(height: 10),
-            Text(
-              widget.caption,
-              style: const TextStyle(fontSize: 14, height: 1.4),
-            ),
+
+            // Caption
+            Text(widget.caption, style: const TextStyle(fontSize: 14)),
+
             const SizedBox(height: 10),
+
+            // Image
             if (widget.imageUrl.isNotEmpty)
               ClipRRect(
                 borderRadius: BorderRadius.circular(10),
                 child: Image.network(widget.imageUrl, fit: BoxFit.cover),
               ),
+
+            // Reaction Summary
             if (widget.reactionCounts != null)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: _buildReactionSummary(widget.reactionCounts!),
               ),
+
             const Divider(height: 20),
+
+            // Actions
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 GestureDetector(
                   key: _likeKey,
-                  onTap: _showOverlayReaction,
+                  onTap: () => _handleReaction('like'),
+                  onLongPress: _showOverlayReaction,
                   child: ScaleTransition(
                     scale: _scaleAnim,
                     child: Row(
@@ -344,7 +366,7 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
                         ),
                         const SizedBox(width: 6),
                         Text(
-                          widget.likes.toString(),
+                          totalLikes.toString(),
                           style: const TextStyle(fontWeight: FontWeight.w500),
                         ),
                       ],
@@ -353,7 +375,6 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
                 ),
                 InkWell(
                   onTap: _openCommentSection,
-                  borderRadius: BorderRadius.circular(8),
                   child: Row(
                     children: [
                       const Icon(Icons.comment_outlined, color: Colors.grey),
@@ -364,7 +385,6 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
                 ),
                 InkWell(
                   onTap: _sharePost,
-                  borderRadius: BorderRadius.circular(8),
                   child: Row(
                     children: [
                       const Icon(Icons.share_outlined, color: Colors.grey),
