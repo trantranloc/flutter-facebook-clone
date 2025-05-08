@@ -14,90 +14,16 @@ class FriendRequestsScreen extends StatefulWidget {
 class _FriendRequestsScreenState extends State<FriendRequestsScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  late Future<List<UserModel>> _pendingRequestsFuture;
-
-  @override
-  void initState() {
-    super.initState();
-    _pendingRequestsFuture = _fetchPendingRequests();
-  }
-
-  Future<List<UserModel>> _fetchPendingRequests() async {
-    final currentUser = _auth.currentUser;
-    if (currentUser == null) {
-      throw Exception('No user is currently logged in');
-    }
-
-    
-    final currentUserDoc = await _firestore.collection('users').doc(currentUser.uid).get();
-    final currentUserData = currentUserDoc.data();
-    final List<String> pendingRequestUids = List<String>.from(currentUserData?['pendingRequests'] ?? []);
-
-    if (pendingRequestUids.isEmpty) return [];
-
-    final QuerySnapshot snapshot = await _firestore
-        .collection('users')
-        .where(FieldPath.documentId, whereIn: pendingRequestUids)
-        .get();
-    return snapshot.docs
-        .map((doc) => UserModel.fromMap(doc.data() as Map<String, dynamic>))
-        .toList();
-  }
-
-  Future<void> _acceptFriendRequest(String friendUid) async {
-    final currentUser = _auth.currentUser;
-    if (currentUser == null) return;
-
-    try {
-      await _firestore.collection('users').doc(currentUser.uid).update({
-        'friends': FieldValue.arrayUnion([friendUid]),
-        'pendingRequests': FieldValue.arrayRemove([friendUid]),
-      });
-      await _firestore.collection('users').doc(friendUid).update({
-        'friends': FieldValue.arrayUnion([currentUser.uid]),
-      });
-      setState(() {
-        _pendingRequestsFuture = _fetchPendingRequests();
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đã xác nhận bạn bè')),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi: $e')),
-      );
-    }
-  }
-
-  Future<void> _rejectFriendRequest(String friendUid) async {
-    final currentUser = _auth.currentUser;
-    if (currentUser == null) return;
-
-    try {
-      await _firestore.collection('users').doc(currentUser.uid).update({
-        'pendingRequests': FieldValue.arrayRemove([friendUid]),
-      });
-      setState(() {
-        _pendingRequestsFuture = _fetchPendingRequests();
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đã xóa lời mời')),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi: $e')),
-      );
-    }
-  }
-
-  void _retryFetch() {
-    setState(() {
-      _pendingRequestsFuture = _fetchPendingRequests();
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) {
+      return const Scaffold(
+        body: Center(child: Text('Vui lòng đăng nhập để xem lời mời kết bạn')),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -111,7 +37,11 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen> {
         ),
         title: const Text(
           'Lời mời kết bạn',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.black),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+            color: Colors.black,
+          ),
         ),
         backgroundColor: Colors.white,
         actions: [
@@ -121,8 +51,8 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen> {
           ),
         ],
       ),
-      body: FutureBuilder<List<UserModel>>(
-        future: _pendingRequestsFuture,
+      body: StreamBuilder<DocumentSnapshot>(
+        stream: _firestore.collection('users').doc(currentUser.uid).snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -135,25 +65,35 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen> {
                   Text('Lỗi: ${snapshot.error}'),
                   const SizedBox(height: 10),
                   ElevatedButton(
-                    onPressed: _retryFetch,
+                    onPressed: () => setState(() {}),
                     child: const Text('Thử lại'),
                   ),
                 ],
               ),
             );
           }
-          final pendingRequests = snapshot.data ?? [];
 
-          if (pendingRequests.isEmpty) {
+          if (!snapshot.hasData || !snapshot.data!.exists) {
+            return const Center(
+              child: Text('Không tìm thấy dữ liệu người dùng'),
+            );
+          }
+
+          final currentUserData = snapshot.data!.data() as Map<String, dynamic>;
+          final List<String> pendingRequestUids = List<String>.from(
+            currentUserData['pendingRequests'] ?? [],
+          );
+          print('Pending request UIDs: $pendingRequestUids'); // Debug log
+
+          if (pendingRequestUids.isEmpty) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Image.asset('assets/images/friend_icon.png', width: 100, height: 100),
-                  const SizedBox(height: 20),
-                  const Text(
-                    'Không có lời mời',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  Image.asset(
+                    'assets/images/friend_icon.png',
+                    width: 100,
+                    height: 100,
                   ),
                   const SizedBox(height: 10),
                   const Text(
@@ -166,13 +106,18 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen> {
                     onPressed: () {
                       Navigator.pushReplacement(
                         context,
-                        MaterialPageRoute(builder: (context) => const FriendScreen()),
+                        MaterialPageRoute(
+                          builder: (context) => const FriendScreen(),
+                        ),
                       );
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF1877F2),
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 10,
+                      ),
                     ),
                     child: const Text('Xem gợi ý kết bạn'),
                   ),
@@ -181,48 +126,140 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen> {
             );
           }
 
-          return ListView.builder(
-            itemCount: pendingRequests.length,
-            itemBuilder: (context, index) {
-              final user = pendingRequests[index];
-              return ListTile(
-                leading: CircleAvatar(
-                  radius: 25,
-                  backgroundImage: NetworkImage(
-                    user.avatarUrl.isNotEmpty
-                        ? user.avatarUrl
-                        : 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-4.0.3&auto=format&fit=crop&w=1350&q=80',
+          return StreamBuilder<QuerySnapshot>(
+            stream:
+                _firestore
+                    .collection('users')
+                    .where(FieldPath.documentId, whereIn: pendingRequestUids)
+                    .snapshots(),
+            builder: (context, userSnapshot) {
+              if (userSnapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (userSnapshot.hasError) {
+                print(
+                  'Error fetching users: ${userSnapshot.error}',
+                ); // Debug log
+                return Center(
+                  child: Text(
+                    'Lỗi khi tải thông tin người dùng: ${userSnapshot.error}',
                   ),
-                ),
-                title: Text(user.name),
-                subtitle: const Text('1 phút'),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    ElevatedButton(
-                      onPressed: () => _acceptFriendRequest(user.uid),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF1877F2),
-                        foregroundColor: Colors.white,
+                );
+              }
+
+              final pendingRequests =
+                  userSnapshot.data!.docs
+                      .map(
+                        (doc) => UserModel.fromMap(
+                          doc.data() as Map<String, dynamic>,
+                        ),
+                      )
+                      .toList();
+              print(
+                'Pending requests: ${pendingRequests.map((u) => u.name).toList()}',
+              ); // Debug log
+
+              if (pendingRequests.isEmpty) {
+                return const Center(child: Text('Không có lời mời kết bạn'));
+              }
+
+              return ListView.builder(
+                itemCount: pendingRequests.length,
+                itemBuilder: (context, index) {
+                  final user = pendingRequests[index];
+                  return ListTile(
+                    leading: CircleAvatar(
+                      radius: 25,
+                      backgroundImage: NetworkImage(
+                        user.avatarUrl.isNotEmpty
+                            ? user.avatarUrl
+                            : 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-4.0.3&auto=format&fit=crop&w=1350&q=80',
                       ),
-                      child: const Text('Xác nhận'),
                     ),
-                    const SizedBox(width: 8),
-                    OutlinedButton(
-                      onPressed: () => _rejectFriendRequest(user.uid),
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Colors.grey),
-                        foregroundColor: Colors.black,
-                      ),
-                      child: const Text('Xóa'),
+                    title: Text(user.name),
+                    subtitle: const Text(
+                      '1 phút',
+                    ), // Có thể thay bằng thời gian thực
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ElevatedButton(
+                          onPressed: () => _acceptFriendRequest(user.uid),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF1877F2),
+                            foregroundColor: Colors.white,
+                          ),
+                          child: const Text('Xác nhận'),
+                        ),
+                        const SizedBox(width: 8),
+                        OutlinedButton(
+                          onPressed: () => _rejectFriendRequest(user.uid),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Colors.grey),
+                            foregroundColor: Colors.black,
+                          ),
+                          child: const Text('Xóa'),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  );
+                },
               );
             },
           );
         },
       ),
     );
+  }
+
+  Future<void> _acceptFriendRequest(String friendUid) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) return;
+
+    try {
+      // Thêm vào danh sách bạn bè của cả hai và xóa lời mời
+      await _firestore.collection('users').doc(currentUser.uid).update({
+        'friends': FieldValue.arrayUnion([friendUid]),
+        'pendingRequests': FieldValue.arrayRemove([friendUid]),
+      });
+      await _firestore.collection('users').doc(friendUid).update({
+        'friends': FieldValue.arrayUnion([currentUser.uid]),
+        'sentRequests': FieldValue.arrayRemove([currentUser.uid]),
+      });
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Đã xác nhận bạn bè')));
+    } catch (e) {
+      print('Error accepting friend request: $e'); // Debug log
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+    }
+  }
+
+  Future<void> _rejectFriendRequest(String friendUid) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) return;
+
+    try {
+      // Xóa lời mời từ pendingRequests của người nhận
+      await _firestore.collection('users').doc(currentUser.uid).update({
+        'pendingRequests': FieldValue.arrayRemove([friendUid]),
+      });
+      // Xóa lời mời từ sentRequests của người gửi
+      await _firestore.collection('users').doc(friendUid).update({
+        'sentRequests': FieldValue.arrayRemove([currentUser.uid]),
+      });
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Đã xóa lời mời')));
+    } catch (e) {
+      print('Error rejecting friend request: $e'); // Debug log
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+    }
   }
 }

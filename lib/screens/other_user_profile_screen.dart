@@ -147,6 +147,7 @@ class _OtherUserProfileScreenState extends State<OtherUserProfileScreen> {
         _hasSentRequest = false;
       });
       
+
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Lỗi: $e')),

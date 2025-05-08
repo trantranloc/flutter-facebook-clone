@@ -15,66 +15,66 @@ class FriendScreen extends StatefulWidget {
 class _FriendScreenState extends State<FriendScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  late Future<List<UserModel>> _suggestedFriendsFuture;
+
+  // Lưu trữ trạng thái
+  late Stream<List<UserModel>> _suggestedFriendsStream;
+  final Set<String> _friendUids = {};
   final Set<String> _sentRequestUids = {};
+  final Set<String> _receivedRequestUids = {};
 
   @override
   void initState() {
     super.initState();
-    _suggestedFriendsFuture = _fetchSuggestedFriends();
-    _initializeSentRequests();
+    _initializeStreams();
+    _initializeFriendAndRequestData();
   }
 
-  Future<void> _initializeSentRequests() async {
+  void _initializeStreams() {
     final currentUser = _auth.currentUser;
     if (currentUser == null) return;
 
-    final snapshot =
-        await _firestore
-            .collection('users')
-            .where('pendingRequests', arrayContains: currentUser.uid)
-            .get();
+    // Stream cho danh sách gợi ý bạn bè
+    _suggestedFriendsStream = _firestore
+        .collection('users')
+        .where(FieldPath.documentId, isNotEqualTo: currentUser.uid)
+        .limit(20)
+        .snapshots()
+        .map((snapshot) {
+          return snapshot.docs
+              .map((doc) => UserModel.fromMap(doc.data()))
+              .where(
+                (user) => !_friendUids.contains(user.uid),
+              ) // Loại bỏ bạn bè
+              .toList();
+        });
+  }
+
+  Future<void> _initializeFriendAndRequestData() async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) return;
+
+    // Lấy dữ liệu người dùng hiện tại
+    final currentUserDoc =
+        await _firestore.collection('users').doc(currentUser.uid).get();
+    final currentUserData = currentUserDoc.data();
+    if (currentUserData == null) return;
 
     if (!mounted) return;
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      setState(() {
-        _sentRequestUids.clear();
-        for (var doc in snapshot.docs) {
-          _sentRequestUids.add(doc.id);
-        }
-      });
+    setState(() {
+      _friendUids.clear();
+      _friendUids.addAll(List<String>.from(currentUserData['friends'] ?? []));
+
+      _sentRequestUids.clear();
+      _sentRequestUids.addAll(
+        List<String>.from(currentUserData['sentRequests'] ?? []),
+      );
+
+      _receivedRequestUids.clear();
+      _receivedRequestUids.addAll(
+        List<String>.from(currentUserData['pendingRequests'] ?? []),
+      );
     });
-  }
-
-  Future<List<UserModel>> _fetchSuggestedFriends() async {
-    final currentUser = _auth.currentUser;
-    if (currentUser == null) {
-      throw Exception('No user is currently logged in');
-    }
-
-    final QuerySnapshot snapshot =
-        await _firestore
-            .collection('users')
-            .where(FieldPath.documentId, isNotEqualTo: currentUser.uid)
-            .limit(20) // Giới hạn 20 người dùng
-            .get();
-
-    // Debug logs
-    print('Current user ID: ${currentUser.uid}');
-    print('Found ${snapshot.docs.length} users');
-
-    final users =
-        snapshot.docs.map((doc) {
-          final data = doc.data() as Map<String, dynamic>;
-          print('User data for ${doc.id}: $data'); // Debug log
-          return UserModel.fromMap(data);
-        }).toList();
-
-    print(
-      'Users: ${users.map((u) => '${u.name} (${u.uid})').join(', ')}',
-    ); // Debug log
-    return users;
   }
 
   Future<void> _toggleFriendRequest(String friendUid) async {
@@ -86,31 +86,42 @@ class _FriendScreenState extends State<FriendScreen> {
       return;
     }
 
+    if (_friendUids.contains(friendUid)) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Các bạn đã là bạn bè')));
+      return;
+    }
+
     try {
       if (_sentRequestUids.contains(friendUid)) {
+        // Hủy lời mời đã gửi
         await _firestore.collection('users').doc(friendUid).update({
           'pendingRequests': FieldValue.arrayRemove([currentUser.uid]),
         });
-        if (!mounted) return;
-
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          setState(() {
-            _sentRequestUids.remove(friendUid);
-          });
+        await _firestore.collection('users').doc(currentUser.uid).update({
+          'sentRequests': FieldValue.arrayRemove([friendUid]),
         });
-
+        setState(() {
+          _sentRequestUids.remove(friendUid);
+        });
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Đã hủy lời mời kết bạn')));
       } else {
+        // Gửi lời mời
         await _firestore.collection('users').doc(friendUid).update({
           'pendingRequests': FieldValue.arrayUnion([currentUser.uid]),
         });
-        if (!mounted) return;
-
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          setState(() {
-            _sentRequestUids.add(friendUid);
-          });
+        await _firestore.collection('users').doc(currentUser.uid).update({
+          'sentRequests': FieldValue.arrayUnion([friendUid]),
         });
-
+        setState(() {
+          _sentRequestUids.add(friendUid);
+        });
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Đã gửi lời mời kết bạn')));
       }
     } catch (e) {
       ScaffoldMessenger.of(
@@ -119,22 +130,99 @@ class _FriendScreenState extends State<FriendScreen> {
     }
   }
 
-  void _retryFetch() {
-    if (!mounted) return;
+  Future<void> _acceptFriendRequest(String friendUid) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) return;
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      setState(() {
-        _suggestedFriendsFuture = _fetchSuggestedFriends();
-        _initializeSentRequests();
+    try {
+      // Thêm vào danh sách bạn bè của cả hai
+      await _firestore.collection('users').doc(currentUser.uid).update({
+        'friends': FieldValue.arrayUnion([friendUid]),
+        'pendingRequests': FieldValue.arrayRemove([friendUid]),
       });
+      await _firestore.collection('users').doc(friendUid).update({
+        'friends': FieldValue.arrayUnion([currentUser.uid]),
+        'sentRequests': FieldValue.arrayRemove([currentUser.uid]),
+      });
+
+      setState(() {
+        _friendUids.add(friendUid);
+        _receivedRequestUids.remove(friendUid);
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Đã chấp nhận lời mời kết bạn')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+    }
+  }
+
+  Future<void> _rejectFriendRequest(String friendUid) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) return;
+
+    try {
+      // Xóa lời mời
+      await _firestore.collection('users').doc(currentUser.uid).update({
+        'pendingRequests': FieldValue.arrayRemove([friendUid]),
+      });
+      await _firestore.collection('users').doc(friendUid).update({
+        'sentRequests': FieldValue.arrayRemove([currentUser.uid]),
+      });
+
+      setState(() {
+        _receivedRequestUids.remove(friendUid);
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Đã từ chối lời mời kết bạn')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+    }
+  }
+
+  Future<void> _removeFriend(String friendUid) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) return;
+
+    try {
+      // Xóa khỏi danh sách bạn bè của cả hai
+      await _firestore.collection('users').doc(currentUser.uid).update({
+        'friends': FieldValue.arrayRemove([friendUid]),
+      });
+      await _firestore.collection('users').doc(friendUid).update({
+        'friends': FieldValue.arrayRemove([currentUser.uid]),
+      });
+
+      setState(() {
+        _friendUids.remove(friendUid);
+      });
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Đã xóa bạn bè')));
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+    }
+  }
+
+  void _retryFetch() {
+    setState(() {
+      _initializeStreams();
+      _initializeFriendAndRequestData();
     });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: FutureBuilder<List<UserModel>>(
-        future: _suggestedFriendsFuture,
+      body: StreamBuilder<List<UserModel>>(
+        stream: _suggestedFriendsStream,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -154,74 +242,74 @@ class _FriendScreenState extends State<FriendScreen> {
               ),
             );
           }
+
           final suggestedFriends = snapshot.data ?? [];
 
           return ListView(
             children: [
+              // Thanh điều hướng
               Padding(
                 padding: const EdgeInsets.all(8.0),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.all(10.0),
-                      child: Row(
-                        children: [
-                          Container(
-                            decoration: BoxDecoration(
-                              color: Colors.grey[300],
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 5,
-                            ),
-                            child: TextButton(
-                              onPressed: () {
-                                context.push('/friend-requests');
-                              },
-                              child: const Text(
-                                'Lời mời kết bạn',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 18,
-                                  color: Colors.black,
-                                ),
+                    Row(
+                      children: [
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.grey[300],
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 5,
+                          ),
+                          child: TextButton(
+                            onPressed: () {
+                              context.push('/friend-requests');
+                            },
+                            child: const Text(
+                              'Lời mời kết bạn',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                                color: Colors.black,
                               ),
                             ),
                           ),
-                          const SizedBox(width: 10),
-                          Container(
-                            decoration: BoxDecoration(
-                              color: Colors.grey[300],
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 5,
-                            ),
-                            child: TextButton(
-                              onPressed: () {
-                                context.push('/list-friend');
-                              },
-                              child: const Text(
-                                'Bạn bè',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 18,
-                                  color: Colors.black,
-                                ),
+                        ),
+                        const SizedBox(width: 10),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.grey[300],
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 5,
+                          ),
+                          child: TextButton(
+                            onPressed: () {
+                              context.push('/list-friend');
+                            },
+                            child: const Text(
+                              'Bạn bè',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                                color: Colors.black,
                               ),
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
+              // Tiêu đề danh sách gợi ý
               Padding(
-                padding: const EdgeInsets.only(left: 20.0),
+                padding: const EdgeInsets.only(left: 20.0, right: 8.0),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -240,6 +328,7 @@ class _FriendScreenState extends State<FriendScreen> {
                 ),
               ),
               const Divider(),
+              // Danh sách người dùng
               ...suggestedFriends.map(
                 (user) => Column(
                   children: [
@@ -254,7 +343,7 @@ class _FriendScreenState extends State<FriendScreen> {
                             MaterialPageRoute(
                               builder:
                                   (context) => OtherUserProfileScreen(
-                                    key: ValueKey(user.uid), 
+                                    key: ValueKey(user.uid),
                                     uid: user.uid,
                                   ),
                             ),
@@ -271,45 +360,7 @@ class _FriendScreenState extends State<FriendScreen> {
                       ),
                       title: Text(user.name),
                       subtitle: Text('${user.friends.length} bạn chung'),
-                      trailing:
-                          _sentRequestUids.contains(user.uid)
-                              ? Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  ElevatedButton(
-                                    onPressed:
-                                        () => _toggleFriendRequest(user.uid),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.grey[300],
-                                      foregroundColor: Colors.black,
-                                    ),
-                                    child: const Text('Hủy lời mời'),
-                                  ),
-                                ],
-                              )
-                              : Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  ElevatedButton(
-                                    onPressed:
-                                        () => _toggleFriendRequest(user.uid),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFF1877F2),
-                                      foregroundColor: Colors.white,
-                                    ),
-                                    child: const Text('Thêm bạn bè'),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  ElevatedButton(
-                                    onPressed: () {},
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.grey[300],
-                                      foregroundColor: Colors.black,
-                                    ),
-                                    child: const Text('Gỡ'),
-                                  ),
-                                ],
-                              ),
+                      trailing: _buildTrailingWidget(user.uid),
                     ),
                     const Divider(),
                   ],
@@ -320,5 +371,63 @@ class _FriendScreenState extends State<FriendScreen> {
         },
       ),
     );
+  }
+
+  Widget _buildTrailingWidget(String userUid) {
+    if (_friendUids.contains(userUid)) {
+      // Đã là bạn bè
+      return ElevatedButton(
+        onPressed: () => _removeFriend(userUid),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.grey[300],
+          foregroundColor: Colors.black,
+        ),
+        child: const Text('Xóa bạn bè'),
+      );
+    } else if (_sentRequestUids.contains(userUid)) {
+      // Đã gửi lời mời
+      return ElevatedButton(
+        onPressed: () => _toggleFriendRequest(userUid),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.grey[300],
+          foregroundColor: Colors.black,
+        ),
+        child: const Text('Hủy lời mời'),
+      );
+    } else if (_receivedRequestUids.contains(userUid)) {
+      // Nhận được lời mời
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ElevatedButton(
+            onPressed: () => _acceptFriendRequest(userUid),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1877F2),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Chấp nhận'),
+          ),
+          const SizedBox(width: 8),
+          ElevatedButton(
+            onPressed: () => _rejectFriendRequest(userUid),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.grey[300],
+              foregroundColor: Colors.black,
+            ),
+            child: const Text('Từ chối'),
+          ),
+        ],
+      );
+    } else {
+      // Chưa có mối quan hệ
+      return ElevatedButton(
+        onPressed: () => _toggleFriendRequest(userUid),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF1877F2),
+          foregroundColor: Colors.white,
+        ),
+        child: const Text('Thêm bạn bè'),
+      );
+    }
   }
 }
