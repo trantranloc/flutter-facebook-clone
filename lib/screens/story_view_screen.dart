@@ -1,5 +1,5 @@
 import 'dart:async';
-// import 'dart:io';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../models/Story.dart';
@@ -292,11 +292,10 @@ class _StoryViewScreenState extends State<StoryViewScreen> {
                           ),
                         ),
                       ),
-                    if (story.sticker != null)
+                    if (story.sticker != null && story.stickerOffset != null)
                       Positioned(
-                        bottom: 160,
-                        left: 16,
-                        right: 16,
+                        left: story.stickerOffset!.dx,
+                        top: story.stickerOffset!.dy,
                         child: Text(
                           story.sticker!,
                           style: const TextStyle(
@@ -418,6 +417,20 @@ class _StoryViewScreenState extends State<StoryViewScreen> {
 
   Widget _buildStoryImage(String imageUrl) {
     print('Loading image: $imageUrl'); // Log để debug
+    // Kiểm tra nếu imageUrl là đường dẫn file cục bộ
+    if (imageUrl.startsWith('/')) {
+      return Image.file(
+        File(imageUrl),
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          print('Error loading local image $imageUrl: $error'); // Log lỗi
+          return const Center(
+            child: Icon(Icons.error, color: Colors.red, size: 48),
+          );
+        },
+      );
+    }
+    // Nếu là URL từ Firebase hoặc mạng
     return Image.network(
       imageUrl,
       fit: BoxFit.cover,
