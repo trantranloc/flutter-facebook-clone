@@ -33,7 +33,12 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       User? user = await _authService.signIn(email, password);
       if (user != null) {
-        context.go('/');
+        bool isAdmin = await _authService.isAdmin();
+        if (isAdmin) {
+          context.go('/admin/choice');
+        } else {
+          context.go('/');
+        }
       }
     } on FirebaseAuthException catch (e) {
       String message;

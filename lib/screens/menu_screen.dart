@@ -6,7 +6,8 @@ import 'package:flutter_facebook_clone/services/user_service.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter_facebook_clone/providers/theme_provider.dart'; // Import ThemeProvider
+import 'package:flutter_facebook_clone/providers/theme_provider.dart'; 
+import 'package:flutter_facebook_clone/app_router.dart';
 
 class MenuScreen extends StatefulWidget {
   const MenuScreen({super.key});
@@ -169,6 +170,23 @@ class _MenuScreenState extends State<MenuScreen> {
                                     margin: const EdgeInsets.only(top: 8),
                                     child: Column(
                                       children: [
+                                        _buildMenuItem(
+                                          key: 'admin',
+                                          icon: Icons.admin_panel_settings,
+                                          title: 'Quản lý',
+                                          onTap: () {
+                                            print('Switching to admin router');
+
+                                            // Sử dụng AppRouter để chuyển đổi router
+                                            AppRouter.switchToAdminRouter(
+                                              context,
+                                            );
+
+                                            if (context.mounted) {
+                                              context.go('/admin');
+                                            }
+                                          },
+                                        ),
                                         _buildMenuItem(
                                           key: 'friends',
                                           icon: Icons.group,

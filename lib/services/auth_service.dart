@@ -1,8 +1,32 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class AuthService {
-  // Khởi tạo FirebaseAuth instance
+  // Khởi tạo FirebaseAuth và FirebaseFirestore instances
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  Future<bool> isAdmin() async {
+    try {
+      User? user = _auth.currentUser;
+      if (user == null) return false;
+
+      DocumentSnapshot userDoc =
+          await _firestore.collection('users').doc(user.uid).get();
+
+      if (!userDoc.exists) return false;
+
+      final data = userDoc.data() as Map<String, dynamic>;
+      final isAdmin = data['isAdmin'];
+
+      print("Giá trị isAdmin trong Firestore: $isAdmin");
+
+      return isAdmin == true;
+    } catch (e) {
+      print('Lỗi kiểm tra admin: $e');
+      return false;
+    }
+  }
 
   /// Đăng nhập bằng email và mật khẩu
   Future<User?> signIn(String email, String password) async {
@@ -12,6 +36,9 @@ class AuthService {
         password: password.trim(),
       );
       return userCredential.user;
+    } on FirebaseAuthException catch (e) {
+      print('Lỗi đăng nhập: ${e.code} - ${e.message}');
+      throw _mapFirebaseAuthException(e);
     } catch (e) {
       print('Lỗi đăng nhập: $e');
       rethrow;
@@ -25,7 +52,18 @@ class AuthService {
         email: email.trim(),
         password: password.trim(),
       );
+      // Lưu thông tin người dùng vào Firestore với vai trò mặc định (không phải admin)
+      if (userCredential.user != null) {
+        await _firestore.collection('users').doc(userCredential.user!.uid).set({
+          'email': email.trim(),
+          'isAdmin': false,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
       return userCredential.user;
+    } on FirebaseAuthException catch (e) {
+      print('Lỗi đăng ký: ${e.code} - ${e.message}');
+      throw _mapFirebaseAuthException(e);
     } catch (e) {
       print('Lỗi đăng ký: $e');
       rethrow;
@@ -34,13 +72,21 @@ class AuthService {
 
   /// Đăng xuất
   Future<void> signOut() async {
-    await _auth.signOut();
+    try {
+      await _auth.signOut();
+    } catch (e) {
+      print('Lỗi đăng xuất: $e');
+      rethrow;
+    }
   }
 
   /// Gửi email đặt lại mật khẩu
   Future<void> sendPasswordResetEmail(String email) async {
     try {
       await _auth.sendPasswordResetEmail(email: email.trim());
+    } on FirebaseAuthException catch (e) {
+      print('Lỗi gửi email đặt lại mật khẩu: ${e.code} - ${e.message}');
+      throw _mapFirebaseAuthException(e);
     } catch (e) {
       print('Lỗi gửi email đặt lại mật khẩu: $e');
       rethrow;
@@ -69,26 +115,37 @@ class AuthService {
 
       // Đăng xuất để người dùng đăng nhập lại với mật khẩu mới
       await _auth.signOut();
+    } on FirebaseAuthException catch (e) {
+      print('Lỗi cập nhật mật khẩu: ${e.code} - ${e.message}');
+      throw _mapFirebaseAuthException(e);
     } catch (e) {
       print('Lỗi cập nhật mật khẩu: $e');
-      if (e is FirebaseAuthException) {
-        switch (e.code) {
-          case 'user-not-found':
-            throw Exception('Không tìm thấy tài khoản với email này');
-          case 'wrong-password':
-            throw Exception('Mã xác thực không chính xác');
-          case 'invalid-email':
-            throw Exception('Email không hợp lệ');
-          case 'user-disabled':
-            throw Exception('Tài khoản đã bị vô hiệu hóa');
-          default:
-            throw Exception('Không thể cập nhật mật khẩu: ${e.message}');
-        }
-      }
       rethrow;
     }
   }
 
   /// Theo dõi trạng thái đăng nhập của người dùng
   Stream<User?> get authStateChanges => _auth.authStateChanges();
+
+  /// Ánh xạ lỗi FirebaseAuthException thành thông báo thân thiện
+  Exception _mapFirebaseAuthException(FirebaseAuthException e) {
+    switch (e.code) {
+      case 'user-not-found':
+        return Exception('Không tìm thấy tài khoản với email này');
+      case 'wrong-password':
+        return Exception('Mật khẩu không chính xác');
+      case 'invalid-email':
+        return Exception('Email không hợp lệ');
+      case 'user-disabled':
+        return Exception('Tài khoản đã bị vô hiệu hóa');
+      case 'email-already-in-use':
+        return Exception('Email đã được sử dụng');
+      case 'weak-password':
+        return Exception('Mật khẩu quá yếu');
+      case 'operation-not-allowed':
+        return Exception('Thao tác không được phép');
+      default:
+        return Exception('Lỗi: ${e.message}');
+    }
+  }
 }

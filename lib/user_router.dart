@@ -21,11 +21,16 @@ import 'package:flutter_facebook_clone/screens/reset_password_screen.dart';
 import 'package:flutter_facebook_clone/screens/other_user_profile_screen.dart';
 import 'package:flutter_facebook_clone/screens/friend_requests_screen.dart';
 import 'package:flutter_facebook_clone/screens/setting_screen.dart';
+import 'package:flutter_facebook_clone/admin/screens/admin_choice_screen.dart';
+import 'package:flutter_facebook_clone/admin/screens/admin_dashboard_screen.dart';
+import 'package:flutter_facebook_clone/providers/user_provider.dart';
+import 'package:provider/provider.dart';
+
 import 'package:go_router/go_router.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-final GoRouter router = GoRouter(
+final GoRouter userRouter = GoRouter(
   initialLocation: '/login',
   redirect: (context, state) async {
     final user = FirebaseAuth.instance.currentUser;
@@ -50,6 +55,22 @@ final GoRouter router = GoRouter(
       '/password',
       '/avatar',
     ];
+        // Handle admin paths
+    if (currentPath == '/admin' || currentPath == '/admin/choice') {
+      // Kiểm tra xem người dùng có phải là admin không
+      if (context.mounted) {
+        final userProvider = Provider.of<UserProvider>(context, listen: false);
+        if (userProvider.isAdmin) {
+          // Chuyển sang router admin nếu đang ở router user
+          if (!userProvider.useAdminRouter) {
+            userProvider.setAdminRouter(true);
+          }
+          return null; // Cho phép tiếp tục
+        } else {
+          return '/'; // Chuyển hướng về trang chủ nếu không phải admin
+        }
+      }
+    }
     if (registrationRoutes.any((route) => currentPath.startsWith(route))) {
       return null; // Không chuyển hướng
     }
@@ -182,8 +203,17 @@ final GoRouter router = GoRouter(
       path: '/setting',
       builder: (context, state) => const SettingsScreen(),
     ),
+    GoRoute(
+      path: '/admin',
+      builder: (context, state) => const AdminDashboardScreen(),
+    ),
+        GoRoute(
+      path: '/admin/choice',
+      builder: (context, state) => const AdminChoiceScreen(),
+    ),
   ],
 );
+
 
 class ScaffoldWithNavBar extends StatefulWidget {
   final Widget child;

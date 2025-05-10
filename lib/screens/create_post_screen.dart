@@ -84,7 +84,10 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         actions: [
           TextButton(
             onPressed: _isPosting ? null : _submitPost,
-            child: const Text('Đăng', style: TextStyle(color: Colors.white)),
+            child: Text(
+              'Đăng',
+              style: TextStyle(color: Theme.of(context).colorScheme.primary),
+            ),
           ),
         ],
       ),
