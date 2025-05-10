@@ -1,3 +1,4 @@
+import 'dart:io'; // Thêm import để sử dụng FileImage
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -8,7 +9,7 @@ import 'event_and_birthday_screen.dart';
 import 'notification_screen.dart';
 import '../widgets/post_card.dart';
 import '../models/Story.dart';
-import '../models/Post.dart'; // 👈 Thêm model Post
+import '../models/Post.dart';
 
 String timeAgo(Timestamp timestamp) {
   final now = DateTime.now();
@@ -381,10 +382,8 @@ class _HomeScreenState extends State<HomeScreen> {
           ...posts.map(
             (post) => PostCard(
               postId: post.id,
-              username: post.userId, // giả sử userId là tên người dùng demo
-              time: timeAgo(
-                post.createdAt,
-              ), // bạn có thể định dạng từ post.createdAt
+              username: post.userId,
+              time: timeAgo(post.createdAt),
               caption: post.content,
               imageUrl: post.imageUrls.isNotEmpty ? post.imageUrls.first : '',
               likes: post.likes,
@@ -427,42 +426,85 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildStoryItem(Story story) {
+    print('Loading story image: ${story.imageUrl}'); // Log để debug
     return Container(
       width: 100,
       margin: const EdgeInsets.only(right: 10),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        image: DecorationImage(
-          image: NetworkImage(story.imageUrl),
-          fit: BoxFit.cover,
-        ),
+        borderRadius: BorderRadius.circular(
+          12,
+        ), // Bo tròn các góc của Container
       ),
-      child: Stack(
-        children: [
-          Positioned(
-            top: 8,
-            left: 8,
-            child: CircleAvatar(
-              radius: 15,
-              backgroundImage: NetworkImage(story.avatarUrl),
-            ),
-          ),
-          Positioned(
-            bottom: 8,
-            left: 8,
-            right: 8,
-            child: Text(
-              story.user,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12), // Bo tròn các góc của hình ảnh
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Hiển thị hình ảnh (cục bộ hoặc từ URL)
+            story.imageUrl.startsWith('/')
+                ? Image.file(
+                  File(story.imageUrl),
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    print(
+                      'Error loading local image ${story.imageUrl}: $error',
+                    );
+                    return Container(
+                      color: Colors.grey[300],
+                      child: const Center(
+                        child: Icon(Icons.error, color: Colors.red, size: 40),
+                      ),
+                    );
+                  },
+                )
+                : Image.network(
+                  story.imageUrl,
+                  fit: BoxFit.cover,
+                  loadingBuilder:
+                      (context, child, loadingProgress) =>
+                          loadingProgress == null
+                              ? child
+                              : const Center(
+                                child: CircularProgressIndicator(),
+                              ),
+                  errorBuilder: (context, error, stackTrace) {
+                    print(
+                      'Error loading network image ${story.imageUrl}: $error',
+                    );
+                    return Container(
+                      color: Colors.grey[300],
+                      child: const Center(
+                        child: Icon(Icons.error, color: Colors.red, size: 40),
+                      ),
+                    );
+                  },
+                ),
+            // Avatar và tên người dùng
+            Positioned(
+              top: 8,
+              left: 8,
+              child: CircleAvatar(
+                radius: 15,
+                backgroundImage: NetworkImage(story.avatarUrl),
               ),
-              textAlign: TextAlign.center,
-              overflow: TextOverflow.ellipsis,
             ),
-          ),
-        ],
+            Positioned(
+              bottom: 8,
+              left: 8,
+              right: 8,
+              child: Text(
+                story.user,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
