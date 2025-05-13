@@ -102,6 +102,17 @@ class _FriendScreenState extends State<FriendScreen> {
         await _firestore.collection('users').doc(currentUser.uid).update({
           'sentRequests': FieldValue.arrayRemove([friendUid]),
         });
+        // Xóa thông báo tương ứng (nếu có)
+        final notificationSnapshot =
+            await _firestore
+                .collection('notifications')
+                .where('userId', isEqualTo: friendUid)
+                .where('senderId', isEqualTo: currentUser.uid)
+                .where('type', isEqualTo: 'friend_request')
+                .get();
+        for (var doc in notificationSnapshot.docs) {
+          await doc.reference.delete();
+        }
         setState(() {
           _sentRequestUids.remove(friendUid);
         });
@@ -116,6 +127,30 @@ class _FriendScreenState extends State<FriendScreen> {
         await _firestore.collection('users').doc(currentUser.uid).update({
           'sentRequests': FieldValue.arrayUnion([friendUid]),
         });
+
+        // Lấy thông tin người gửi để tạo thông báo
+        final senderDoc =
+            await _firestore.collection('users').doc(currentUser.uid).get();
+        final senderData = senderDoc.data();
+        if (senderData != null) {
+          final senderName = senderData['name'] ?? 'Người dùng';
+          final senderAvatarUrl =
+              senderData['avatarUrl'] ?? 'https://i.pravatar.cc/150?img=1';
+
+          // Tạo thông báo cho người nhận
+          await _firestore.collection('notifications').add({
+            'userId': friendUid, // Người nhận thông báo
+            'senderId': currentUser.uid, // Người gửi lời mời
+            'senderName': senderName,
+            'senderAvatarUrl': senderAvatarUrl,
+            'action': 'đã gửi lời mời kết bạn.',
+            'type': 'friend_request',
+            'isRead': false,
+            'timestamp': FieldValue.serverTimestamp(),
+            'date': 'Hôm nay', // Có thể tính toán dựa trên timestamp nếu cần
+          });
+        }
+
         setState(() {
           _sentRequestUids.add(friendUid);
         });
