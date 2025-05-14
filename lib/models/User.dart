@@ -10,6 +10,7 @@ class UserModel {
   final List<String> friends;
   final List<String> pendingRequests;
   final bool isAdmin;
+  final bool isBlocked; 
 
   const UserModel({
     required this.uid,
@@ -23,6 +24,7 @@ class UserModel {
     this.friends = const [],
     this.pendingRequests = const [],
     this.isAdmin = false,
+    this.isBlocked = false,
   });
 
   factory UserModel.fromMap(Map<String, dynamic> map) {
@@ -41,6 +43,7 @@ class UserModel {
       friends: List<String>.from(map['friends'] ?? []),
       pendingRequests: List<String>.from(map['pendingRequests'] ?? []),
       isAdmin: map['isAdmin'] ?? false,
+      isBlocked: map['isBlocked'] ?? false,
     );
   }
 
@@ -57,6 +60,7 @@ class UserModel {
       'friends': friends,
       'pendingRequests': pendingRequests,
       'isAdmin': isAdmin,
+      'isBlocked': isBlocked,
     };
   }
 
@@ -74,6 +78,7 @@ class UserModel {
     List<String>? friends,
     List<String>? pendingRequests,
     bool? isAdmin,
+    bool? isBlocked, // Thêm isBlocked
   }) {
     return UserModel(
       uid: uid ?? this.uid,
@@ -87,6 +92,7 @@ class UserModel {
       friends: friends ?? this.friends,
       pendingRequests: pendingRequests ?? this.pendingRequests,
       isAdmin: isAdmin ?? this.isAdmin,
+      isBlocked: isBlocked ?? this.isBlocked, 
     );
   }
 

@@ -28,6 +28,19 @@ class AuthService {
     }
   }
 
+  Future<bool> isUserBlocked(String uid) async {
+    try {
+      DocumentSnapshot userDoc =
+          await _firestore.collection('users').doc(uid).get();
+      if (!userDoc.exists) return false;
+      final data = userDoc.data() as Map<String, dynamic>;
+      return data['isBlocked'] == true;
+    } catch (e) {
+      print('Lỗi kiểm tra tài khoản bị khóa: $e');
+      return false;
+    }
+  }
+
   /// Đăng nhập bằng email và mật khẩu
   Future<User?> signIn(String email, String password) async {
     try {

@@ -93,6 +93,13 @@ class UserProvider with ChangeNotifier {
       notifyListeners();
     }
   }
+void resetStatus() {
+    _isAdmin = false;
+    _useAdminRouter = false;
+    _userModel = null;
+    _error = null;
+    notifyListeners();
+  }
 
   // Clear user data (on logout)
   Future<void> clearUser() async {

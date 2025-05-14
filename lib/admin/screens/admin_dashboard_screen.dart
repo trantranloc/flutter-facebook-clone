@@ -49,8 +49,7 @@ class AdminDashboardScreen extends StatelessWidget {
                 title: const Text('Quản lý Người dùng'),
                 onTap: () {
                   Navigator.pop(context);
-                  //  Điều hướng đến màn hình quản lý người dùng
-                  // context.go('/admin/users');
+                  context.go('/admin/user-management');
                 },
               ),
               ListTile(
