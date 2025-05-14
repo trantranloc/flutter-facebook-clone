@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_facebook_clone/providers/theme_provider.dart';
+import 'package:flutter_facebook_clone/providers/user_provider.dart';
 import 'package:flutter_facebook_clone/services/auth_service.dart';
 import 'package:flutter_facebook_clone/widgets/personal_info_screen.dart';
 import 'package:go_router/go_router.dart';
@@ -26,14 +27,32 @@ class _LoginScreenState extends State<LoginScreen> {
       isLoading = true;
       errorMessage = null;
     });
+    await context.read<UserProvider>().clearUser();
 
     String email = emailController.text;
     String password = passwordController.text;
 
     try {
       User? user = await _authService.signIn(email, password);
+      await context.read<UserProvider>().checkAdminStatus();
       if (user != null) {
-        context.go('/');
+        bool isAdmin = await _authService.isAdmin();
+        bool isBlocked = await _authService.isUserBlocked(user.uid);
+        if (isBlocked) {
+          setState(() {
+            errorMessage =
+                'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên.';
+            isLoading = false;
+          });
+          return;
+        }
+        print("admin: $isAdmin");
+        print("blocked: $isBlocked");
+        if (isAdmin) {
+          context.go('/admin/choice');
+        } else {
+          context.go('/');
+        }
       }
     } on FirebaseAuthException catch (e) {
       String message;
