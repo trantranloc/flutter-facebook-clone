@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_facebook_clone/models/user.dart';
+import 'package:flutter_facebook_clone/screens/add_friend_screen.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_facebook_clone/screens/other_user_profile_screen.dart';
 
@@ -40,13 +41,13 @@ class _FriendScreenState extends State<FriendScreen> {
         .limit(20)
         .snapshots()
         .map((snapshot) {
-          return snapshot.docs
-              .map((doc) => UserModel.fromMap(doc.data()))
-              .where(
-                (user) => !_friendUids.contains(user.uid),
-              ) // Loại bỏ bạn bè
-              .toList();
-        });
+      return snapshot.docs
+          .map((doc) => UserModel.fromMap(doc.data()))
+          .where(
+            (user) => !_friendUids.contains(user.uid),
+          ) // Loại bỏ bạn bè
+          .toList();
+    });
   }
 
   Future<void> _initializeFriendAndRequestData() async {
@@ -66,14 +67,12 @@ class _FriendScreenState extends State<FriendScreen> {
       _friendUids.addAll(List<String>.from(currentUserData['friends'] ?? []));
 
       _sentRequestUids.clear();
-      _sentRequestUids.addAll(
-        List<String>.from(currentUserData['sentRequests'] ?? []),
-      );
+      _sentRequestUids
+          .addAll(List<String>.from(currentUserData['sentRequests'] ?? []));
 
       _receivedRequestUids.clear();
-      _receivedRequestUids.addAll(
-        List<String>.from(currentUserData['pendingRequests'] ?? []),
-      );
+      _receivedRequestUids
+          .addAll(List<String>.from(currentUserData['pendingRequests'] ?? []));
     });
   }
 
@@ -130,87 +129,6 @@ class _FriendScreenState extends State<FriendScreen> {
     }
   }
 
-  Future<void> _acceptFriendRequest(String friendUid) async {
-    final currentUser = _auth.currentUser;
-    if (currentUser == null) return;
-
-    try {
-      // Thêm vào danh sách bạn bè của cả hai
-      await _firestore.collection('users').doc(currentUser.uid).update({
-        'friends': FieldValue.arrayUnion([friendUid]),
-        'pendingRequests': FieldValue.arrayRemove([friendUid]),
-      });
-      await _firestore.collection('users').doc(friendUid).update({
-        'friends': FieldValue.arrayUnion([currentUser.uid]),
-        'sentRequests': FieldValue.arrayRemove([currentUser.uid]),
-      });
-
-      setState(() {
-        _friendUids.add(friendUid);
-        _receivedRequestUids.remove(friendUid);
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đã chấp nhận lời mời kết bạn')),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
-    }
-  }
-
-  Future<void> _rejectFriendRequest(String friendUid) async {
-    final currentUser = _auth.currentUser;
-    if (currentUser == null) return;
-
-    try {
-      // Xóa lời mời
-      await _firestore.collection('users').doc(currentUser.uid).update({
-        'pendingRequests': FieldValue.arrayRemove([friendUid]),
-      });
-      await _firestore.collection('users').doc(friendUid).update({
-        'sentRequests': FieldValue.arrayRemove([currentUser.uid]),
-      });
-
-      setState(() {
-        _receivedRequestUids.remove(friendUid);
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đã từ chối lời mời kết bạn')),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
-    }
-  }
-
-  Future<void> _removeFriend(String friendUid) async {
-    final currentUser = _auth.currentUser;
-    if (currentUser == null) return;
-
-    try {
-      // Xóa khỏi danh sách bạn bè của cả hai
-      await _firestore.collection('users').doc(currentUser.uid).update({
-        'friends': FieldValue.arrayRemove([friendUid]),
-      });
-      await _firestore.collection('users').doc(friendUid).update({
-        'friends': FieldValue.arrayRemove([currentUser.uid]),
-      });
-
-      setState(() {
-        _friendUids.remove(friendUid);
-      });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Đã xóa bạn bè')));
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
-    }
-  }
-
   void _retryFetch() {
     setState(() {
       _initializeStreams();
@@ -243,7 +161,9 @@ class _FriendScreenState extends State<FriendScreen> {
             );
           }
 
-          final suggestedFriends = snapshot.data ?? [];
+          final suggestedFriends = (snapshot.data ?? [])
+              .where((user) => !_friendUids.contains(user.uid))
+              .toList();
 
           return ListView(
             children: [
@@ -265,8 +185,18 @@ class _FriendScreenState extends State<FriendScreen> {
                             vertical: 5,
                           ),
                           child: TextButton(
-                            onPressed: () {
-                              context.push('/friend-requests');
+                            onPressed: () async {
+                              // Điều hướng đến FriendRequestsScreen và chờ kết quả
+                              final result = await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const FriendRequestsScreen(),
+                                ),
+                              );
+                              // Nếu kết quả trả về là true, làm mới dữ liệu
+                              if (result == true) {
+                                _retryFetch();
+                              }
                             },
                             child: const Text(
                               'Lời mời kết bạn',
@@ -341,11 +271,10 @@ class _FriendScreenState extends State<FriendScreen> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder:
-                                  (context) => OtherUserProfileScreen(
-                                    key: ValueKey(user.uid),
-                                    uid: user.uid,
-                                  ),
+                              builder: (context) => OtherUserProfileScreen(
+                                key: ValueKey(user.uid),
+                                uid: user.uid,
+                              ),
                             ),
                           );
                         },
@@ -374,17 +303,7 @@ class _FriendScreenState extends State<FriendScreen> {
   }
 
   Widget _buildTrailingWidget(String userUid) {
-    if (_friendUids.contains(userUid)) {
-      // Đã là bạn bè
-      return ElevatedButton(
-        onPressed: () => _removeFriend(userUid),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.grey[300],
-          foregroundColor: Colors.black,
-        ),
-        child: const Text('Xóa bạn bè'),
-      );
-    } else if (_sentRequestUids.contains(userUid)) {
+    if (_sentRequestUids.contains(userUid)) {
       // Đã gửi lời mời
       return ElevatedButton(
         onPressed: () => _toggleFriendRequest(userUid),
@@ -393,30 +312,6 @@ class _FriendScreenState extends State<FriendScreen> {
           foregroundColor: Colors.black,
         ),
         child: const Text('Hủy lời mời'),
-      );
-    } else if (_receivedRequestUids.contains(userUid)) {
-      // Nhận được lời mời
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ElevatedButton(
-            onPressed: () => _acceptFriendRequest(userUid),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF1877F2),
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Chấp nhận'),
-          ),
-          const SizedBox(width: 8),
-          ElevatedButton(
-            onPressed: () => _rejectFriendRequest(userUid),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.grey[300],
-              foregroundColor: Colors.black,
-            ),
-            child: const Text('Từ chối'),
-          ),
-        ],
       );
     } else {
       // Chưa có mối quan hệ
