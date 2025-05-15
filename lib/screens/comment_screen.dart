@@ -5,14 +5,14 @@ import '../services/comment_service.dart';
 
 class CommentScreen extends StatefulWidget {
   final String postId;
-  final String username;
+  final String name;
   final String caption;
   final ScrollController scrollController;
 
   const CommentScreen({
     super.key,
     required this.postId,
-    required this.username,
+    required this.name,
     required this.caption,
     required this.scrollController,
   });
@@ -197,7 +197,7 @@ class _CommentScreenState extends State<CommentScreen> {
         children: [
           ListTile(
             title: Text(
-              widget.username,
+              widget.name,
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             subtitle: Text(widget.caption),

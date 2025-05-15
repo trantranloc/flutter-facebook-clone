@@ -6,7 +6,7 @@ import '../screens/comment_screen.dart';
 
 class PostCard extends StatefulWidget {
   final String postId;
-  final String username;
+  final String name;
   final String time;
   final String caption;
   final String imageUrl;
@@ -21,7 +21,7 @@ class PostCard extends StatefulWidget {
   const PostCard({
     super.key,
     required this.postId,
-    required this.username,
+    required this.name,
     required this.time,
     required this.caption,
     required this.imageUrl,
@@ -203,7 +203,7 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
                   ),
                   child: CommentScreen(
                     postId: widget.postId,
-                    username: widget.username,
+                    name: widget.name,
                     caption: widget.caption,
                     scrollController: scrollController,
                   ),
@@ -310,7 +310,7 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        widget.username,
+                        widget.name,
                         style: const TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 15,

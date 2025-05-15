@@ -33,7 +33,9 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Post> posts = [
     Post(
       id: '1',
-      userId: 'user_rosse',
+      name: 'Rosse Nguyen',
+      avatarUrl: 'https://i.pravatar.cc/150?img=5',
+      userId: 'Rosse',
       content: 'Hi ca nha !',
       imageUrls: [
         'https://cdn2.tuoitre.vn/471584752817336320/2024/4/16/img9704-17132420881631571916713.jpeg',
@@ -43,7 +45,9 @@ class _HomeScreenState extends State<HomeScreen> {
     ),
     Post(
       id: '2',
-      userId: 'user_itviet',
+      name: 'IT Viet',
+      avatarUrl: 'https://i.pravatar.cc/150?img=5',
+      userId: 'itviet',
       content: 'Hoc Hanh',
       imageUrls: [
         'https://images.unsplash.com/photo-1603791440384-56cd371ee9a7',
@@ -143,7 +147,9 @@ class _HomeScreenState extends State<HomeScreen> {
         ...[
           Post(
             id: '1',
-            userId: 'user_rosse',
+            name: 'Rosse Nguyen',
+            avatarUrl: 'https://i.pravatar.cc/150?img=5',
+            userId: 'Rosse',
             content: 'Hi ca nha !',
             imageUrls: [
               'https://cdn2.tuoitre.vn/471584752817336320/2024/4/16/img9704-17132420881631571916713.jpeg',
@@ -153,7 +159,9 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           Post(
             id: '2',
-            userId: 'user_itviet',
+            name: 'IT Viet',
+            avatarUrl: 'https://i.pravatar.cc/150?img=5',
+            userId: 'itviet',
             content: 'Hoc Hanh',
             imageUrls: [
               'https://images.unsplash.com/photo-1603791440384-56cd371ee9a7',
@@ -381,7 +389,8 @@ class _HomeScreenState extends State<HomeScreen> {
           ...posts.map(
             (post) => PostCard(
               postId: post.id,
-              username: post.userId, // giả sử userId là tên người dùng demo
+              name: post.name,
+              avatarUrl: post.avatarUrl,
               time: timeAgo(
                 post.createdAt,
               ), // bạn có thể định dạng từ post.createdAt
