@@ -55,7 +55,7 @@ final GoRouter userRouter = GoRouter(
       '/password',
       '/avatar',
     ];
-        // Handle admin paths
+    // Handle admin paths
     if (currentPath == '/admin' || currentPath == '/admin/choice') {
       // Kiểm tra xem người dùng có phải là admin không
       if (context.mounted) {
@@ -207,13 +207,12 @@ final GoRouter userRouter = GoRouter(
       path: '/admin',
       builder: (context, state) => const AdminDashboardScreen(),
     ),
-        GoRoute(
+    GoRoute(
       path: '/admin/choice',
       builder: (context, state) => const AdminChoiceScreen(),
     ),
   ],
 );
-
 
 class ScaffoldWithNavBar extends StatefulWidget {
   final Widget child;
@@ -343,12 +342,13 @@ class _ScaffoldWithNavBarState extends State<ScaffoldWithNavBar> {
     return Scaffold(
       backgroundColor: theme.colorScheme.background, // Theme-aware backgroun
       appBar: AppBar(
-        backgroundColor: theme.primaryColorDark, 
+        backgroundColor: theme.primaryColorDark,
         title: const Text(
           'LiteLine',
           style: TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 24,
+            color: Color.fromARGB(255, 237, 119, 255), 
           ),
         ),
         actions: [

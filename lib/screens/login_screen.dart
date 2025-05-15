@@ -106,7 +106,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       const Color(0xFF1E1E1E),
                     ]
                     : [
-                      const Color(0xFFFFF3E0), // Peach
+                      const Color(0xFFE1BEE7), // Peach
                       const Color(0xFFE1F5FE), // Light Blue
                     ],
           ),
@@ -118,9 +118,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 padding: const EdgeInsets.all(20),
                 child: Column(
                   children: [
-                    Text(
-                      'LiteLine',
-                      style: Theme.of(context).textTheme.headlineLarge,
+                    Image.asset(
+                      'assets/images/logos.png',
+                      width: 200,
+                      height: 200,
+                      fit: BoxFit.contain,
                     ),
                     const SizedBox(height: 40),
                     TextField(

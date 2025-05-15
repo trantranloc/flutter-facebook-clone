@@ -10,6 +10,9 @@ import 'notification_screen.dart';
 import '../widgets/post_card.dart';
 import '../models/Story.dart';
 import '../models/Post.dart';
+import '../providers/user_provider.dart';
+import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 String timeAgo(Timestamp timestamp) {
   final now = DateTime.now();
@@ -194,6 +197,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final userProvider = Provider.of<UserProvider>(context);
+    const defaultAvatar = 'https://i.pravatar.cc/150?img=5';
     return Scaffold(
       body: ListView(
         children: [
@@ -284,11 +289,28 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     Row(
                       children: [
-                        const CircleAvatar(
-                          backgroundImage: NetworkImage(
-                            'https://i.pravatar.cc/150?img=5',
+                        CircleAvatar(
+                          radius: 20,
+                          backgroundColor: Colors.grey[300],
+                          child: ClipOval(
+                            child: CachedNetworkImage(
+                              imageUrl:
+                                  userProvider.userModel?.avatarUrl ??
+                                  defaultAvatar,
+                              width: 60,
+                              height: 60,
+                              fit: BoxFit.cover,
+                              placeholder:
+                                  (context, url) =>
+                                      const CircularProgressIndicator(),
+                              errorWidget:
+                                  (context, url, error) => const Icon(
+                                    Icons.person,
+                                    size: 30,
+                                    color: Colors.grey,
+                                  ),
+                            ),
                           ),
-                          radius: 22,
                         ),
                         const SizedBox(width: 10),
                         Expanded(
@@ -397,6 +419,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildCreateStoryCard() {
+    final userProvider = Provider.of<UserProvider>(context);
+    const defaultAvatar = 'https://i.pravatar.cc/150?img=5';
     return Container(
       width: 100,
       margin: const EdgeInsets.only(right: 10),
@@ -407,9 +431,22 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const CircleAvatar(
+          CircleAvatar(
             radius: 30,
-            backgroundImage: NetworkImage('https://i.pravatar.cc/150?img=5'),
+            backgroundColor: Colors.grey[300],
+            child: ClipOval(
+              child: CachedNetworkImage(
+                imageUrl: userProvider.userModel?.avatarUrl ?? defaultAvatar,
+                width: 60,
+                height: 60,
+                fit: BoxFit.cover,
+                placeholder:
+                    (context, url) => const CircularProgressIndicator(),
+                errorWidget:
+                    (context, url, error) =>
+                        const Icon(Icons.person, size: 30, color: Colors.grey),
+              ),
+            ),
           ),
           const SizedBox(height: 8),
           Text(
