@@ -7,10 +7,10 @@ import 'create_story_screen.dart';
 import 'story_view_screen.dart';
 import 'event_and_birthday_screen.dart';
 import 'notification_screen.dart';
-import '../widgets/post_card.dart';
-import '../models/Story.dart';
-import '../models/Post.dart';
-import '../providers/user_provider.dart';
+import '../../widgets/post_card.dart';
+import '../../models/Story.dart';
+import '../../models/Post.dart';
+import '../../providers/user_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 

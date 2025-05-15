@@ -1,7 +1,7 @@
 import 'package:flutter_facebook_clone/admin/screens/admin_dashboard_screen.dart';
 import 'package:flutter_facebook_clone/admin/screens/admin_choice_screen.dart';
 import 'package:flutter_facebook_clone/admin/screens/post_management_screen.dart';
-import 'package:flutter_facebook_clone/screens/login_screen.dart';
+import 'package:flutter_facebook_clone/client/screens/login_screen.dart';
 import 'package:flutter_facebook_clone/admin/screens/user_management_screen.dart';
 import 'package:go_router/go_router.dart';
 

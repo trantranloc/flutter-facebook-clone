@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter_facebook_clone/screens/home_screen.dart';
-import 'package:flutter_facebook_clone/screens/search_screen.dart';
+import 'package:flutter_facebook_clone/client/screens/home_screen.dart';
+import 'package:flutter_facebook_clone/client/screens/search_screen.dart';
 import 'package:flutter_facebook_clone/widgets/create_group_screen.dart';
 import 'package:flutter_facebook_clone/widgets/group_home_screen.dart';
 import 'package:flutter_facebook_clone/models/group.dart';

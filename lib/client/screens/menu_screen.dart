@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_facebook_clone/screens/group_screen.dart';
+import 'package:flutter_facebook_clone/client/screens/group_screen.dart';
 import 'package:flutter_facebook_clone/providers/user_provider.dart';
 import 'package:flutter_facebook_clone/services/auth_service.dart';
 import 'package:flutter_facebook_clone/services/user_service.dart';
@@ -7,7 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_facebook_clone/providers/theme_provider.dart';
-import 'package:flutter_facebook_clone/app_router.dart';
+import 'package:flutter_facebook_clone/router/app_router.dart';
 
 class MenuScreen extends StatefulWidget {
   const MenuScreen({super.key});

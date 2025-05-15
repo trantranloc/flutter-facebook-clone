@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter_facebook_clone/admin/admin_scaffold.dart';
+import 'package:flutter_facebook_clone/admin/screens/admin_scaffold.dart';
 class PostManagementScreen extends StatefulWidget {
   const PostManagementScreen({super.key});
 

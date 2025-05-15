@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
-import '../screens/comment_screen.dart';
+import '../client/screens/comment_screen.dart';
 
 class PostCard extends StatefulWidget {
   final String postId;

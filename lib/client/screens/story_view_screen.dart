@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import '../models/Story.dart';
+import '../../models/Story.dart';
 
 class StoryViewScreen extends StatefulWidget {
   final List<Story> stories;

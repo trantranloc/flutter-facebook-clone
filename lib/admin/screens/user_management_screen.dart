@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_facebook_clone/models/User.dart';
-import 'package:flutter_facebook_clone/admin/admin_scaffold.dart';
+import 'package:flutter_facebook_clone/admin/screens/admin_scaffold.dart';
 class UserManagementScreen extends StatefulWidget {
   const UserManagementScreen({super.key});
 

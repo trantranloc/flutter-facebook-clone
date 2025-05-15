@@ -8,7 +8,7 @@ import 'firebase_options.dart';
 import 'background_tasks.dart';
 import 'providers/theme_provider.dart';
 import 'providers/user_provider.dart';
-import 'app_router.dart'; 
+import 'router/app_router.dart'; 
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

@@ -10,8 +10,8 @@ import 'package:flutter_facebook_clone/providers/user_provider.dart';
 import 'package:flutter_facebook_clone/models/User.dart';
 import 'package:flutter_facebook_clone/providers/theme_provider.dart'; // Import ThemeProvider
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../models/Post.dart'; // Model bài viết
-import '../widgets/post_card.dart'; // Widget hiển thị bài viết
+import '../../models/Post.dart'; // Model bài viết
+import '../../widgets/post_card.dart'; // Widget hiển thị bài viết
 import 'create_post_screen.dart'; // Màn hình tạo bài viết
 
 class ProfileScreen extends StatefulWidget {

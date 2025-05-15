@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloudinary_public/cloudinary_public.dart';
-import '../models/Post.dart';
+import '../../models/Post.dart';
 
 class CreatePostScreen extends StatefulWidget {
   const CreatePostScreen({super.key});
