@@ -1,3 +1,4 @@
+import 'dart:io'; // Thêm import để sử dụng FileImage
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -8,7 +9,10 @@ import 'event_and_birthday_screen.dart';
 import 'notification_screen.dart';
 import '../widgets/post_card.dart';
 import '../models/Story.dart';
-import '../models/Post.dart'; // 👈 Thêm model Post
+import '../models/Post.dart';
+import '../providers/user_provider.dart';
+import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 String timeAgo(Timestamp timestamp) {
   final now = DateTime.now();
@@ -201,6 +205,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final userProvider = Provider.of<UserProvider>(context);
+    const defaultAvatar = 'https://i.pravatar.cc/150?img=5';
     return Scaffold(
       body: ListView(
         children: [
@@ -291,11 +297,28 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     Row(
                       children: [
-                        const CircleAvatar(
-                          backgroundImage: NetworkImage(
-                            'https://i.pravatar.cc/150?img=5',
+                        CircleAvatar(
+                          radius: 20,
+                          backgroundColor: Colors.grey[300],
+                          child: ClipOval(
+                            child: CachedNetworkImage(
+                              imageUrl:
+                                  userProvider.userModel?.avatarUrl ??
+                                  defaultAvatar,
+                              width: 60,
+                              height: 60,
+                              fit: BoxFit.cover,
+                              placeholder:
+                                  (context, url) =>
+                                      const CircularProgressIndicator(),
+                              errorWidget:
+                                  (context, url, error) => const Icon(
+                                    Icons.person,
+                                    size: 30,
+                                    color: Colors.grey,
+                                  ),
+                            ),
                           ),
-                          radius: 22,
                         ),
                         const SizedBox(width: 10),
                         Expanded(
@@ -394,6 +417,7 @@ class _HomeScreenState extends State<HomeScreen> {
               time: timeAgo(
                 post.createdAt,
               ), // bạn có thể định dạng từ post.createdAt
+
               caption: post.content,
               imageUrl: post.imageUrls.isNotEmpty ? post.imageUrls.first : '',
               likes: post.likes,
@@ -407,6 +431,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildCreateStoryCard() {
+    final userProvider = Provider.of<UserProvider>(context);
+    const defaultAvatar = 'https://i.pravatar.cc/150?img=5';
     return Container(
       width: 100,
       margin: const EdgeInsets.only(right: 10),
@@ -417,9 +443,22 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const CircleAvatar(
+          CircleAvatar(
             radius: 30,
-            backgroundImage: NetworkImage('https://i.pravatar.cc/150?img=5'),
+            backgroundColor: Colors.grey[300],
+            child: ClipOval(
+              child: CachedNetworkImage(
+                imageUrl: userProvider.userModel?.avatarUrl ?? defaultAvatar,
+                width: 60,
+                height: 60,
+                fit: BoxFit.cover,
+                placeholder:
+                    (context, url) => const CircularProgressIndicator(),
+                errorWidget:
+                    (context, url, error) =>
+                        const Icon(Icons.person, size: 30, color: Colors.grey),
+              ),
+            ),
           ),
           const SizedBox(height: 8),
           Text(
@@ -436,42 +475,85 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildStoryItem(Story story) {
+    print('Loading story image: ${story.imageUrl}'); // Log để debug
     return Container(
       width: 100,
       margin: const EdgeInsets.only(right: 10),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        image: DecorationImage(
-          image: NetworkImage(story.imageUrl),
-          fit: BoxFit.cover,
-        ),
+        borderRadius: BorderRadius.circular(
+          12,
+        ), // Bo tròn các góc của Container
       ),
-      child: Stack(
-        children: [
-          Positioned(
-            top: 8,
-            left: 8,
-            child: CircleAvatar(
-              radius: 15,
-              backgroundImage: NetworkImage(story.avatarUrl),
-            ),
-          ),
-          Positioned(
-            bottom: 8,
-            left: 8,
-            right: 8,
-            child: Text(
-              story.user,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12), // Bo tròn các góc của hình ảnh
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Hiển thị hình ảnh (cục bộ hoặc từ URL)
+            story.imageUrl.startsWith('/')
+                ? Image.file(
+                  File(story.imageUrl),
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    print(
+                      'Error loading local image ${story.imageUrl}: $error',
+                    );
+                    return Container(
+                      color: Colors.grey[300],
+                      child: const Center(
+                        child: Icon(Icons.error, color: Colors.red, size: 40),
+                      ),
+                    );
+                  },
+                )
+                : Image.network(
+                  story.imageUrl,
+                  fit: BoxFit.cover,
+                  loadingBuilder:
+                      (context, child, loadingProgress) =>
+                          loadingProgress == null
+                              ? child
+                              : const Center(
+                                child: CircularProgressIndicator(),
+                              ),
+                  errorBuilder: (context, error, stackTrace) {
+                    print(
+                      'Error loading network image ${story.imageUrl}: $error',
+                    );
+                    return Container(
+                      color: Colors.grey[300],
+                      child: const Center(
+                        child: Icon(Icons.error, color: Colors.red, size: 40),
+                      ),
+                    );
+                  },
+                ),
+            // Avatar và tên người dùng
+            Positioned(
+              top: 8,
+              left: 8,
+              child: CircleAvatar(
+                radius: 15,
+                backgroundImage: NetworkImage(story.avatarUrl),
               ),
-              textAlign: TextAlign.center,
-              overflow: TextOverflow.ellipsis,
             ),
-          ),
-        ],
+            Positioned(
+              bottom: 8,
+              left: 8,
+              right: 8,
+              child: Text(
+                story.user,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

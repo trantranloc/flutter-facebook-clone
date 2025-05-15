@@ -9,6 +9,8 @@ class UserModel {
   final DateTime createdAt;
   final List<String> friends;
   final List<String> pendingRequests;
+  final bool isAdmin;
+  final bool isBlocked; 
 
   const UserModel({
     required this.uid,
@@ -21,6 +23,8 @@ class UserModel {
     required this.createdAt,
     this.friends = const [],
     this.pendingRequests = const [],
+    this.isAdmin = false,
+    this.isBlocked = false,
   });
 
   factory UserModel.fromMap(Map<String, dynamic> map) {
@@ -37,37 +41,30 @@ class UserModel {
               ? DateTime.parse(map['createdAt'])
               : (map['createdAt'] as dynamic)?.toDate() ?? DateTime.now(),
       friends: List<String>.from(map['friends'] ?? []),
-      pendingRequests:
-          map['pendingRequests'] != null
-              ? List<String>.from(map['pendingRequests'])
-              : [],
+      pendingRequests: List<String>.from(map['pendingRequests'] ?? []),
+      isAdmin: map['isAdmin'] ?? false,
+      isBlocked: map['isBlocked'] ?? false,
     );
   }
 
   Map<String, dynamic> toMap() {
     return {
+      'uid': uid,
       'name': name,
       'email': email,
       'avatarUrl': avatarUrl,
       'coverUrl': coverUrl,
+      'bio': bio,
       'gender': gender,
       'createdAt': createdAt.toIso8601String(),
       'friends': friends,
       'pendingRequests': pendingRequests,
+      'isAdmin': isAdmin,
+      'isBlocked': isBlocked,
     };
   }
 
-  Map<String, dynamic> toJson() => {
-    'uid': uid,
-    'name': name,
-    'email': email,
-    'avatarUrl': avatarUrl,
-    'coverUrl': coverUrl,
-    'bio': bio,
-    'gender': gender,
-    'createdAt': createdAt.toIso8601String(),
-    'friends': friends,
-  };
+  Map<String, dynamic> toJson() => toMap();
 
   UserModel copyWith({
     String? uid,
@@ -80,6 +77,8 @@ class UserModel {
     DateTime? createdAt,
     List<String>? friends,
     List<String>? pendingRequests,
+    bool? isAdmin,
+    bool? isBlocked, // Thêm isBlocked
   }) {
     return UserModel(
       uid: uid ?? this.uid,
@@ -92,6 +91,8 @@ class UserModel {
       createdAt: createdAt ?? this.createdAt,
       friends: friends ?? this.friends,
       pendingRequests: pendingRequests ?? this.pendingRequests,
+      isAdmin: isAdmin ?? this.isAdmin,
+      isBlocked: isBlocked ?? this.isBlocked, 
     );
   }
 
@@ -104,4 +105,3 @@ class UserModel {
     }
   }
 }
-

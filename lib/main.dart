@@ -1,16 +1,22 @@
 // ignore_for_file: avoid_print
-import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter_facebook_clone/providers/user_provider.dart';
+import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
 import 'package:provider/provider.dart';
-import 'background_tasks.dart';
+
 import 'firebase_options.dart';
-import 'router.dart';
+import 'background_tasks.dart';
 import 'providers/theme_provider.dart';
+import 'providers/user_provider.dart';
+import 'app_router.dart'; 
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await _initializeServices();
+  runApp(const MyApp());
+}
+
+Future<void> _initializeServices() async {
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
@@ -23,11 +29,10 @@ void main() async {
       exact: true,
       wakeup: true,
     );
-    print('Firebase initialized successfully');
+    debugPrint('Firebase initialized successfully');
   } catch (e) {
-    print('Firebase initialization error: $e');
+    debugPrint('Firebase initialization error: $e');
   }
-  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -37,21 +42,70 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (context) => UserProvider()),
-        ChangeNotifierProvider(create: (context) => ThemeProvider()),
+        ChangeNotifierProvider(create: (_) => UserProvider()),
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
       ],
       child: Consumer<ThemeProvider>(
-        builder: (context, themeProvider, child) {
-          return MaterialApp.router(
-            title: 'FB Lite',
-            routerConfig: router,
-            debugShowCheckedModeBanner: false,
-            theme: ThemeProvider.lightTheme,
-            darkTheme: ThemeProvider.darkTheme,
-            themeMode: themeProvider.themeMode,
-          );
-        },
+        builder:
+            (context, themeProvider, child) => MaterialApp(
+              title: 'FB Lite',
+              debugShowCheckedModeBanner: false,
+              theme: ThemeProvider.lightTheme,
+              darkTheme: ThemeProvider.darkTheme,
+              themeMode: themeProvider.themeMode,
+              home: const AuthWrapper(),
+            ),
       ),
     );
+  }
+}
+
+class AuthWrapper extends StatelessWidget {
+  const AuthWrapper({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<bool>(
+      future: _checkAdminStatus(context),
+      builder: (context, snapshot) {
+        debugPrint('FutureBuilder state: ${snapshot.connectionState}');
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        if (snapshot.hasError) {
+          debugPrint('FutureBuilder error: ${snapshot.error}');
+          return const Scaffold(body: Center(child: Text('Error loading app')));
+        }
+
+        final userProvider = Provider.of<UserProvider>(context);
+        debugPrint('Using admin router: ${userProvider.useAdminRouter}');
+
+        // Sử dụng AppRouter để lấy router phù hợp
+        final router = AppRouter.getRouter(context);
+
+        return MaterialApp.router(
+          title: userProvider.useAdminRouter ? 'Admin Panel' : 'FB Lite',
+          debugShowCheckedModeBanner: false,
+          theme: ThemeProvider.lightTheme,
+          darkTheme: ThemeProvider.darkTheme,
+          themeMode: Provider.of<ThemeProvider>(context).themeMode,
+          routerConfig: router,
+        );
+      },
+    );
+  }
+
+  Future<bool> _checkAdminStatus(BuildContext context) async {
+    try {
+      // Sử dụng phương thức trong AppRouter
+      await AppRouter.checkAndSetAdminRouter(context);
+      return true;
+    } catch (e) {
+      debugPrint('Error checking admin status: $e');
+      return false;
+    }
   }
 }

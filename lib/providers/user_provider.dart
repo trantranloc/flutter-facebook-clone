@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_facebook_clone/services/user_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_facebook_clone/models/User.dart';
+import 'package:flutter_facebook_clone/services/auth_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class UserProvider with ChangeNotifier {
   UserModel? _userModel;
@@ -13,10 +15,39 @@ class UserProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
 
+  //Admin
+  bool _isAdmin = false;
+  bool _useAdminRouter = false;
+
+  bool get isAdmin => _isAdmin;
+  bool get useAdminRouter => _useAdminRouter;
+
   void setLoading(bool value) {
     _isLoading = value;
     _error = null;
     notifyListeners();
+  }
+
+  Future<void> checkAdminStatus() async {
+    try {
+      _isAdmin = await AuthService().isAdmin();
+      print('Admin status checked: $_isAdmin');
+      _useAdminRouter = _isAdmin;
+         if (_isAdmin && FirebaseAuth.instance.currentUser != null) {
+        _useAdminRouter = true;
+      }
+      notifyListeners();
+    } catch (e) {
+      print('Error checking admin status: $e');
+      _isAdmin = false;
+      _useAdminRouter = false;
+      notifyListeners();
+    }
+  }
+
+  void setAdminRouter(bool useAdminRouter) {
+      _useAdminRouter = useAdminRouter;
+      notifyListeners();
   }
 
   // Load user data
@@ -29,7 +60,7 @@ class UserProvider with ChangeNotifier {
 
     // Check cache first
     UserModel? cachedUser = await _getCachedUser();
-    if (cachedUser != null && cachedUser.uid == uid ) {
+    if (cachedUser != null && cachedUser.uid == uid) {
       _userModel = cachedUser;
       _isLoading = false;
       _error = null;
@@ -61,6 +92,13 @@ class UserProvider with ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
+void resetStatus() {
+    _isAdmin = false;
+    _useAdminRouter = false;
+    _userModel = null;
+    _error = null;
+    notifyListeners();
   }
 
   // Clear user data (on logout)

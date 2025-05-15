@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_facebook_clone/models/user.dart';
-import 'package:flutter_facebook_clone/screens/friend_screen.dart';
 
 class FriendRequestsScreen extends StatefulWidget {
   const FriendRequestsScreen({super.key});
@@ -29,10 +28,7 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const FriendScreen()),
-            );
+            Navigator.pop(context, true);
           },
         ),
         title: const Text(
@@ -104,12 +100,8 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen> {
                   const SizedBox(height: 20),
                   ElevatedButton(
                     onPressed: () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const FriendScreen(),
-                        ),
-                      );
+                      // Quay lại FriendScreen và yêu cầu làm mới
+                      Navigator.pop(context, true);
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF1877F2),
@@ -127,11 +119,10 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen> {
           }
 
           return StreamBuilder<QuerySnapshot>(
-            stream:
-                _firestore
-                    .collection('users')
-                    .where(FieldPath.documentId, whereIn: pendingRequestUids)
-                    .snapshots(),
+            stream: _firestore
+                .collection('users')
+                .where(FieldPath.documentId, whereIn: pendingRequestUids)
+                .snapshots(),
             builder: (context, userSnapshot) {
               if (userSnapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
@@ -147,14 +138,13 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen> {
                 );
               }
 
-              final pendingRequests =
-                  userSnapshot.data!.docs
-                      .map(
-                        (doc) => UserModel.fromMap(
-                          doc.data() as Map<String, dynamic>,
-                        ),
-                      )
-                      .toList();
+              final pendingRequests = userSnapshot.data!.docs
+                  .map(
+                    (doc) => UserModel.fromMap(
+                      doc.data() as Map<String, dynamic>,
+                    ),
+                  )
+                  .toList();
               print(
                 'Pending requests: ${pendingRequests.map((u) => u.name).toList()}',
               ); // Debug log
@@ -230,6 +220,7 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Đã xác nhận bạn bè')));
+      // Không điều hướng, giữ người dùng ở lại FriendRequestsScreen
     } catch (e) {
       print('Error accepting friend request: $e'); // Debug log
       ScaffoldMessenger.of(
@@ -255,6 +246,7 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Đã xóa lời mời')));
+      // Không điều hướng, giữ người dùng ở lại FriendRequestsScreen
     } catch (e) {
       print('Error rejecting friend request: $e'); // Debug log
       ScaffoldMessenger.of(
