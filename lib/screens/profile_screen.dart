@@ -9,6 +9,10 @@ import 'package:provider/provider.dart';
 import 'package:flutter_facebook_clone/providers/user_provider.dart';
 import 'package:flutter_facebook_clone/models/User.dart';
 import 'package:flutter_facebook_clone/providers/theme_provider.dart'; // Import ThemeProvider
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/Post.dart'; // Model bài viết
+import '../widgets/post_card.dart'; // Widget hiển thị bài viết
+import 'create_post_screen.dart'; // Màn hình tạo bài viết
 
 class ProfileScreen extends StatefulWidget {
   final String uid;
@@ -23,6 +27,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     with SingleTickerProviderStateMixin {
   final UserService _userService = UserService();
   List<UserModel> _friends = [];
+  List<Post> _posts = [];
   bool _isLoading = false;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
@@ -45,12 +50,92 @@ class _ProfileScreenState extends State<ProfileScreen>
       end: 1.0,
     ).animate(_animationController);
     _loadUserData();
+    fetchUserPosts();
   }
 
   @override
   void dispose() {
     _animationController.dispose();
     super.dispose();
+  }
+
+  Future<void> fetchUserPosts() async {
+    final snapshot =
+        await FirebaseFirestore.instance
+            .collection('posts')
+            .where('userId', isEqualTo: widget.uid)
+            .orderBy('createdAt', descending: true)
+            .get();
+
+    setState(() {
+      _posts = snapshot.docs.map((doc) => Post.fromDocument(doc)).toList();
+    });
+  }
+
+  String timeAgo(DateTime dateTime) {
+    final duration = DateTime.now().difference(dateTime);
+    if (duration.inMinutes < 1) return 'Vừa xong';
+    if (duration.inHours < 1) return '${duration.inMinutes} phút trước';
+    if (duration.inDays < 1) return '${duration.inHours} giờ trước';
+    return '${duration.inDays} ngày trước';
+  }
+
+  Widget _buildPostsSection() {
+    final isCurrentUserProfile =
+        FirebaseAuth.instance.currentUser?.uid == widget.uid;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: Theme.of(context).cardColor),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Bài viết', style: Theme.of(context).textTheme.titleMedium),
+              if (isCurrentUserProfile)
+                IconButton(
+                  icon: const Icon(Icons.add_circle_outline),
+                  onPressed: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const CreatePostScreen(),
+                      ),
+                    );
+                    fetchUserPosts();
+                  },
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          _posts.isEmpty
+              ? const Center(child: Text('Chưa có bài viết nào'))
+              : ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: _posts.length,
+                itemBuilder: (context, index) {
+                  final post = _posts[index];
+                  return PostCard(
+                    postId: post.id,
+                    name: post.name,
+                    avatarUrl: post.avatarUrl,
+                    time: timeAgo(post.createdAt.toDate()),
+                    caption: post.content,
+                    imageUrl:
+                        post.imageUrls.isNotEmpty ? post.imageUrls[0] : '',
+                    likes: post.likes,
+                    comments: 0,
+                    shares: 0,
+                  );
+                },
+              ),
+        ],
+      ),
+    );
   }
 
   Future<void> _loadUserData() async {
@@ -126,6 +211,8 @@ class _ProfileScreenState extends State<ProfileScreen>
                       'Bạn có muốn sử dụng ảnh này làm ảnh đại diện?',
                       textAlign: TextAlign.center,
                     ),
+                    // Hiển thị danh sách bài viết
+                    _buildPostsSection(),
                   ],
                 ),
                 actions: [
@@ -249,7 +336,6 @@ class _ProfileScreenState extends State<ProfileScreen>
                   decoration: BoxDecoration(
                     color: Colors.purple.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
-                    
                   ),
                   child: const Icon(Icons.face, color: Colors.purple),
                 ),
@@ -870,6 +956,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                   ],
                                 ),
                               ),
+                              _buildPostsSection(),
                             ],
                           ),
                         ),
