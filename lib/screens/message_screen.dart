@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_facebook_clone/services/chat_service.dart';
+import 'package:flutter_facebook_clone/providers/message_provider.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
 class MessageScreen extends StatefulWidget {
   const MessageScreen({super.key});
@@ -10,71 +11,58 @@ class MessageScreen extends StatefulWidget {
 }
 
 class _MessageScreenState extends State<MessageScreen> {
-  // Dữ liệu bạn bè từ Firestore
-  List<Map<String, dynamic>> _friendsList = [];
-  bool _isLoading = true;
+  final TextEditingController _searchController = TextEditingController();
 
   @override
-  void initState() {
-    super.initState();
-    _fetchFriends();
-  }
-
-  // Lấy danh sách bạn bè từ ChatService
-  Future<void> _fetchFriends() async {
-    final chatService = ChatService();
-    final friends = await chatService.getFriendsWithLastMessage();
-    if (mounted) {
-      // Kiểm tra xem widget còn mounted trước khi gọi setState
-      setState(() {
-        _friendsList = friends;
-        _isLoading = false;
-      });
-    }
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        title: const Text(
-          'Messages',
-          style: TextStyle(
-            color: Colors.black,
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings, color: Colors.black),
-            onPressed: () {
-              // Settings action
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.search, color: Colors.black),
-            onPressed: () {
-              // Search action
-            },
-          ),
-        ],
-      ),
-      body:
-          _isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : ListView(
-                children: [
-                  // Horizontal Friends Section
-                  Container(
-                    height: 90,
-                    padding: const EdgeInsets.symmetric(vertical: 5),
-                    child: ListView(
-                      scrollDirection: Axis.horizontal,
-                      children:
-                          _friendsList.take(7).map((friend) {
+    return ChangeNotifierProvider(
+      create: (_) => MessageProvider(),
+      child: Consumer<MessageProvider>(
+        builder: (context, provider, child) {
+          return Scaffold(
+            appBar: AppBar(
+              backgroundColor: Colors.white,
+              elevation: 0,
+              title: const Text(
+                'Messages',
+                style: TextStyle(
+                  color: Colors.black,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.settings, color: Colors.black),
+                  onPressed: () {
+                    // Settings action
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(Icons.search, color: Colors.black),
+                  onPressed: () {
+                    showSearchDialog(context, provider);
+                  },
+                ),
+              ],
+            ),
+            body: provider.isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : ListView(
+                    children: [
+                      // Horizontal Friends Section
+                      Container(
+                        height: 90,
+                        padding: const EdgeInsets.symmetric(vertical: 5),
+                        child: ListView(
+                          scrollDirection: Axis.horizontal,
+                          children: provider.friendsList.take(7).map((friend) {
                             return FriendAvatar(
                               name: friend['name'],
                               image: friend['avatarUrl'],
@@ -84,22 +72,55 @@ class _MessageScreenState extends State<MessageScreen> {
                               },
                             );
                           }).toList(),
-                    ),
+                        ),
+                      ),
+                      const Divider(),
+                      // Messages Section
+                      ...provider.friendsList.map((friend) {
+                        return MessageTile(
+                          name: friend['name'],
+                          message: friend['lastMessage'],
+                          avatarUrl: friend['avatarUrl'],
+                          isActive: friend['isActive'],
+                          onTap: () {
+                            context.go('/message/chat/${friend['uid']}');
+                          },
+                        );
+                      }),
+                    ],
                   ),
-                  const Divider(),
-                  // Messages Section
-                  ..._friendsList.map((friend) {
-                    return MessageTile(
-                      name: friend['name'],
-                      message: friend['lastMessage'],
-                      isActive: friend['isActive'],
-                      onTap: () {
-                        context.go('/message/chat/${friend['uid']}');
-                      },
-                    );
-                  }),
-                ],
-              ),
+          );
+        },
+      ),
+    );
+  }
+
+  void showSearchDialog(BuildContext context, MessageProvider provider) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Search Friends'),
+        content: TextField(
+          controller: _searchController,
+          decoration: const InputDecoration(
+            hintText: 'Enter friend\'s name',
+            border: OutlineInputBorder(),
+          ),
+          onChanged: (value) {
+            provider.searchFriends(value);
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              _searchController.clear();
+              provider.clearSearch();
+              Navigator.pop(context);
+            },
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -131,14 +152,12 @@ class FriendAvatar extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 28,
-                  backgroundImage:
-                      image.startsWith('http')
-                          ? NetworkImage(image)
-                          : AssetImage(image) as ImageProvider,
+                  backgroundImage: image.isNotEmpty
+                      ? NetworkImage(image)
+                      : const AssetImage('assets/user.jpg') as ImageProvider,
                   onBackgroundImageError: (exception, stackTrace) {
                     print('Error loading image: $exception');
                   },
-                  child: const Icon(Icons.person, color: Colors.grey),
                 ),
                 Positioned(
                   right: 0,
@@ -156,11 +175,15 @@ class FriendAvatar extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 4),
-            Text(
-              name,
-              style: const TextStyle(fontSize: 12),
-              overflow: TextOverflow.ellipsis,
-              maxLines: 1,
+            SizedBox(
+              width: 60,
+              child: Text(
+                name,
+                style: const TextStyle(fontSize: 12),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+                textAlign: TextAlign.center,
+              ),
             ),
           ],
         ),
@@ -172,6 +195,7 @@ class FriendAvatar extends StatelessWidget {
 class MessageTile extends StatelessWidget {
   final String name;
   final String message;
+  final String avatarUrl;
   final bool isActive;
   final VoidCallback onTap;
 
@@ -179,6 +203,7 @@ class MessageTile extends StatelessWidget {
     super.key,
     required this.name,
     required this.message,
+    required this.avatarUrl,
     required this.isActive,
     required this.onTap,
   });
@@ -190,11 +215,12 @@ class MessageTile extends StatelessWidget {
         children: [
           CircleAvatar(
             radius: 25,
-            backgroundImage: AssetImage('assets/user.jpg'),
+            backgroundImage: avatarUrl.isNotEmpty
+                ? NetworkImage(avatarUrl)
+                : const AssetImage('assets/user.jpg') as ImageProvider,
             onBackgroundImageError: (exception, stackTrace) {
               print('Error loading image: $exception');
             },
-            child: const Icon(Icons.person, color: Colors.grey),
           ),
           Positioned(
             right: 0,
@@ -212,7 +238,7 @@ class MessageTile extends StatelessWidget {
         ],
       ),
       title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
-      subtitle: Text(message),
+      subtitle: Text(message, maxLines: 1, overflow: TextOverflow.ellipsis),
       onTap: onTap,
     );
   }
