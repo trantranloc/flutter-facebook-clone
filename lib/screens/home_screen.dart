@@ -34,32 +34,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  List<Post> posts = [
-    Post(
-      id: '1',
-      name: 'Rosse Nguyen',
-      avatarUrl: 'https://i.pravatar.cc/150?img=5',
-      userId: 'Rosse',
-      content: 'Hi ca nha !',
-      imageUrls: [
-        'https://cdn2.tuoitre.vn/471584752817336320/2024/4/16/img9704-17132420881631571916713.jpeg',
-      ],
-      createdAt: Timestamp.now(),
-      likes: 1045,
-    ),
-    Post(
-      id: '2',
-      name: 'IT Viet',
-      avatarUrl: 'https://i.pravatar.cc/150?img=5',
-      userId: 'itviet',
-      content: 'Hoc Hanh',
-      imageUrls: [
-        'https://images.unsplash.com/photo-1603791440384-56cd371ee9a7',
-      ],
-      createdAt: Timestamp.now(),
-      likes: 23459,
-    ),
-  ];
+  List<Post> posts = [];
   List<Story> stories = [
     Story(
       imageUrl: 'https://picsum.photos/200/300',
@@ -147,35 +122,7 @@ class _HomeScreenState extends State<HomeScreen> {
         snapshot.docs.map((doc) => Post.fromDocument(doc)).toList();
 
     setState(() {
-      posts = [
-        ...[
-          Post(
-            id: '1',
-            name: 'Rosse Nguyen',
-            avatarUrl: 'https://i.pravatar.cc/150?img=5',
-            userId: 'Rosse',
-            content: 'Hi ca nha !',
-            imageUrls: [
-              'https://cdn2.tuoitre.vn/471584752817336320/2024/4/16/img9704-17132420881631571916713.jpeg',
-            ],
-            createdAt: Timestamp.now(),
-            likes: 1045,
-          ),
-          Post(
-            id: '2',
-            name: 'IT Viet',
-            avatarUrl: 'https://i.pravatar.cc/150?img=5',
-            userId: 'itviet',
-            content: 'Hoc Hanh',
-            imageUrls: [
-              'https://images.unsplash.com/photo-1603791440384-56cd371ee9a7',
-            ],
-            createdAt: Timestamp.now(),
-            likes: 23459,
-          ),
-        ],
-        ...loaded,
-      ];
+  posts = loaded;
     });
   }
 
