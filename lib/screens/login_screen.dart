@@ -50,6 +50,7 @@ class _LoginScreenState extends State<LoginScreen> {
         print("blocked: $isBlocked");
         if (isAdmin) {
           context.go('/admin/choice');
+          print("admin: $isAdmin");
         } else {
           context.go('/');
         }

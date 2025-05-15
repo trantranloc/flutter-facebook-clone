@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_facebook_clone/models/User.dart';
-
+import 'package:flutter_facebook_clone/admin/admin_scaffold.dart';
 class UserManagementScreen extends StatefulWidget {
   const UserManagementScreen({super.key});
 
@@ -15,7 +15,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   String _searchQuery = '';
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  bool _isLoading = false;
+  // Map để theo dõi trạng thái tải cho từng userId
+  final Map<String, bool> _loadingUsers = {};
 
   @override
   void dispose() {
@@ -23,60 +24,59 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     super.dispose();
   }
 
-Future<void> _toggleUserStatus(String userId, bool currentStatus) async {
-  final currentUser = _auth.currentUser;
-  if (currentUser == null) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Không thể xác định người dùng hiện tại'),
-        backgroundColor: Colors.red,
-      ),
-    );
-    return;
-  }
-
-  if (userId == currentUser.uid) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Bạn không thể khóa chính mình!'),
-        backgroundColor: Colors.orange,
-      ),
-    );
-    return;
-  }
-
-
-  try {
-    // Cập nhật trạng thái isBlocked trong Firestore
-    await _firestore.collection('users').doc(userId).update({
-      'isBlocked': !currentStatus,
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
-
-  } catch (e) {
-    String errorMessage = 'Lỗi: $e';
-    if (e.toString().contains('permission-denied')) {
-      errorMessage = 'Bạn không có quyền thực hiện hành động này.';
+  Future<void> _toggleUserStatus(String userId, bool currentStatus) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Không thể xác định người dùng hiện tại'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
     }
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
-    );
-  } finally {
+
+    if (userId == currentUser.uid) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Bạn không thể khóa chính mình!'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
     setState(() {
-      _isLoading = false;
+      _loadingUsers[userId] = true; // Đặt trạng thái tải cho userId cụ thể
     });
+
+    try {
+      // Cập nhật trạng thái isBlocked trong Firestore
+      await _firestore.collection('users').doc(userId).update({
+        'isBlocked': !currentStatus,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      String errorMessage = 'Lỗi: $e';
+      if (e.toString().contains('permission-denied')) {
+        errorMessage = 'Bạn không có quyền thực hiện hành động này.';
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
+      );
+    } finally {
+      setState(() {
+        _loadingUsers.remove(userId); // Xóa trạng thái tải sau khi hoàn tất
+      });
+    }
   }
-}
 
   @override
   Widget build(BuildContext context) {
     final currentUser = _auth.currentUser;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Quản lý người dùng'),
-        backgroundColor: Colors.blue,
-      ),
+    return AdminScaffold(
+      title: 'Quản lý Người dùng',
       body: Column(
         children: [
           Padding(
@@ -108,130 +108,124 @@ Future<void> _toggleUserStatus(String userId, bool currentStatus) async {
             ),
           ),
           Expanded(
-            child:
-                _isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : StreamBuilder<QuerySnapshot>(
-                      stream: _firestore.collection('users').snapshots(),
-                      builder: (context, snapshot) {
+            child: StreamBuilder<QuerySnapshot>(
+              stream: _firestore.collection('users').snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(child: Text('Lỗi: ${snapshot.error}'));
+                }
 
-                        if (snapshot.hasError) {
-                          return Center(child: Text('Lỗi: ${snapshot.error}'));
-                        }
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return const Center(child: Text('Không có người dùng nào'));
+                }
 
-                        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                          return const Center(
-                            child: Text('Không có người dùng nào'),
+                final users =
+                    snapshot.data!.docs.map((doc) {
+                      final data = doc.data() as Map<String, dynamic>;
+                      return UserModel.tryParse(data) ??
+                          UserModel(
+                            uid: doc.id,
+                            name: 'Không xác định',
+                            email: '',
+                            avatarUrl: '',
+                            coverUrl: '',
+                            bio: '',
+                            gender: 'Unknown',
+                            createdAt: DateTime.now(),
                           );
-                        }
+                    }).toList();
 
-                        final users =
-                            snapshot.data!.docs.map((doc) {
-                              final data = doc.data() as Map<String, dynamic>;
-                              return UserModel.tryParse(data) ??
-                                  UserModel(
-                                    uid: doc.id,
-                                    name: 'Không xác định',
-                                    email: '',
-                                    avatarUrl: '',
-                                    coverUrl: '',
-                                    bio: '',
-                                    gender: 'Unknown',
-                                    createdAt: DateTime.now(),
-                                  );
-                            }).toList();
+                final filteredUsers =
+                    users.where((user) {
+                      final userName = user.name.toLowerCase();
+                      final userEmail = user.email.toLowerCase();
+                      return _searchQuery.isEmpty ||
+                          userName.contains(_searchQuery) ||
+                          userEmail.contains(_searchQuery);
+                    }).toList();
 
-                        final filteredUsers =
-                            users.where((user) {
-                              final userName = user.name.toLowerCase();
-                              final userEmail = user.email.toLowerCase();
-                              return _searchQuery.isEmpty ||
-                                  userName.contains(_searchQuery) ||
-                                  userEmail.contains(_searchQuery);
-                            }).toList();
+                if (filteredUsers.isEmpty) {
+                  return const Center(
+                    child: Text('Không tìm thấy người dùng phù hợp'),
+                  );
+                }
 
-                        if (filteredUsers.isEmpty) {
-                          return const Center(
-                            child: Text('Không tìm thấy người dùng phù hợp'),
-                          );
-                        }
+                return ListView.builder(
+                  itemCount: filteredUsers.length,
+                  itemBuilder: (context, index) {
+                    final user = filteredUsers[index];
+                    final isBlocked = user.isBlocked;
+                    final isCurrentUser = currentUser?.uid == user.uid;
+                    final isLoading = _loadingUsers[user.uid] ?? false;
 
-                        return ListView.builder(
-                          itemCount: filteredUsers.length,
-                          itemBuilder: (context, index) {
-                            final user = filteredUsers[index];
-                            final isBlocked = user.isBlocked;
-                            final isCurrentUser = currentUser?.uid == user.uid;
-
-                            return Card(
-                              margin: const EdgeInsets.symmetric(
-                                horizontal: 16.0,
-                                vertical: 8.0,
+                    return Card(
+                      margin: const EdgeInsets.symmetric(
+                        horizontal: 16.0,
+                        vertical: 8.0,
+                      ),
+                      elevation: 2,
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundImage:
+                              user.avatarUrl.isNotEmpty
+                                  ? NetworkImage(user.avatarUrl)
+                                  : null,
+                          child:
+                              user.avatarUrl.isEmpty
+                                  ? const Icon(Icons.person)
+                                  : null,
+                        ),
+                        title: Text(
+                          user.name,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(user.email),
+                            Text(
+                              isBlocked ? 'Đã khóa' : 'Đang hoạt động',
+                              style: TextStyle(
+                                color: isBlocked ? Colors.red : Colors.green,
+                                fontWeight: FontWeight.bold,
                               ),
-                              elevation: 2,
-                              child: ListTile(
-                                leading: CircleAvatar(
-                                  backgroundImage:
-                                      user.avatarUrl.isNotEmpty
-                                          ? NetworkImage(user.avatarUrl)
-                                          : null,
-                                  child:
-                                      user.avatarUrl.isEmpty
-                                          ? const Icon(Icons.person)
-                                          : null,
-                                ),
-                                title: Text(
-                                  user.name,
-                                  style: const TextStyle(
+                            ),
+                          ],
+                        ),
+                        trailing:
+                            isCurrentUser
+                                ? const Text(
+                                  'Bạn',
+                                  style: TextStyle(
+                                    color: Colors.blue,
                                     fontWeight: FontWeight.bold,
                                   ),
+                                )
+                                : isLoading
+                                ? const SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                                : Switch(
+                                  value: !isBlocked,
+                                  activeColor: Colors.green,
+                                  inactiveThumbColor: Colors.red,
+                                  onChanged: (newValue) {
+                                    _toggleUserStatus(user.uid, isBlocked);
+                                  },
                                 ),
-                                subtitle: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(user.email),
-                                    Text(
-                                      isBlocked ? 'Đã khóa' : 'Đang hoạt động',
-                                      style: TextStyle(
-                                        color:
-                                            isBlocked
-                                                ? Colors.red
-                                                : Colors.green,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                trailing:
-                                    isCurrentUser
-                                        ? const Text(
-                                          'Bạn',
-                                          style: TextStyle(
-                                            color: Colors.blue,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        )
-                                        : Switch(
-                                          value:
-                                              !isBlocked, // Đảo ngược giá trị để trạng thái ON = hoạt động
-                                          activeColor: Colors.green,
-                                          inactiveThumbColor: Colors.red,
-                                          onChanged: (newValue) {
-                                            _toggleUserStatus(
-                                              user.uid,
-                                              isBlocked,
-                                            );
-                                          },
-                                        ),
-                                onTap: () {
-                                  _showUserDetailsDialog(context, user);
-                                },
-                              ),
-                            );
-                          },
-                        );
-                      },
-                    ),
+                        onTap: () {
+                          _showUserDetailsDialog(context, user);
+                        },
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
           ),
         ],
       ),
@@ -241,6 +235,7 @@ Future<void> _toggleUserStatus(String userId, bool currentStatus) async {
   void _showUserDetailsDialog(BuildContext context, UserModel user) {
     final currentUser = _auth.currentUser;
     final isCurrentUser = currentUser?.uid == user.uid;
+    final isLoading = _loadingUsers[user.uid] ?? false;
 
     showDialog(
       context: context,
@@ -307,19 +302,22 @@ Future<void> _toggleUserStatus(String userId, bool currentStatus) async {
               child: const Text('Đóng'),
             ),
             if (!isCurrentUser)
-              ElevatedButton(
-                onPressed: () {
-                  _toggleUserStatus(user.uid, user.isBlocked);
-                  Navigator.of(context).pop();
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: user.isBlocked ? Colors.green : Colors.red,
-                ),
-                child: Text(
-                  user.isBlocked ? 'Mở khóa' : 'Khóa',
-                  style: const TextStyle(color: Colors.white),
-                ),
-              ),
+              isLoading
+                  ? const CircularProgressIndicator()
+                  : ElevatedButton(
+                    onPressed: () {
+                      _toggleUserStatus(user.uid, user.isBlocked);
+                      Navigator.of(context).pop();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor:
+                          user.isBlocked ? Colors.green : Colors.red,
+                    ),
+                    child: Text(
+                      user.isBlocked ? 'Mở khóa' : 'Khóa',
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                  ),
           ],
         );
       },
