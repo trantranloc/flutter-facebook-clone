@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_facebook_clone/client/screens/group_screen.dart';
+import 'package:flutter_facebook_clone/screens/group/group_screen.dart';
 import 'package:flutter_facebook_clone/providers/user_provider.dart';
 import 'package:flutter_facebook_clone/services/auth_service.dart';
 import 'package:flutter_facebook_clone/services/user_service.dart';
