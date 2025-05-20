@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_facebook_clone/providers/theme_provider.dart';
 import 'package:flutter_facebook_clone/providers/user_provider.dart';
 import 'package:flutter_facebook_clone/services/auth_service.dart';
+import 'package:flutter_facebook_clone/services/user_service.dart';
 import 'package:flutter_facebook_clone/widgets/personal_info_screen.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -21,39 +22,64 @@ class _LoginScreenState extends State<LoginScreen> {
   bool isLoading = false;
   String? errorMessage;
 
-  // Hàm đăng nhập
   void _signIn() async {
     setState(() {
       isLoading = true;
       errorMessage = null;
     });
+
+    // Xóa dữ liệu người dùng trước khi đăng nhập
     await context.read<UserProvider>().clearUser();
 
-    String email = emailController.text;
-    String password = passwordController.text;
+    String email = emailController.text.trim();
+    String password = passwordController.text.trim();
 
     try {
+      // Đăng nhập bằng Firebase Authentication
       User? user = await _authService.signIn(email, password);
+      if (user == null) {
+        setState(() {
+          errorMessage = 'Đăng nhập thất bại: Không tìm thấy người dùng';
+          isLoading = false;
+        });
+        return;
+      }
+
+      // Kiểm tra trạng thái khóa từ Firestore
+      bool isBlocked = await _authService.isUserBlocked(user.uid);
+      if (isBlocked) {
+        await _authService.signOut(); // Đăng xuất ngay lập tức
+        setState(() {
+          errorMessage =
+              'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên.';
+          isLoading = false;
+        });
+        return;
+      }
+
+      // Tải dữ liệu người dùng vào UserProvider
+      await context.read<UserProvider>().loadUserData(user.uid, UserService());
+      if (context.read<UserProvider>().isBlocked) {
+        await _authService.signOut(); // Đăng xuất ngay lập tức
+        setState(() {
+          errorMessage =
+              'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên.';
+          isLoading = false;
+        });
+        return;
+      }
+
+      // Kiểm tra trạng thái admin
       await context.read<UserProvider>().checkAdminStatus();
-      if (user != null) {
-        bool isAdmin = await _authService.isAdmin();
-        bool isBlocked = await _authService.isUserBlocked(user.uid);
-        if (isBlocked) {
-          setState(() {
-            errorMessage =
-                'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên.';
-            isLoading = false;
-          });
-          return;
-        }
-        print("admin: $isAdmin");
-        print("blocked: $isBlocked");
-        if (isAdmin) {
-          context.go('/admin/choice');
-          print("admin: $isAdmin");
-        } else {
-          context.go('/');
-        }
+      bool isAdmin = context.read<UserProvider>().isAdmin;
+
+      // Chuyển hướng dựa trên trạng thái admin
+      if (isAdmin) {
+        context.go('/admin/choice');
+        print('Đăng nhập thành công với tư cách admin: $isAdmin');
+      } else {
+        context.go('/');
+        print('Đăng nhập thành công với tư cách người dùng thường');
       }
     } on FirebaseAuthException catch (e) {
       String message;
@@ -75,13 +101,11 @@ class _LoginScreenState extends State<LoginScreen> {
       }
       setState(() {
         errorMessage = message;
+        isLoading = false;
       });
     } catch (e) {
       setState(() {
         errorMessage = 'Đăng nhập thất bại: $e';
-      });
-    } finally {
-      setState(() {
         isLoading = false;
       });
     }

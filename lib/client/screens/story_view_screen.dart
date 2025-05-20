@@ -264,7 +264,7 @@ class _StoryViewScreenState extends State<StoryViewScreen> {
                         onPressed: () => Navigator.pop(context),
                       ),
                     ),
-                    if (story.caption != null)
+                    if (story.caption.isNotEmpty)
                       Positioned(
                         bottom: 120,
                         left: 16,
@@ -276,7 +276,7 @@ class _StoryViewScreenState extends State<StoryViewScreen> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
-                            story.caption!,
+                            story.caption,
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 16,

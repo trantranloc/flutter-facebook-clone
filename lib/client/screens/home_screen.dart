@@ -1,7 +1,9 @@
-import 'dart:io'; // Thêm import để sử dụng FileImage
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:provider/provider.dart';
 import 'create_post_screen.dart';
 import 'create_story_screen.dart';
 import 'story_view_screen.dart';
@@ -11,8 +13,6 @@ import '../../widgets/post_card.dart';
 import '../../models/Story.dart';
 import '../../models/Post.dart';
 import '../../providers/user_provider.dart';
-import 'package:provider/provider.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 
 String timeAgo(Timestamp timestamp) {
   final now = DateTime.now();
@@ -35,95 +35,65 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   List<Post> posts = [];
-  List<Story> stories = [
-    Story(
-      imageUrl: 'https://picsum.photos/200/300',
-      user: 'Jane Smith',
-      avatarUrl: 'https://i.pravatar.cc/150?img=5',
-      time: DateTime.now().subtract(const Duration(hours: 1)),
-      caption: 'Beautiful day!',
-    ),
-    Story(
-      imageUrl: 'https://picsum.photos/200/301',
-      user: 'John Doe',
-      avatarUrl: 'https://i.pravatar.cc/150?img=12',
-      time: DateTime.now().subtract(const Duration(hours: 2)),
-      caption: 'Evening vibes',
-    ),
-    Story(
-      imageUrl: 'https://picsum.photos/200/302',
-      user: 'Anna Lee',
-      avatarUrl: 'https://i.pravatar.cc/150?img=8',
-      time: DateTime.now().subtract(const Duration(hours: 3)),
-      caption: 'Exploring the city',
-    ),
-    Story(
-      imageUrl: 'https://picsum.photos/200/303',
-      user: 'Mike Brown',
-      avatarUrl: 'https://i.pravatar.cc/150?img=15',
-      time: DateTime.now().subtract(const Duration(hours: 4)),
-    ),
-    Story(
-      imageUrl: 'https://picsum.photos/200/304',
-      user: 'Sarah Wilson',
-      avatarUrl: 'https://i.pravatar.cc/150?img=20',
-      time: DateTime.now().subtract(const Duration(hours: 5)),
-      caption: 'Coffee time!',
-    ),
-    Story(
-      imageUrl: 'https://picsum.photos/200/305',
-      user: 'Tom Clark',
-      avatarUrl: 'https://i.pravatar.cc/150?img=25',
-      time: DateTime.now().subtract(const Duration(hours: 6)),
-      caption: 'Nature lover',
-    ),
-    Story(
-      imageUrl: 'https://picsum.photos/200/306',
-      user: 'Emily Davis',
-      avatarUrl: 'https://i.pravatar.cc/150?img=30',
-      time: DateTime.now().subtract(const Duration(hours: 7)),
-    ),
-    Story(
-      imageUrl: 'https://picsum.photos/200/307',
-      user: 'David Miller',
-      avatarUrl: 'https://i.pravatar.cc/150?img=35',
-      time: DateTime.now().subtract(const Duration(hours: 8)),
-      caption: 'Sunset views',
-    ),
-    Story(
-      imageUrl: 'https://picsum.photos/200/308',
-      user: 'Laura Adams',
-      avatarUrl: 'https://i.pravatar.cc/150?img=40',
-      time: DateTime.now().subtract(const Duration(hours: 9)),
-      caption: 'Chasing dreams',
-    ),
-    Story(
-      imageUrl: 'https://picsum.photos/200/309',
-      user: 'Chris Evans',
-      avatarUrl: 'https://i.pravatar.cc/150?img=45',
-      time: DateTime.now().subtract(const Duration(hours: 10)),
-    ),
-  ];
+  List<Story> stories = [];
 
   @override
   void initState() {
     super.initState();
     fetchPosts();
+    fetchStory();
+  }
+
+
+  Future<void> fetchStory() async {
+
+    try {
+     final snapshot =
+          await FirebaseFirestore.instance
+              .collection('stories')
+              .orderBy('time', descending: true)
+              .get();
+      final List<Story> loaded =
+          snapshot.docs
+              .where((doc) => doc['isActive'] == true)
+              .map((doc) => Story.fromDocument(doc))
+              .toList();
+
+      setState(() {
+        stories = loaded;
+      });
+    } catch (e) {
+      print('Error fetching stories: $e');
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Lỗi khi tải story: $e')));
+      setState(() {
+      });
+    }
   }
 
   Future<void> fetchPosts() async {
-    final snapshot =
-        await FirebaseFirestore.instance
-            .collection('posts')
-            .orderBy('createdAt', descending: true)
-            .get();
+    try {
+      final snapshot =
+          await FirebaseFirestore.instance
+              .collection('posts')
+              .orderBy('createdAt', descending: true)
+              .get();
 
-    final List<Post> loaded =
-        snapshot.docs.map((doc) => Post.fromDocument(doc)).toList();
+      final List<Post> loaded =
+          snapshot.docs.map((doc) {
+            return Post.fromDocument(doc);
+          }).toList();
 
-    setState(() {
-  posts = loaded;
-    });
+      setState(() {
+        posts = loaded;
+      });
+    } catch (e) {
+      print('Error fetching posts: $e');
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Lỗi khi tải bài viết: $e')));
+    }
   }
 
   Future<void> _navigateToCreatePost() async {
@@ -135,6 +105,7 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         posts.insert(0, result);
       });
+      await fetchPosts(); // Làm mới bài viết
     }
   }
 
@@ -147,9 +118,9 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         stories.insert(0, newStory);
       });
+      await fetchStory(); // Làm mới stories
     }
   }
-
   @override
   Widget build(BuildContext context) {
     final userProvider = Provider.of<UserProvider>(context);
