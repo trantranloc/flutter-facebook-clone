@@ -47,7 +47,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     }
 
     setState(() {
-      _loadingUsers[userId] = true; // Đặt trạng thái tải cho userId cụ thể
+      _loadingUsers[userId] = true; 
     });
 
     try {
@@ -60,6 +60,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       String errorMessage = 'Lỗi: $e';
       if (e.toString().contains('permission-denied')) {
         errorMessage = 'Bạn không có quyền thực hiện hành động này.';
+        print(e);
       }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
