@@ -13,6 +13,8 @@ import '../../widgets/post_card.dart';
 import '../../models/Story.dart';
 import '../../models/Post.dart';
 import '../../providers/user_provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../../services/user_service.dart';
 
 String timeAgo(Timestamp timestamp) {
   final now = DateTime.now();
@@ -36,28 +38,48 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   List<Post> posts = [];
   List<Story> stories = [];
+  final UserService _userService = UserService();
 
   @override
   void initState() {
     super.initState();
     fetchPosts();
     fetchStory();
+   WidgetsBinding.instance.addPostFrameCallback((_) {
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final userId = FirebaseAuth.instance.currentUser?.uid;
+      if (userId != null) {
+        userProvider.loadUserData(userId, _userService);
+      }
+    });
   }
 
-
-  Future<void> fetchStory() async {
-
+Future<void> fetchStory() async {
     try {
-     final snapshot =
+      final now = DateTime.now();
+      final snapshot =
           await FirebaseFirestore.instance
               .collection('stories')
               .orderBy('time', descending: true)
               .get();
-      final List<Story> loaded =
-          snapshot.docs
-              .where((doc) => doc['isActive'] == true)
-              .map((doc) => Story.fromDocument(doc))
-              .toList();
+
+      final List<Story> loaded = [];
+      for (var doc in snapshot.docs) {
+        final story = Story.fromDocument(doc);
+        final expiresAt = (doc['expiresAt'] as Timestamp).toDate();
+
+        // Kiểm tra nếu story đã hết hạn
+        if (now.isAfter(expiresAt)) {
+          await FirebaseFirestore.instance
+              .collection('stories')
+              .doc(doc.id)
+              .update({'isActive': false});
+        } else {
+          if (doc['isActive'] == true) {
+            loaded.add(story);
+          }
+        }
+      }
 
       setState(() {
         stories = loaded;
@@ -67,11 +89,8 @@ class _HomeScreenState extends State<HomeScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Lỗi khi tải story: $e')));
-      setState(() {
-      });
     }
   }
-
   Future<void> fetchPosts() async {
     try {
       final snapshot =

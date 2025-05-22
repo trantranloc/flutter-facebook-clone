@@ -25,13 +25,12 @@ class _MenuScreenState extends State<MenuScreen> {
   void initState() {
     super.initState();
     _loggedInUserId = FirebaseAuth.instance.currentUser?.uid;
-
+    
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final userProvider = Provider.of<UserProvider>(context, listen: false);
-      if (_loggedInUserId != null &&
-          (userProvider.userModel == null ||
-              userProvider.userModel?.uid != _loggedInUserId)) {
-        userProvider.loadUserData(_loggedInUserId!, _userService);
+      final userId = FirebaseAuth.instance.currentUser?.uid;
+      if (userId != null) {
+        userProvider.loadUserData(userId, _userService);
       }
     });
   }
@@ -202,7 +201,8 @@ class _MenuScreenState extends State<MenuScreen> {
                                           icon: Icons.gamepad,
                                           title: 'Trò chơi',
                                           onTap:
-                                              () => context.go('/game-selection'),
+                                              () =>
+                                                  context.go('/game-selection'),
                                         ),
                                         _buildMenuItem(
                                           key: 'memories',
@@ -307,7 +307,11 @@ class _MenuScreenState extends State<MenuScreen> {
   }) {
     return ListTile(
       key: ValueKey(key),
-      leading: Icon(icon, color: Theme.of(context).colorScheme.primary, size: 28),
+      leading: Icon(
+        icon,
+        color: Theme.of(context).colorScheme.primary,
+        size: 28,
+      ),
       title: Text(
         title,
         style: Theme.of(context).textTheme.bodyMedium, // Use theme text style
