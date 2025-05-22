@@ -130,6 +130,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                 itemBuilder: (context, index) {
                   final post = _posts[index];
                   return PostCard(
+                    userId: post.userId,
                     postId: post.id,
                     name: post.name,
                     avatarUrl: post.avatarUrl,
