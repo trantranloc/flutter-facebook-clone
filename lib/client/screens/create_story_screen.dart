@@ -130,7 +130,7 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
         ),
       );
 
-      print('Cloudinary URL: ${response.secureUrl}'); // Debug
+      print('Cloudinary URL: ${response.secureUrl}');
       setState(() {
         _uploadStatus = 'Ảnh đã được tải lên';
       });
@@ -161,44 +161,38 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
     });
 
     try {
-      // Upload ảnh lên Cloudinary
       final imageUrl = await _uploadImageToCloudinary(_selectedImage!);
       if (imageUrl == null) {
         throw Exception('Không thể tải ảnh lên Cloudinary');
       }
 
-      // Lấy thông tin người dùng
       final userDoc =
           await _firestore.collection('users').doc(currentUser.uid).get();
       final userData = userDoc.data();
       final userName =
           userData?['name'] ?? currentUser.displayName ?? 'Người dùng';
-      final avatarUrl =
-          userData?['avatarUrl'] ?? '';
+      final avatarUrl = userData?['avatarUrl'] ?? '';
 
-      // Tạo story data, đồng bộ với model Story
       final storyData = {
         'userId': currentUser.uid,
-        'user': userName, // Khớp với model Story
-        'avatarUrl': avatarUrl, // Khớp với model Story
+        'user': userName,
+        'avatarUrl': avatarUrl,
         'imageUrl': imageUrl,
-        'caption': _captionController.text.trim(), // Luôn lưu caption
+        'caption': _captionController.text.trim(),
         'sticker': _sticker,
         'stickerOffsetX': _sticker != null ? _stickerOffset.dx : null,
         'stickerOffsetY': _sticker != null ? _stickerOffset.dy : null,
-        'time': FieldValue.serverTimestamp(), // Khớp với model Story
+        'time': FieldValue.serverTimestamp(),
         'expiresAt': Timestamp.fromDate(
           DateTime.now().add(const Duration(hours: 24)),
         ),
         'isActive': true,
       };
 
-      print('Saving story: $storyData'); // Debug
+      print('Saving story: $storyData');
 
-      // Lưu vào Firestore
       final docRef = await _firestore.collection('stories').add(storyData);
 
-      // Tạo Story object
       final newStory = Story(
         id: docRef.id,
         imageUrl: imageUrl,
@@ -271,7 +265,11 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
               children: [
                 const Text(
                   'Chọn Sticker',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Poppins',
+                  ),
                 ),
                 const SizedBox(height: 16),
                 Expanded(
@@ -294,6 +292,13 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
                               decoration: BoxDecoration(
                                 color: Colors.blue.shade50,
                                 borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black12,
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
                               ),
                               child: Center(
                                 child: Text(
@@ -385,37 +390,47 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
       child: Scaffold(
         backgroundColor: Colors.white,
         appBar: AppBar(
-          title: const Text('Tạo Story'),
-          backgroundColor: Colors.blue.shade700,
-          foregroundColor: Colors.white,
+          title: const Text(
+            'Tạo Story',
+            style: TextStyle(
+              fontFamily: 'Poppins',
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
+          ),
+          flexibleSpace: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Colors.blue.shade700, Colors.blue.shade900],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+          ),
+          elevation: 4,
+          shadowColor: Colors.black26,
           leading: IconButton(
-            icon: const Icon(FontAwesomeIcons.times),
+            icon: const Icon(FontAwesomeIcons.xmark, color: Colors.white),
             onPressed: _cancelStory,
           ),
           actions: [
-            ElevatedButton(
-              onPressed: _isLoading ? null : _submitStory,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: Colors.blue.shade700,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child:
+            IconButton(
+              icon:
                   _isLoading
                       ? const SizedBox(
                         width: 20,
                         height: 20,
                         child: CircularProgressIndicator(
-                          color: Colors.blue,
+                          color: Colors.white,
                           strokeWidth: 2,
                         ),
                       )
-                      : const Text(
-                        'Đăng',
-                        style: TextStyle(fontWeight: FontWeight.bold),
+                      : const Icon(
+                        FontAwesomeIcons.paperPlane,
+                        color: Colors.white,
                       ),
+              onPressed: _isLoading ? null : _submitStory,
+              tooltip: 'Đăng',
             ),
             const SizedBox(width: 8),
           ],
@@ -435,6 +450,13 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
                         decoration: BoxDecoration(
                           color: Colors.blue.shade50,
                           borderRadius: BorderRadius.circular(8),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black12,
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                         ),
                         child: Row(
                           children: [
@@ -453,8 +475,10 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
                         ),
                       ),
                     Card(
+                      elevation: 4,
+                      shadowColor: Colors.black26,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(16),
                       ),
                       child: GestureDetector(
                         onTap:
@@ -464,13 +488,17 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
                           decoration: BoxDecoration(
                             color:
                                 _selectedImage == null
-                                    ? Colors.grey.shade200
-                                    : null,
-                            borderRadius: BorderRadius.circular(12),
+                                    ? Colors.grey.shade100
+                                    : Colors.transparent,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: Colors.blue.shade200,
+                              width: 1,
+                            ),
                           ),
                           child:
                               _selectedImage == null
-                                  ? const Center(
+                                  ? Center(
                                     child: Column(
                                       mainAxisAlignment:
                                           MainAxisAlignment.center,
@@ -478,11 +506,16 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
                                         Icon(
                                           FontAwesomeIcons.camera,
                                           size: 60,
-                                          color: Colors.grey,
+                                          color: Colors.blue.shade400,
                                         ),
+                                        const SizedBox(height: 8),
                                         Text(
-                                          'Chọn ảnh',
-                                          style: TextStyle(color: Colors.grey),
+                                          'Chọn hoặc chụp ảnh',
+                                          style: TextStyle(
+                                            color: Colors.blue.shade400,
+                                            fontFamily: 'Poppins',
+                                            fontSize: 16,
+                                          ),
                                         ),
                                       ],
                                     ),
@@ -490,7 +523,7 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
                                   : Stack(
                                     children: [
                                       ClipRRect(
-                                        borderRadius: BorderRadius.circular(12),
+                                        borderRadius: BorderRadius.circular(16),
                                         child: Image.file(
                                           _selectedImage!,
                                           fit: BoxFit.cover,
@@ -534,6 +567,13 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
                                                   _sticker!,
                                                   style: const TextStyle(
                                                     fontSize: 60,
+                                                    shadows: [
+                                                      Shadow(
+                                                        blurRadius: 8,
+                                                        color: Colors.black26,
+                                                        offset: Offset(2, 2),
+                                                      ),
+                                                    ],
                                                   ),
                                                 ),
                                                 Positioned(
@@ -544,7 +584,7 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
                                                     child: Container(
                                                       padding:
                                                           const EdgeInsets.all(
-                                                            2,
+                                                            4,
                                                           ),
                                                       decoration:
                                                           const BoxDecoration(
@@ -553,7 +593,7 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
                                                                 BoxShape.circle,
                                                           ),
                                                       child: const Icon(
-                                                        FontAwesomeIcons.times,
+                                                        FontAwesomeIcons.xmark,
                                                         color: Colors.white,
                                                         size: 16,
                                                       ),
@@ -571,6 +611,7 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
                     ),
                     const SizedBox(height: 16),
                     Card(
+                      elevation: 2,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -579,15 +620,25 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
                         maxLines: 3,
                         maxLength: 150,
                         enabled: !_isLoading,
+                        style: const TextStyle(fontFamily: 'Poppins'),
                         decoration: InputDecoration(
                           labelText: 'Chú thích (tùy chọn)',
-                          hintText: 'Chia sẻ cảm xúc...',
+                          hintText: 'Chia sẻ cảm xúc của bạn...',
+                          labelStyle: TextStyle(color: Colors.blue.shade700),
+                          hintStyle: TextStyle(color: Colors.grey.shade500),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                             borderSide: BorderSide.none,
                           ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(
+                              color: Colors.blue.shade700,
+                              width: 2,
+                            ),
+                          ),
                           filled: true,
-                          fillColor: Colors.grey.shade100,
+                          fillColor: Colors.grey.shade50,
                           contentPadding: const EdgeInsets.all(16),
                         ),
                       ),
@@ -625,7 +676,10 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
               Container(
                 color: Colors.black54,
                 child: const Center(
-                  child: CircularProgressIndicator(color: Colors.blue),
+                  child: CircularProgressIndicator(
+                    color: Colors.blue,
+                    strokeWidth: 3,
+                  ),
                 ),
               ),
           ],
@@ -640,17 +694,79 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
     required String label,
     required bool isPrimary,
   }) {
-    return ElevatedButton.icon(
-      onPressed: onPressed,
-      icon: Icon(icon, size: 20),
-      label: Text(label),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: isPrimary ? Colors.blue.shade700 : Colors.white,
-        foregroundColor: isPrimary ? Colors.white : Colors.red,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        side: isPrimary ? null : const BorderSide(color: Colors.red),
-      ),
+    return AnimatedScale(
+      scale: onPressed != null ? 1.0 : 0.95,
+      duration: const Duration(milliseconds: 200),
+      child:
+          isPrimary
+              ? Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.blue.shade600, Colors.blue.shade900],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black26,
+                      blurRadius: 4,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: ElevatedButton.icon(
+                  onPressed: onPressed,
+                  icon: Icon(icon, size: 20),
+                  label: Text(
+                    label,
+                    style: const TextStyle(
+                      fontFamily: 'Poppins',
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(120, 48),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    elevation: 4,
+                    shadowColor: Colors.transparent,
+                  ),
+                ),
+              )
+              : ElevatedButton.icon(
+                onPressed: onPressed,
+                icon: Icon(icon, size: 20),
+                label: Text(
+                  label,
+                  style: const TextStyle(
+                    fontFamily: 'Poppins',
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: Colors.red,
+                  minimumSize: const Size(120, 48),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  side: const BorderSide(color: Colors.red),
+                  elevation: 2,
+                  shadowColor: Colors.black26,
+                ),
+              ),
     );
   }
 
