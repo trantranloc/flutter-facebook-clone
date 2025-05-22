@@ -348,6 +348,7 @@ Future<void> fetchStory() async {
           // Posts from Firestore
           ...posts.map(
             (post) => PostCard(
+              userId: post.userId,
               postId: post.id,
               name: post.name,
               avatarUrl: post.avatarUrl,
