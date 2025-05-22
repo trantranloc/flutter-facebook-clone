@@ -60,16 +60,26 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   Future<void> fetchUserPosts() async {
-    final snapshot =
-        await FirebaseFirestore.instance
-            .collection('posts')
-            .where('userId', isEqualTo: widget.uid)
-            .orderBy('createdAt', descending: true)
-            .get();
+    try {
+      final snapshot =
+          await FirebaseFirestore.instance
+              .collection('posts')
+              .where('userId', isEqualTo: widget.uid)
+              .orderBy('createdAt', descending: true)
+              .get();
 
-    setState(() {
-      _posts = snapshot.docs.map((doc) => Post.fromDocument(doc)).toList();
-    });
+      // print(
+      //   'Lấy được ${snapshot.docs.length} bài viết cho userId: ${widget.uid}',
+      // );
+      setState(() {
+        _posts = snapshot.docs.map((doc) => Post.fromDocument(doc)).toList();
+      });
+    } catch (e) {
+      print('Lỗi khi lấy bài viết: $e');
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Lỗi khi tải bài viết: $e')));
+    }
   }
 
   String timeAgo(DateTime dateTime) {
