@@ -198,19 +198,11 @@ class _MenuScreenState extends State<MenuScreen> {
                                               () => context.go('/list-friend'),
                                         ),
                                         _buildMenuItem(
-                                          key: 'marketplace',
-                                          icon: Icons.store,
-                                          title: 'Marketplace',
+                                          key: 'game',
+                                          icon: Icons.gamepad,
+                                          title: 'Trò chơi',
                                           onTap:
-                                              () => ScaffoldMessenger.of(
-                                                context,
-                                              ).showSnackBar(
-                                                const SnackBar(
-                                                  content: Text(
-                                                    'Tính năng đang phát triển',
-                                                  ),
-                                                ),
-                                              ),
+                                              () => context.go('/game-selection'),
                                         ),
                                         _buildMenuItem(
                                           key: 'memories',
@@ -315,7 +307,7 @@ class _MenuScreenState extends State<MenuScreen> {
   }) {
     return ListTile(
       key: ValueKey(key),
-      leading: Icon(icon, color: const Color(0xFF1877F2), size: 28),
+      leading: Icon(icon, color: Theme.of(context).colorScheme.primary, size: 28),
       title: Text(
         title,
         style: Theme.of(context).textTheme.bodyMedium, // Use theme text style
