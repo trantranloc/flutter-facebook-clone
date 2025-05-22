@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../client/screens/comment_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
@@ -495,67 +497,348 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
                       context: context,
                       shape: const RoundedRectangleBorder(
                         borderRadius: BorderRadius.vertical(
-                          top: Radius.circular(16),
+
+                          top: Radius.circular(20),
                         ),
                       ),
+                      backgroundColor: Theme.of(context).cardColor,
                       builder: (context) {
-                        return Wrap(
-                          children:
-                              isOwner
-                                  ? [
-                                    ListTile(
-                                      leading: const Icon(Icons.edit),
-                                      title: const Text('Chỉnh sửa bài viết'),
-                                      onTap: () {
-                                        Navigator.pop(context);
-                                        _editPost();
-                                      },
-                                    ),
-                                    ListTile(
-                                      leading: const Icon(Icons.delete),
-                                      title: const Text('Xóa bài viết'),
-                                      onTap: () async {
+                        final isOwnPost =
+                            FirebaseAuth.instance.currentUser?.uid ==
+                            widget.userId;
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // Thanh kéo
+                              Container(
+                                width: 40,
+                                height: 4,
+                                margin: const EdgeInsets.only(
+                                  top: 8,
+                                  bottom: 10,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[300],
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                              if (isOwnPost) ...[
+                                // Tùy chọn cho bài viết của người dùng hiện tại
+                                ListTile(
+                                  leading: const Icon(
+                                    Icons.edit,
+                                    color: Colors.blue,
+                                  ),
+                                  title: const Text('Sửa bài viết'),
+                                  onTap: () async {
+                                    Navigator.pop(context); // Đóng bottom sheet
+                                    // Chuyển đến màn hình sửa bài viết
+                                    // await Navigator.push(
+                                    //   context,
+                                    //   MaterialPageRoute(
+                                    //     builder:
+                                    //         (context) => CreatePostScreen(
+                                    //           post: Post(
+                                    //             id: widget.postId,
+                                    //             userId: widget.userId,
+                                    //             name: widget.name,
+                                    //             avatarUrl: widget.avatarUrl,
+                                    //             content: widget.caption,
+                                    //             imageUrls:
+                                    //                 widget.imageUrl.isNotEmpty
+                                    //                     ? [widget.imageUrl]
+                                    //                     : [],
+                                    //             likes: widget.likes,
+                                    //             createdAt:
+                                    //                 Timestamp.now(), // Cần lấy đúng createdAt nếu có
+                                    //           ),
+                                    //         ),
+                                    //   ),
+                                    // );
+                                    // Làm mới bài viết sau khi sửa (nếu có callback)
+                                    // if (widget.onRefresh != null) widget.onRefresh!();
+                                  },
+                                ),
+                                ListTile(
+                                  leading: const Icon(
+                                    Icons.delete,
+                                    color: Colors.red,
+                                  ),
+                                  title: const Text('Xóa bài viết'),
+                                  onTap: () async {
+                                    Navigator.pop(context); // Đóng bottom sheet
+                                    // Xác nhận trước khi xóa
+                                    final confirm = await showDialog<bool>(
+                                      context: context,
+                                      builder:
+                                          (context) => AlertDialog(
+                                            title: const Text('Xóa bài viết'),
+                                            content: const Text(
+                                              'Bạn có chắc muốn xóa bài viết này?',
+                                            ),
+                                            actions: [
+                                              TextButton(
+                                                onPressed:
+                                                    () => Navigator.pop(
+                                                      context,
+                                                      false,
+                                                    ),
+                                                child: const Text('Hủy'),
+                                              ),
+                                              ElevatedButton(
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor: Colors.red,
+                                                ),
+                                                onPressed:
+                                                    () => Navigator.pop(
+                                                      context,
+                                                      true,
+                                                    ),
+                                                child: const Text('Xóa'),
+                                              ),
+                                            ],
+                                          ),
+                                    );
+
+                                    if (confirm == true) {
+                                      try {
+                                        // Xóa bài viết khỏi Firestore
                                         await FirebaseFirestore.instance
                                             .collection('posts')
                                             .doc(widget.postId)
                                             .delete();
                                         Navigator.pop(context);
+
                                         ScaffoldMessenger.of(
                                           context,
                                         ).showSnackBar(
                                           const SnackBar(
-                                            content: Text("Đã xóa bài viết"),
+
+                                            content: Text(
+                                              'Xóa bài viết thành công',
+                                            ),
                                           ),
                                         );
-                                      },
-                                    ),
-                                  ]
-                                  : [
-                                    ListTile(
-                                      leading: const Icon(Icons.share),
-                                      title: const Text('Chia sẻ bài viết'),
-                                      onTap: () {
-                                        Navigator.pop(context);
-                                        _sharePost();
-                                      },
-                                    ),
-                                    ListTile(
-                                      leading: const Icon(Icons.flag),
-                                      title: const Text('Báo cáo bài viết'),
-                                      onTap: () {
-                                        Navigator.pop(context);
+                                      } catch (e) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              'Lỗi khi xóa bài viết: $e',
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                    }
+                                  },
+                                ),
+                              ] else ...[
+                                // Tùy chọn cho bài viết của người khác
+                                ListTile(
+                                  leading: const Icon(
+                                    Icons.report,
+                                    color: Colors.red,
+                                  ),
+                                  title: const Text('Báo cáo bài viết'),
+                                  onTap: () async {
+                                    Navigator.pop(context); // Đóng bottom sheet
+                                    // Logic báo cáo bài viết
+                                    final reason = await showDialog<String>(
+                                      context: context,
+                                      builder:
+                                          (context) => AlertDialog(
+                                            title: const Text(
+                                              'Báo cáo bài viết',
+                                            ),
+                                            content: const Text(
+                                              'Vui lòng chọn lý do báo cáo:',
+                                            ),
+                                            actions: [
+                                              TextButton(
+                                                onPressed:
+                                                    () => Navigator.pop(
+                                                      context,
+                                                      'Nội dung không phù hợp',
+                                                    ),
+                                                child: const Text(
+                                                  'Nội dung không phù hợp',
+                                                ),
+                                              ),
+                                              TextButton(
+                                                onPressed:
+                                                    () => Navigator.pop(
+                                                      context,
+                                                      'Spam',
+                                                    ),
+                                                child: const Text('Spam'),
+                                              ),
+                                              TextButton(
+                                                onPressed:
+                                                    () => Navigator.pop(
+                                                      context,
+                                                      'Khác',
+                                                    ),
+                                                child: const Text('Khác'),
+                                              ),
+                                              TextButton(
+                                                onPressed:
+                                                    () =>
+                                                        Navigator.pop(context),
+                                                child: const Text('Hủy'),
+                                              ),
+                                            ],
+                                          ),
+                                    );
+
+                                    if (reason != null && reason.isNotEmpty) {
+                                      try {
+                                        // Lưu báo cáo vào Firestore
+                                        await FirebaseFirestore.instance
+                                            .collection('reports')
+                                            .add({
+                                              'postId': widget.postId,
+                                              'userId':
+                                                  FirebaseAuth
+                                                      .instance
+                                                      .currentUser
+                                                      ?.uid,
+                                              'reason': reason,
+                                              'timestamp': Timestamp.now(),
+                                            });
                                         ScaffoldMessenger.of(
                                           context,
                                         ).showSnackBar(
                                           const SnackBar(
                                             content: Text(
-                                              "Bài viết đã được báo cáo",
+                                              'Báo cáo đã được gửi',
                                             ),
                                           ),
                                         );
-                                      },
-                                    ),
-                                  ],
+                                      } catch (e) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              'Lỗi khi gửi báo cáo: $e',
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                    }
+                                  },
+                                ),
+                                ListTile(
+                                  leading: const Icon(
+                                    Icons.share,
+                                    color: Colors.blue,
+                                  ),
+                                  title: const Text('Chia sẻ bài viết'),
+                                  onTap: () {
+                                    Navigator.pop(context); // Đóng bottom sheet
+                                    // Logic chia sẻ bài viết
+                                    Share.share(
+                                      'Xem bài viết: https://yourapp.com/post/${widget.postId}',
+                                    );
+                                  },
+                                ),
+                                ListTile(
+                                  leading: const Icon(
+                                    Icons.visibility_off,
+                                    color: Colors.grey,
+                                  ),
+                                  title: const Text('Ẩn bài viết'),
+                                  onTap: () async {
+                                    Navigator.pop(context); // Đóng bottom sheet
+                                    // Logic ẩn bài viết (lưu vào danh sách ẩn của người dùng)
+                                    try {
+                                      await FirebaseFirestore.instance
+                                          .collection('users')
+                                          .doc(
+                                            FirebaseAuth
+                                                .instance
+                                                .currentUser
+                                                ?.uid,
+                                          )
+                                          .collection('hidden_posts')
+                                          .doc(widget.postId)
+                                          .set({
+                                            'postId': widget.postId,
+                                            'timestamp': Timestamp.now(),
+                                          });
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Đã ẩn bài viết'),
+                                        ),
+                                      );
+                                    } catch (e) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Lỗi khi ẩn bài viết: $e',
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                  },
+                                ),
+                                ListTile(
+                                  leading: const Icon(
+                                    Icons.bookmark,
+                                    color: Colors.green,
+                                  ),
+                                  title: const Text('Lưu bài viết'),
+                                  onTap: () async {
+                                    Navigator.pop(context); // Đóng bottom sheet
+                                    // Logic lưu bài viết
+                                    try {
+                                      await FirebaseFirestore.instance
+                                          .collection('users')
+                                          .doc(
+                                            FirebaseAuth
+                                                .instance
+                                                .currentUser
+                                                ?.uid,
+                                          )
+                                          .collection('saved_posts')
+                                          .doc(widget.postId)
+                                          .set({
+                                            'postId': widget.postId,
+                                            'timestamp': Timestamp.now(),
+                                          });
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Đã lưu bài viết'),
+                                        ),
+                                      );
+                                    } catch (e) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Lỗi khi lưu bài viết: $e',
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                  },
+                                ),
+                              ],
+                              const SizedBox(
+                                height: 10,
+                              ), // Khoảng cách dưới cùng
+                            ],
+                          ),
                         );
                       },
                     );

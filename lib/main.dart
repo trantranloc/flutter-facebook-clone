@@ -81,7 +81,6 @@ class AuthWrapper extends StatelessWidget {
         }
 
         final userProvider = Provider.of<UserProvider>(context);
-        debugPrint('Using admin router: ${userProvider.useAdminRouter}');
 
         // Sử dụng AppRouter để lấy router phù hợp
         final router = AppRouter.getRouter(context);

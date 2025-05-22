@@ -312,7 +312,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           vertical: 8.0,
                         ),
                         decoration: BoxDecoration(
-                          color: isMe ? Colors.blue[100] : Colors.grey[200],
+                          color: isMe ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.surface,
                           borderRadius: BorderRadius.circular(12.0),
                         ),
                         child: message['type'] == 'image'
@@ -346,7 +346,10 @@ class _ChatScreenState extends State<ChatScreen> {
                                       children: [
                                         Text(
                                           message['message']!,
-                                          style: const TextStyle(fontSize: 16.0),
+                                          style: const TextStyle(
+                                            fontSize: 16.0,
+                                            color: Colors.black,
+                                          ),
                                         ),
                                         Text(
                                           message['fileUrl']!,
@@ -360,7 +363,10 @@ class _ChatScreenState extends State<ChatScreen> {
                                   )
                                 : Text(
                                     message['message']!,
-                                    style: const TextStyle(fontSize: 16.0),
+                                    style: const TextStyle(
+                                      fontSize: 16.0,
+                                      color: Colors.black,
+                                    ),
                                   ),
                       ),
                     );
@@ -392,7 +398,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         borderSide: BorderSide.none,
                       ),
                       filled: true,
-                      fillColor: Colors.grey[200],
+                      // fillColor: Colors.grey[200],
                     ),
                     onSubmitted: (value) => _sendMessage(),
                   ),

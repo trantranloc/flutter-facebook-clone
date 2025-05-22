@@ -84,9 +84,18 @@ class _ProfileScreenState extends State<ProfileScreen>
             .orderBy('createdAt', descending: true)
             .get();
 
-    setState(() {
-      _posts = snapshot.docs.map((doc) => Post.fromDocument(doc)).toList();
-    });
+      // print(
+      //   'Lấy được ${snapshot.docs.length} bài viết cho userId: ${widget.uid}',
+      // );
+      setState(() {
+        _posts = snapshot.docs.map((doc) => Post.fromDocument(doc)).toList();
+      });
+    } catch (e) {
+      print('Lỗi khi lấy bài viết: $e');
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Lỗi khi tải bài viết: $e')));
+    }
   }
 
   String timeAgo(DateTime dateTime) {
@@ -146,6 +155,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                 itemBuilder: (context, index) {
                   final post = _posts[index];
                   return PostCard(
+                    userId: post.userId,
                     postId: post.id,
                     userId: post.userId,
                     name: post.name,

@@ -1,7 +1,8 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../models/Story.dart';
 
 class StoryViewScreen extends StatefulWidget {
@@ -24,12 +25,18 @@ class _StoryViewScreenState extends State<StoryViewScreen> {
   int _currentIndex = 0;
   double _progress = 0.0;
   bool _isPaused = false;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   @override
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
     _pageController = PageController(initialPage: _currentIndex);
+    if (widget.stories[_currentIndex].id != null &&
+        widget.stories[_currentIndex].id!.isNotEmpty) {
+      _incrementViewCount(widget.stories[_currentIndex]);
+    }
     _startTimer();
   }
 
@@ -60,6 +67,10 @@ class _StoryViewScreenState extends State<StoryViewScreen> {
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
       );
+      if (widget.stories[_currentIndex].id != null &&
+          widget.stories[_currentIndex].id!.isNotEmpty) {
+        _incrementViewCount(widget.stories[_currentIndex]);
+      }
       _startTimer();
     } else {
       Navigator.pop(context);
@@ -72,6 +83,10 @@ class _StoryViewScreenState extends State<StoryViewScreen> {
       if (_currentIndex > 0) {
         _currentIndex--;
         _pageController.jumpToPage(_currentIndex);
+        if (widget.stories[_currentIndex].id != null &&
+            widget.stories[_currentIndex].id!.isNotEmpty) {
+          _incrementViewCount(widget.stories[_currentIndex]);
+        }
         _timer.cancel();
         _startTimer();
       }
@@ -95,7 +110,45 @@ class _StoryViewScreenState extends State<StoryViewScreen> {
     _startTimer();
   }
 
-  void _showViewers() {
+  Future<void> _incrementViewCount(Story story) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) return;
+
+    await _firestore.collection('stories').doc(story.id).update({
+      'views': FieldValue.increment(1),
+    });
+  }
+
+  Future<void> _toggleLike(Story story) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) return;
+
+    final storyRef = _firestore.collection('stories').doc(story.id);
+    final storyDoc = await storyRef.get();
+    final data = storyDoc.data();
+    if (data == null) return;
+
+    List<String> likedBy = List<String>.from(data['likedBy'] ?? []);
+    bool hasLiked = likedBy.contains(currentUser.uid);
+
+    if (hasLiked) {
+      likedBy.remove(currentUser.uid);
+      await storyRef.update({
+        'likes': FieldValue.increment(-1),
+        'likedBy': likedBy,
+      });
+    } else {
+      likedBy.add(currentUser.uid);
+      await storyRef.update({
+        'likes': FieldValue.increment(1),
+        'likedBy': likedBy,
+      });
+    }
+
+    setState(() {});
+  }
+
+  void _showViewers(Story story) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.white,
@@ -103,29 +156,54 @@ class _StoryViewScreenState extends State<StoryViewScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder:
-          (context) => Container(
-            padding: const EdgeInsets.all(16.0),
-            height: 200,
-            child: ListView(
-              children: const [
-                ListTile(
-                  leading: CircleAvatar(
-                    backgroundImage: NetworkImage(
-                      'https://i.pravatar.cc/150?img=5',
+          (context) => StreamBuilder<DocumentSnapshot>(
+            stream: _firestore.collection('stories').doc(story.id).snapshots(),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              final data = snapshot.data!.data() as Map<String, dynamic>;
+              final views = data['views'] ?? 0;
+              return Container(
+                padding: const EdgeInsets.all(16.0),
+                height: 200,
+                child: Column(
+                  children: [
+                    Text(
+                      'Lượt xem: $views',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'Poppins',
+                      ),
                     ),
-                  ),
-                  title: Text('Jane Smith'),
-                ),
-                ListTile(
-                  leading: CircleAvatar(
-                    backgroundImage: NetworkImage(
-                      'https://i.pravatar.cc/150?img=12',
+                    const SizedBox(height: 16),
+                    Expanded(
+                      child: ListView(
+                        children: const [
+                          ListTile(
+                            leading: CircleAvatar(
+                              backgroundImage: NetworkImage(
+                                'https://i.pravatar.cc/150?img=5',
+                              ),
+                            ),
+                            title: Text('Jane Smith'),
+                          ),
+                          ListTile(
+                            leading: CircleAvatar(
+                              backgroundImage: NetworkImage(
+                                'https://i.pravatar.cc/150?img=12',
+                              ),
+                            ),
+                            title: Text('John Doe'),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  title: Text('John Doe'),
+                  ],
                 ),
-              ],
-            ),
+              );
+            },
           ),
     );
   }
@@ -237,7 +315,7 @@ class _StoryViewScreenState extends State<StoryViewScreen> {
                                 ),
                               ),
                               GestureDetector(
-                                onTap: _showViewers,
+                                onTap: () => _showViewers(story),
                                 child: Text(
                                   _formatTimeAgo(story.time),
                                   style: const TextStyle(
@@ -264,7 +342,7 @@ class _StoryViewScreenState extends State<StoryViewScreen> {
                         onPressed: () => Navigator.pop(context),
                       ),
                     ),
-                    if (story.caption != null)
+                    if (story.caption != null && story.caption!.isNotEmpty)
                       Positioned(
                         bottom: 120,
                         left: 16,
@@ -316,94 +394,82 @@ class _StoryViewScreenState extends State<StoryViewScreen> {
                       bottom: 20,
                       left: 16,
                       right: 16,
-                      child: Column(
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              IconButton(
-                                icon: const FaIcon(
-                                  FontAwesomeIcons.heart,
-                                  color: Colors.white,
-                                  size: 28,
-                                ),
-                                onPressed: () {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        '${story.user}\'s story liked!',
-                                      ),
-                                    ),
+                      child:
+                          (story.id != null && story.id!.isNotEmpty)
+                              ? StreamBuilder<DocumentSnapshot>(
+                                stream:
+                                    _firestore
+                                        .collection('stories')
+                                        .doc(story.id)
+                                        .snapshots(),
+                                builder: (context, snapshot) {
+                                  if (!snapshot.hasData) {
+                                    return const SizedBox.shrink();
+                                  }
+                                  final data =
+                                      snapshot.data!.data()
+                                          as Map<String, dynamic>;
+                                  final likes = data['likes'] ?? 0;
+                                  final views = data['views'] ?? 0;
+                                  final likedBy = List<String>.from(
+                                    data['likedBy'] ?? [],
                                   );
-                                },
-                              ),
-                              IconButton(
-                                icon: const FaIcon(
-                                  FontAwesomeIcons.comment,
-                                  color: Colors.white,
-                                  size: 28,
-                                ),
-                                onPressed: () {
-                                  showDialog(
-                                    context: context,
-                                    builder:
-                                        (context) => AlertDialog(
-                                          title: const Text('Bình luận'),
-                                          content: TextField(
-                                            decoration: const InputDecoration(
-                                              hintText: 'Viết bình luận...',
+                                  final hasLiked = likedBy.contains(
+                                    _auth.currentUser?.uid,
+                                  );
+
+                                  return Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          IconButton(
+                                            icon: Icon(
+                                              hasLiked
+                                                  ? FontAwesomeIcons.solidHeart
+                                                  : FontAwesomeIcons.heart,
+                                              color:
+                                                  hasLiked
+                                                      ? Colors.red
+                                                      : Colors.white,
+                                              size: 28,
                                             ),
-                                            onSubmitted: (value) {
-                                              ScaffoldMessenger.of(
-                                                context,
-                                              ).showSnackBar(
-                                                SnackBar(
-                                                  content: Text(
-                                                    'Bình luận: $value',
-                                                  ),
-                                                ),
-                                              );
-                                              Navigator.pop(context);
-                                            },
+                                            onPressed: () => _toggleLike(story),
                                           ),
-                                          actions: [
-                                            TextButton(
-                                              onPressed:
-                                                  () => Navigator.pop(context),
-                                              child: const Text('Hủy'),
+                                          Text(
+                                            '$likes',
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontFamily: 'Poppins',
+                                              fontSize: 16,
                                             ),
-                                          ],
-                                        ),
+                                          ),
+                                        ],
+                                      ),
+                                      Row(
+                                        children: [
+                                          const Icon(
+                                            FontAwesomeIcons.eye,
+                                            color: Colors.white,
+                                            size: 28,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            '$views',
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontFamily: 'Poppins',
+                                              fontSize: 16,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
                                   );
                                 },
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 10),
-                          TextField(
-                            decoration: InputDecoration(
-                              hintText: 'Gửi tin nhắn...',
-                              hintStyle: const TextStyle(color: Colors.white70),
-                              filled: true,
-                              fillColor: Colors.white.withOpacity(0.2),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(20),
-                                borderSide: BorderSide.none,
-                              ),
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 10,
-                              ),
-                            ),
-                            style: const TextStyle(color: Colors.white),
-                            onSubmitted: (value) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Tin nhắn: $value')),
-                              );
-                            },
-                          ),
-                        ],
-                      ),
+                              )
+                              : const SizedBox.shrink(),
                     ),
                   ],
                 ),
@@ -416,21 +482,19 @@ class _StoryViewScreenState extends State<StoryViewScreen> {
   }
 
   Widget _buildStoryImage(String imageUrl) {
-    print('Loading image: $imageUrl'); // Log để debug
-    // Kiểm tra nếu imageUrl là đường dẫn file cục bộ
+    print('Loading image: $imageUrl');
     if (imageUrl.startsWith('/')) {
-      return Image.file(
-        File(imageUrl),
+      return Image.network(
+        'https://via.placeholder.com/150', // Placeholder cho preview
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) {
-          print('Error loading local image $imageUrl: $error'); // Log lỗi
+          print('Error loading placeholder image: $error');
           return const Center(
             child: Icon(Icons.error, color: Colors.red, size: 48),
           );
         },
       );
     }
-    // Nếu là URL từ Firebase hoặc mạng
     return Image.network(
       imageUrl,
       fit: BoxFit.cover,
@@ -440,7 +504,7 @@ class _StoryViewScreenState extends State<StoryViewScreen> {
                   ? child
                   : const Center(child: CircularProgressIndicator()),
       errorBuilder: (context, error, stackTrace) {
-        print('Error loading image $imageUrl: $error'); // Log lỗi
+        print('Error loading image $imageUrl: $error');
         return const Center(
           child: Icon(Icons.error, color: Colors.red, size: 48),
         );

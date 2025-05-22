@@ -21,10 +21,10 @@ class AppRouter {
 
     // Sử dụng adminRouter nếu useAdminRouter là true
     if (userProvider.useAdminRouter) {
-      debugPrint('Using admin router');
+      // debugPrint('Using admin router');
       return adminRouter;
     } else {
-      debugPrint('Using user router');
+      // debugPrint('Using user router');
       return userRouter;
     }
   }
