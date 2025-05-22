@@ -104,6 +104,7 @@ Future<void> fetchStory() async {
             return Post.fromDocument(doc);
           }).toList();
 
+
       setState(() {
         posts = loaded;
       });
@@ -350,6 +351,7 @@ Future<void> fetchStory() async {
             (post) => PostCard(
               userId: post.userId,
               postId: post.id,
+              userId: post.userId,
               name: post.name,
               avatarUrl: post.avatarUrl,
               time: timeAgo(
@@ -359,8 +361,10 @@ Future<void> fetchStory() async {
               caption: post.content,
               imageUrl: post.imageUrls.isNotEmpty ? post.imageUrls.first : '',
               likes: post.likes,
-              comments: 0,
+              comments: post.comments,
               shares: 0,
+              reactionCounts: post.reactionCounts,
+              reactionType: post.reactionType, 
             ),
           ),
         ],

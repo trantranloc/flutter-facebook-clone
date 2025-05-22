@@ -2,19 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/comment_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class CommentScreen extends StatefulWidget {
   final String postId;
   final String name;
   final String caption;
   final ScrollController scrollController;
-
+  final String currentUserName;
+  final String currentAvatarUrl;
   const CommentScreen({
     super.key,
     required this.postId,
     required this.name,
     required this.caption,
     required this.scrollController,
+    required this.currentUserName,
+    required this.currentAvatarUrl,
   });
 
   @override
@@ -66,7 +70,8 @@ class _CommentScreenState extends State<CommentScreen> {
       final parent = _comments[_replyingToIndex!];
       final replies = List<Map<String, dynamic>>.from(parent["replies"] ?? []);
       replies.insert(0, {
-        "name": "Bạn",
+        "name": widget.currentUserName,
+        "avatarUrl": widget.currentAvatarUrl,
         "text": text,
         "liked": false,
         "time": Timestamp.now(),
@@ -80,7 +85,9 @@ class _CommentScreenState extends State<CommentScreen> {
       _replyingToIndex = null;
     } else {
       await _commentService.addComment(widget.postId, {
-        "name": "Bạn",
+        "name": widget.currentUserName,
+        "avatarUrl": widget.currentAvatarUrl,
+        "userId": FirebaseAuth.instance.currentUser?.uid ?? '',
         "text": text.trim(),
         "liked": false,
         "time": Timestamp.now(),
@@ -88,6 +95,11 @@ class _CommentScreenState extends State<CommentScreen> {
         "topComment": false,
         "replies": [],
       });
+
+      await FirebaseFirestore.instance
+          .collection('posts')
+          .doc(widget.postId)
+          .update({'comments': FieldValue.increment(1)});
     }
 
     _controller.clear();
@@ -149,7 +161,20 @@ class _CommentScreenState extends State<CommentScreen> {
     return Padding(
       padding: const EdgeInsets.only(left: 56.0),
       child: ListTile(
-        leading: const CircleAvatar(child: Icon(Icons.person, size: 14)),
+        leading: CircleAvatar(
+          radius: 14,
+          backgroundImage:
+              reply["avatarUrl"] != null &&
+                      reply["avatarUrl"].toString().isNotEmpty
+                  ? NetworkImage(reply["avatarUrl"])
+                  : null,
+          child:
+              (reply["avatarUrl"] == null ||
+                      reply["avatarUrl"].toString().isEmpty)
+                  ? const Icon(Icons.person, size: 14)
+                  : null,
+        ),
+
         title: Text(
           reply["name"],
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
@@ -219,7 +244,19 @@ class _CommentScreenState extends State<CommentScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     ListTile(
-                      leading: const CircleAvatar(child: Icon(Icons.person)),
+                      leading: CircleAvatar(
+                        backgroundImage:
+                            c["avatarUrl"] != null &&
+                                    c["avatarUrl"].toString().isNotEmpty
+                                ? NetworkImage(c["avatarUrl"])
+                                : null,
+                        child:
+                            (c["avatarUrl"] == null ||
+                                    c["avatarUrl"].toString().isEmpty)
+                                ? const Icon(Icons.person)
+                                : null,
+                      ),
+
                       title: Row(
                         children: [
                           Text(

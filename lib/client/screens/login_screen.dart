@@ -7,6 +7,7 @@ import 'package:flutter_facebook_clone/services/user_service.dart';
 import 'package:flutter_facebook_clone/widgets/personal_info_screen.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_facebook_clone/services/user_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -80,6 +81,7 @@ class _LoginScreenState extends State<LoginScreen> {
       } else {
         context.go('/');
         print('Đăng nhập thành công với tư cách người dùng thường');
+
       }
     } on FirebaseAuthException catch (e) {
       String message;
