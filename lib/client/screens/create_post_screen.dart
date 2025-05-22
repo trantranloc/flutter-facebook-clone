@@ -105,9 +105,30 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       imageUrls: imageUrl != null ? [imageUrl] : [],
       createdAt: Timestamp.now(),
       likes: 0,
+      comments: 0,
+      reactionCounts: {
+        'like': 0,
+        'love': 0,
+        'care': 0,
+        'haha': 0,
+        'wow': 0,
+        'sad': 0,
+        'angry': 0,
+      },
     );
 
-    await docRef.set(newPost.toMap());
+    await docRef.set({
+      ...newPost.toMap(),
+      'reactionCounts': {
+        'like': 0,
+        'love': 0,
+        'care': 0,
+        'haha': 0,
+        'wow': 0,
+        'sad': 0,
+        'angry': 0,
+      },
+    });
 
     setState(() => _isPosting = false);
 

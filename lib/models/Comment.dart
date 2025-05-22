@@ -7,12 +7,14 @@ class Comment {
   final String userId;
   final String postId;
   final String content;
+  final String userName;
   final DateTime createdAt;
 
   Comment({
     required this.id,
     required this.userId,
     required this.postId,
+    required this.userName,
     required this.content,
     required this.createdAt,
   });
@@ -22,6 +24,7 @@ class Comment {
       id: id,
       userId: map['userId'],
       postId: map['postId'],
+      userName: map['userName'] ?? '',
       content: map['content'],
       createdAt: (map['createdAt'] as Timestamp).toDate(),
     );
@@ -32,6 +35,7 @@ class Comment {
       'userId': userId,
       'postId': postId,
       'content': content,
+      'userName': userName,
       'createdAt': createdAt,
     };
   }

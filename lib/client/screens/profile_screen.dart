@@ -60,6 +60,23 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   Future<void> fetchUserPosts() async {
+    final currentUser =
+        Provider.of<UserProvider>(context, listen: false).userModel;
+
+    if (currentUser == null) return;
+
+    // Cho xem nếu là chính mình hoặc là bạn bè
+    final isAllowed =
+        currentUser.uid == widget.uid ||
+        currentUser.friends.contains(widget.uid);
+
+    if (!isAllowed) {
+      setState(() {
+        _posts = [];
+      });
+      return;
+    }
+
     final snapshot =
         await FirebaseFirestore.instance
             .collection('posts')
@@ -112,7 +129,16 @@ class _ProfileScreenState extends State<ProfileScreen>
           ),
           const SizedBox(height: 8),
           _posts.isEmpty
-              ? const Center(child: Text('Chưa có bài viết nào'))
+              ? Center(
+                child:
+                    FirebaseAuth.instance.currentUser?.uid != widget.uid &&
+                            !Provider.of<UserProvider>(
+                              context,
+                              listen: false,
+                            ).userModel!.friends.contains(widget.uid)
+                        ? const Text('Bạn không có quyền xem bài viết này')
+                        : const Text('Chưa có bài viết nào'),
+              )
               : ListView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
@@ -121,6 +147,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                   final post = _posts[index];
                   return PostCard(
                     postId: post.id,
+                    userId: post.userId,
                     name: post.name,
                     avatarUrl: post.avatarUrl,
                     time: timeAgo(post.createdAt.toDate()),

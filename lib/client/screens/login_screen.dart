@@ -6,6 +6,7 @@ import 'package:flutter_facebook_clone/services/auth_service.dart';
 import 'package:flutter_facebook_clone/widgets/personal_info_screen.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_facebook_clone/services/user_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -37,6 +38,10 @@ class _LoginScreenState extends State<LoginScreen> {
       await context.read<UserProvider>().checkAdminStatus();
       if (user != null) {
         bool isAdmin = await _authService.isAdmin();
+        await context.read<UserProvider>().loadUserData(
+          user.uid,
+          UserService(),
+        );
         bool isBlocked = await _authService.isUserBlocked(user.uid);
         if (isBlocked) {
           setState(() {

@@ -122,7 +122,7 @@ class _HomeScreenState extends State<HomeScreen> {
         snapshot.docs.map((doc) => Post.fromDocument(doc)).toList();
 
     setState(() {
-  posts = loaded;
+      posts = loaded;
     });
   }
 
@@ -359,6 +359,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ...posts.map(
             (post) => PostCard(
               postId: post.id,
+              userId: post.userId,
               name: post.name,
               avatarUrl: post.avatarUrl,
               time: timeAgo(
@@ -368,8 +369,10 @@ class _HomeScreenState extends State<HomeScreen> {
               caption: post.content,
               imageUrl: post.imageUrls.isNotEmpty ? post.imageUrls.first : '',
               likes: post.likes,
-              comments: 0,
+              comments: post.comments,
               shares: 0,
+              reactionCounts: post.reactionCounts,
+              reactionType: post.reactionType, 
             ),
           ),
         ],
