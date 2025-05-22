@@ -16,18 +16,24 @@ class MessageProvider with ChangeNotifier {
     fetchFriends();
   }
 
-  // Fetch friends with last message
   Future<void> fetchFriends() async {
     _isLoading = true;
     notifyListeners();
 
     _friendsList = await _chatService.getFriendsWithLastMessage();
+    // Sort pinned chats to top
+    _friendsList.sort((a, b) {
+      final aPinned = a['isPinned'] ?? false;
+      final bPinned = b['isPinned'] ?? false;
+      if (aPinned && !bPinned) return -1;
+      if (!aPinned && bPinned) return 1;
+      return 0;
+    });
     _filteredFriends = _friendsList;
     _isLoading = false;
     notifyListeners();
   }
 
-  // Search friends by name
   void searchFriends(String query) {
     _searchQuery = query;
     if (query.isEmpty) {
@@ -41,10 +47,24 @@ class MessageProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // Clear search
   void clearSearch() {
     _searchQuery = '';
     _filteredFriends = _friendsList;
     notifyListeners();
+  }
+
+  Future<void> deleteChat(String friendId, {bool isGroup = false}) async {
+    await _chatService.deleteChat(friendId, isGroup: isGroup);
+    await fetchFriends();
+  }
+
+  Future<void> togglePinChat(String friendId) async {
+    await _chatService.togglePinChat(friendId);
+    await fetchFriends();
+  }
+
+  Future<void> createGroup(String groupName, List<String> members) async {
+    await _chatService.createGroup(groupName, members);
+    await fetchFriends();
   }
 }

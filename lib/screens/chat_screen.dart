@@ -1,17 +1,18 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_facebook_clone/services/chat_service.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
-import 'dart:io';
+import 'package:agora_rtc_engine/agora_rtc_engine.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class ChatScreen extends StatefulWidget {
   final String userId;
-  final List<String>? members;
 
-  const ChatScreen({super.key, required this.userId, this.members});
+  const ChatScreen({super.key, required this.userId});
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -23,17 +24,25 @@ class _ChatScreenState extends State<ChatScreen> {
   final ImagePicker _picker = ImagePicker();
   Map<String, dynamic>? _otherUserData;
   final ScrollController _scrollController = ScrollController();
+  RtcEngine? _engine;
+  bool _isJoined = false;
+  bool _isMuted = false;
+  bool _isVideoEnabled = false;
+  String? _editingMessageId;
+
+  static const String _appId = '0de2f19534204d55afbaae4d90f6677a';
+  String _channelName = '';
 
   @override
   void initState() {
     super.initState();
     _fetchOtherUserData();
+    _initAgora();
+    _channelName = 'voice_${widget.userId}_${FirebaseAuth.instance.currentUser?.uid ?? 'unknown'}';
   }
 
-  // Fetch other user's data
   Future<void> _fetchOtherUserData() async {
-    final userDoc =
-        await FirebaseFirestore.instance.collection('users').doc(widget.userId).get();
+    final userDoc = await FirebaseFirestore.instance.collection('users').doc(widget.userId).get();
     if (userDoc.exists && mounted) {
       setState(() {
         _otherUserData = userDoc.data();
@@ -41,69 +50,240 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  // Send text message
-  void _sendMessage() {
-    if (_messageController.text.trim().isNotEmpty) {
-      _chatService.sendMessage(
-        widget.userId,
-        _messageController.text.trim(),
-        'text',
+  Future<void> _initAgora() async {
+    try {
+      await [Permission.microphone, Permission.camera].request();
+      if (await Permission.microphone.isDenied || await Permission.camera.isDenied) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Cần quyền micro và camera để gọi')),
+        );
+        return;
+      }
+
+      _engine = createAgoraRtcEngine();
+      await _engine!.initialize(const RtcEngineContext(
+        appId: _appId,
+        channelProfile: ChannelProfileType.channelProfileCommunication,
+      ));
+
+      _engine!.registerEventHandler(
+        RtcEngineEventHandler(
+          onJoinChannelSuccess: (RtcConnection connection, int elapsed) {
+            setState(() {
+              _isJoined = true;
+            });
+          },
+          onUserJoined: (RtcConnection connection, int remoteUid, int elapsed) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Người dùng khác đã tham gia cuộc gọi')),
+            );
+          },
+          onUserOffline: (RtcConnection connection, int remoteUid, UserOfflineReasonType reason) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Người dùng khác đã rời cuộc gọi')),
+            );
+          },
+          onLeaveChannel: (RtcConnection connection, RtcStats stats) {
+            setState(() {
+              _isJoined = false;
+              _isVideoEnabled = false;
+            });
+          },
+          onError: (ErrorCodeType err, String msg) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Lỗi gọi: $msg')),
+            );
+          },
+        ),
       );
-      _messageController.clear();
-      _scrollToBottom();
+
+      await _engine!.enableAudio();
+      await _engine!.setClientRole(role: ClientRoleType.clientRoleBroadcaster);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Khởi tạo gọi thất bại: $e')),
+      );
     }
   }
 
-  // Send image
+  Future<void> _startVoiceCall() async {
+    if (_engine == null || _isJoined) return;
+    try {
+      await _engine!.enableAudio();
+      await _engine!.disableVideo();
+      await _engine!.joinChannel(
+        token: '',
+        channelId: _channelName,
+        uid: 0,
+        options: const ChannelMediaOptions(),
+      );
+      setState(() {
+        _isVideoEnabled = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Đã bắt đầu cuộc gọi thoại')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Bắt đầu gọi thoại thất bại: $e')),
+      );
+    }
+  }
+
+  Future<void> _startVideoCall() async {
+    if (_engine == null || _isJoined) return;
+    try {
+      await _engine!.enableVideo();
+      await _engine!.enableLocalVideo(true);
+      await _engine!.joinChannel(
+        token: '',
+        channelId: _channelName,
+        uid: 0,
+        options: const ChannelMediaOptions(),
+      );
+      setState(() {
+        _isVideoEnabled = true;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Đã bắt đầu cuộc gọi video')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Bắt đầu gọi video thất bại: $e')),
+      );
+    }
+  }
+
+  Future<void> _toggleMute() async {
+    if (_engine == null) return;
+    setState(() {
+      _isMuted = !_isMuted;
+    });
+    await _engine!.muteLocalAudioStream(_isMuted);
+  }
+
+  Future<void> _endCall() async {
+    if (_engine == null || !_isJoined) return;
+    await _engine!.leaveChannel();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Cuộc gọi đã kết thúc')),
+    );
+  }
+
+  void _sendMessage() {
+    if (_messageController.text.trim().isEmpty) return;
+    
+    try {
+      if (_editingMessageId != null) {
+        _chatService.editMessage(
+          widget.userId,
+          _editingMessageId!,
+          _messageController.text.trim(),
+        );
+        setState(() {
+          _editingMessageId = null;
+        });
+      } else {
+        _chatService.sendMessage(
+          widget.userId,
+          _messageController.text.trim(),
+          'text',
+        );
+      }
+      _messageController.clear();
+      _scrollToBottom();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gửi tin nhắn thất bại: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
   Future<void> _sendImage() async {
-    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
-    if (image != null) {
+    try {
+      final storageStatus = await Permission.storage.request();
+      if (storageStatus.isDenied) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Cần quyền truy cập bộ nhớ để chọn ảnh')),
+        );
+        return;
+      }
+
+      final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+      if (image == null) return;
+
       final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
+      if (user == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Người dùng chưa đăng nhập')),
+        );
+        return;
+      }
 
-      final storageRef = FirebaseStorage.instance
-          .ref()
-          .child('chat_images')
-          .child('${user.uid}_${DateTime.now().millisecondsSinceEpoch}.jpg');
+      final file = File(image.path);
+      if (!await file.exists()) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('File ảnh không tồn tại')),
+        );
+        return;
+      }
 
-      await storageRef.putFile(File(image.path));
-      final imageUrl = await storageRef.getDownloadURL();
+      final bytes = await file.readAsBytes();
+      final base64Image = base64Encode(bytes);
+      if (base64Image.length > 700000) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Ảnh quá lớn, vui lòng chọn ảnh nhỏ hơn')),
+        );
+        return;
+      }
 
       await _chatService.sendMessage(
         widget.userId,
-        'Sent an image',
+        'Đã gửi một ảnh',
         'image',
-        fileUrl: imageUrl,
+        fileUrl: base64Image,
       );
       _scrollToBottom();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gửi ảnh thất bại: $e'), backgroundColor: Colors.red),
+      );
     }
   }
 
-  // Mock voice call
-  void _startVoiceCall() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Initiating voice call... (Mocked)')),
+  void _viewFullImage(BuildContext context, String base64Image) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.black,
+        child: GestureDetector(
+          onTap: () => Navigator.pop(context),
+          child: InteractiveViewer(
+            panEnabled: true,
+            minScale: 0.5,
+            maxScale: 4.0,
+            child: Image.memory(
+              base64Decode(base64Image),
+              fit: BoxFit.contain,
+              errorBuilder: (context, error, stackTrace) => const Text(
+                'Lỗi tải ảnh',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
-    // Implement actual voice call with Agora/Twilio here
   }
 
-  // Mock video call
-  void _startVideoCall() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Initiating video call... (Mocked)')),
-    );
-    // Implement actual video call with Agora/Twilio here
-  }
-
-  // Show image gallery
   void _showImageGallery() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Image Gallery'),
+        title: const Text('Thư viện ảnh'),
         content: SizedBox(
           width: double.maxFinite,
-          height: 300,
+          height: 400,
           child: StreamBuilder<List<Map<String, dynamic>>>(
             stream: _chatService.getMessages(widget.userId),
             builder: (context, snapshot) {
@@ -111,27 +291,51 @@ class _ChatScreenState extends State<ChatScreen> {
                 return const Center(child: CircularProgressIndicator());
               }
               if (snapshot.hasError) {
-                return const Center(child: Text('Error loading images'));
+                return const Center(child: Text('Lỗi khi tải ảnh'));
               }
               final images = snapshot.data
                       ?.where((msg) => msg['type'] == 'image')
                       .toList() ??
                   [];
               if (images.isEmpty) {
-                return const Center(child: Text('No images found'));
+                return const Center(child: Text('Không tìm thấy ảnh'));
               }
               return GridView.builder(
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  crossAxisSpacing: 4,
-                  mainAxisSpacing: 4,
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 8,
+                  mainAxisSpacing: 8,
+                  childAspectRatio: 1,
                 ),
                 itemCount: images.length,
                 itemBuilder: (context, index) {
-                  return Image.network(
-                    images[index]['fileUrl'],
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => const Icon(Icons.error),
+                  final image = images[index];
+                  final timestamp = (image['timestamp'] as Timestamp?)?.toDate();
+                  final timeString = timestamp != null
+                      ? '${timestamp.day}/${timestamp.month} ${timestamp.hour}:${timestamp.minute.toString().padLeft(2, '0')}'
+                      : '';
+                  return GestureDetector(
+                    onTap: () => _viewFullImage(context, image['fileUrl']),
+                    child: Column(
+                      children: [
+                        Expanded(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8.0),
+                            child: Image.memory(
+                              base64Decode(image['fileUrl']),
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  const Icon(Icons.error),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          timeString,
+                          style: const TextStyle(fontSize: 10.0, color: Colors.grey),
+                        ),
+                      ],
+                    ),
                   );
                 },
               );
@@ -141,56 +345,58 @@ class _ChatScreenState extends State<ChatScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
+            child: const Text('Đóng'),
           ),
         ],
       ),
     );
   }
 
-  // Share file
   void _shareFile() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Share File'),
+        title: const Text('Chia sẻ file'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               decoration: const InputDecoration(
-                hintText: 'Enter file URL (mock)',
+                hintText: 'Nhập URL file (mô phỏng)',
               ),
-              onChanged: (value) {
-                // Mock file URL input
-              },
+              onChanged: (value) {},
             ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: const Text('Hủy'),
           ),
           TextButton(
             onPressed: () {
-              _chatService.sendMessage(
-                widget.userId,
-                'Shared a file: sample.pdf',
-                'file',
-                fileUrl: 'https://example.com/sample.pdf',
-              );
-              Navigator.pop(context);
-              _scrollToBottom();
+              try {
+                _chatService.sendMessage(
+                  widget.userId,
+                  'Đã chia sẻ file: sample.pdf',
+                  'file',
+                  fileUrl: 'https://example.com/sample.pdf',
+                );
+                Navigator.pop(context);
+                _scrollToBottom();
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Chia sẻ file thất bại: $e'), backgroundColor: Colors.red),
+                );
+              }
             },
-            child: const Text('Share'),
+            child: const Text('Chia sẻ'),
           ),
         ],
       ),
     );
   }
 
-  // Scroll to bottom
   void _scrollToBottom() {
     if (_scrollController.hasClients) {
       _scrollController.animateTo(
@@ -199,6 +405,40 @@ class _ChatScreenState extends State<ChatScreen> {
         curve: Curves.easeOut,
       );
     }
+  }
+
+  void _showMessageOptions(BuildContext context, String messageId, String message, bool isMe) {
+    if (!isMe) return;
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.edit),
+              title: const Text('Edit message'),
+              onTap: () {
+                setState(() {
+                  _editingMessageId = messageId;
+                  _messageController.text = message;
+                });
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete),
+              title: const Text('Recall message'),
+              onTap: () {
+                _chatService.recallMessage(widget.userId, messageId);
+                Navigator.pop(context);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -256,12 +496,15 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.call, color: Colors.black),
-            onPressed: _startVoiceCall,
+            icon: Icon(
+              _isJoined ? Icons.call_end : Icons.call,
+              color: _isJoined ? Colors.red : Colors.black,
+            ),
+            onPressed: _isJoined ? _endCall : _startVoiceCall,
           ),
           IconButton(
             icon: const Icon(Icons.videocam, color: Colors.black),
-            onPressed: _startVideoCall,
+            onPressed: _isJoined ? _endCall : _startVideoCall,
           ),
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert, color: Colors.black),
@@ -274,7 +517,7 @@ class _ChatScreenState extends State<ChatScreen> {
               return [
                 const PopupMenuItem<String>(
                   value: 'gallery',
-                  child: Text('View Image Gallery'),
+                  child: Text('Xem thư viện ảnh'),
                 ),
               ];
             },
@@ -283,7 +526,46 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
       body: Column(
         children: [
-          // Chat messages
+          if (_isJoined)
+            Container(
+              padding: const EdgeInsets.all(8.0),
+              color: Colors.grey[200],
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    icon: Icon(
+                      _isMuted ? Icons.mic_off : Icons.mic,
+                      color: _isMuted ? Colors.red : Colors.black,
+                    ),
+                    onPressed: _toggleMute,
+                  ),
+                  if (_isVideoEnabled)
+                    IconButton(
+                      icon: Icon(
+                        _isVideoEnabled ? Icons.videocam : Icons.videocam_off,
+                        color: _isVideoEnabled ? Colors.black : Colors.red,
+                      ),
+                      onPressed: () async {
+                        setState(() {
+                          _isVideoEnabled = !_isVideoEnabled;
+                        });
+                        if (_isVideoEnabled) {
+                          await _engine!.enableVideo();
+                          await _engine!.enableLocalVideo(true);
+                        } else {
+                          await _engine!.disableVideo();
+                        }
+                      },
+                    ),
+                  const SizedBox(width: 20),
+                  IconButton(
+                    icon: const Icon(Icons.call_end, color: Colors.red),
+                    onPressed: _endCall,
+                  ),
+                ],
+              ),
+            ),
           Expanded(
             child: StreamBuilder<List<Map<String, dynamic>>>(
               stream: _chatService.getMessages(widget.userId),
@@ -292,7 +574,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   return const Center(child: CircularProgressIndicator());
                 }
                 if (snapshot.hasError) {
-                  return const Center(child: Text('Error loading messages'));
+                  return const Center(child: Text('Lỗi khi tải tin nhắn'));
                 }
                 final messages = snapshot.data ?? [];
                 return ListView.builder(
@@ -303,65 +585,107 @@ class _ChatScreenState extends State<ChatScreen> {
                   itemBuilder: (context, index) {
                     final message = messages[index];
                     final isMe = message['sender'] == 'You';
-                    return Align(
-                      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(vertical: 4.0),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12.0,
-                          vertical: 8.0,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isMe ? Colors.blue[100] : Colors.grey[200],
-                          borderRadius: BorderRadius.circular(12.0),
-                        ),
-                        child: message['type'] == 'image'
-                            ? Column(
-                                crossAxisAlignment:
-                                    isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-                                children: [
-                                  Image.network(
-                                    message['fileUrl'],
-                                    width: 200,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) =>
-                                        const Text('Error loading image'),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    message['message']!,
-                                    style: const TextStyle(fontSize: 12.0),
-                                  ),
-                                ],
-                              )
-                            : message['type'] == 'file'
-                                ? InkWell(
-                                    onTap: () {
-                                      print('Opening file: ${message['fileUrl']}');
-                                    },
-                                    child: Column(
-                                      crossAxisAlignment: isMe
-                                          ? CrossAxisAlignment.end
-                                          : CrossAxisAlignment.start,
+                    final timestamp = (message['timestamp'] as Timestamp?)?.toDate();
+                    final timeString = timestamp != null
+                        ? '${timestamp.hour}:${timestamp.minute.toString().padLeft(2, '0')}'
+                        : '';
+                    final messageId = snapshot.data![index]['id'];
+
+                    return GestureDetector(
+                      onLongPress: () => _showMessageOptions(context, messageId, message['message'], isMe),
+                      child: Align(
+                        alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(vertical: 4.0),
+                          padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+                          decoration: BoxDecoration(
+                            color: isMe ? Colors.blue[100] : Colors.grey[200],
+                            borderRadius: BorderRadius.circular(12.0),
+                          ),
+                          child: message['type'] == 'image'
+                              ? Column(
+                                  crossAxisAlignment:
+                                      isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                                  children: [
+                                    GestureDetector(
+                                      onTap: () {
+                                        _viewFullImage(context, message['fileUrl']);
+                                      },
+                                      child: ConstrainedBox(
+                                        constraints: BoxConstraints(
+                                          maxWidth: MediaQuery.of(context).size.width * 0.6,
+                                          maxHeight: 200,
+                                        ),
+                                        child: ClipRRect(
+                                          borderRadius: BorderRadius.circular(8.0),
+                                          child: Image.memory(
+                                            base64Decode(message['fileUrl']),
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (context, error, stackTrace) =>
+                                                const Text('Lỗi tải ảnh'),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      message['message']!,
+                                      style: const TextStyle(fontSize: 12.0),
+                                    ),
+                                    Text(
+                                      timeString,
+                                      style: const TextStyle(fontSize: 10.0, color: Colors.grey),
+                                    ),
+                                  ],
+                                )
+                              : message['type'] == 'file'
+                                  ? Column(
+                                      crossAxisAlignment:
+                                          isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                                      children: [
+                                        InkWell(
+                                          onTap: () {
+                                            print('Mở file: ${message['fileUrl']}');
+                                          },
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                message['message']!,
+                                                style: const TextStyle(fontSize: 16.0),
+                                              ),
+                                              Text(
+                                                message['fileUrl']!,
+                                                style: const TextStyle(
+                                                  fontSize: 12.0,
+                                                  color: Colors.blue,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        Text(
+                                          timeString,
+                                          style: const TextStyle(fontSize: 10.0, color: Colors.grey),
+                                        ),
+                                      ],
+                                    )
+                                  : Column(
+                                      crossAxisAlignment:
+                                          isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           message['message']!,
                                           style: const TextStyle(fontSize: 16.0),
                                         ),
                                         Text(
-                                          message['fileUrl']!,
-                                          style: const TextStyle(
-                                            fontSize: 12.0,
-                                            color: Colors.blue,
-                                          ),
+                                          timeString,
+                                          style: const TextStyle(fontSize: 10.0, color: Colors.grey),
                                         ),
                                       ],
                                     ),
-                                  )
-                                : Text(
-                                    message['message']!,
-                                    style: const TextStyle(fontSize: 16.0),
-                                  ),
+                        ),
                       ),
                     );
                   },
@@ -369,7 +693,6 @@ class _ChatScreenState extends State<ChatScreen> {
               },
             ),
           ),
-          // Input field
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: Row(
@@ -386,7 +709,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   child: TextField(
                     controller: _messageController,
                     decoration: InputDecoration(
-                      hintText: 'Type a message...',
+                      hintText: _editingMessageId != null ? 'Editing message...' : 'Nhập tin nhắn...',
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(30),
                         borderSide: BorderSide.none,
@@ -414,6 +737,8 @@ class _ChatScreenState extends State<ChatScreen> {
   void dispose() {
     _messageController.dispose();
     _scrollController.dispose();
+    _engine?.leaveChannel();
+    _engine?.release();
     super.dispose();
   }
 }
