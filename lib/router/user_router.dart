@@ -24,6 +24,8 @@ import 'package:flutter_facebook_clone/client/screens/setting_screen.dart';
 import 'package:flutter_facebook_clone/admin/screens/admin_choice_screen.dart';
 import 'package:flutter_facebook_clone/admin/screens/admin_dashboard_screen.dart';
 import 'package:flutter_facebook_clone/providers/user_provider.dart';
+import 'package:flutter_facebook_clone/client/screens/game_selection_screen.dart';
+import 'package:flutter_facebook_clone/client/screens/game_word_chain_screen.dart';
 import 'package:provider/provider.dart';
 
 import 'package:go_router/go_router.dart';
@@ -210,6 +212,14 @@ final GoRouter userRouter = GoRouter(
     GoRoute(
       path: '/admin/choice',
       builder: (context, state) => const AdminChoiceScreen(),
+    ),
+    GoRoute(
+      path: '/game-selection',
+      builder: (context, state) => const GameSelectionScreen(),
+    ),
+    GoRoute(
+      path: '/game-word-chain',
+      builder: (context, state) => const GameWordChainScreen(),
     ),
   ],
 );
