@@ -187,6 +187,9 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
           DateTime.now().add(const Duration(hours: 24)),
         ),
         'isActive': true,
+        'likes': 0, // Thêm trường likes
+        'views': 0, // Thêm trường views
+        'likedBy': [], // Thêm trường likedBy
       };
 
       print('Saving story: $storyData');
@@ -202,6 +205,9 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
         caption: _captionController.text.trim(),
         sticker: _sticker,
         stickerOffset: _sticker != null ? _stickerOffset : null,
+        likes: 0,
+        views: 0,
+        likedBy: [],
       );
 
       _showSnackBar('Story đã được đăng!');
@@ -233,6 +239,7 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
             (_) => StoryViewScreen(
               stories: [
                 Story(
+                  id: '',
                   imageUrl: _selectedImage!.path,
                   user: currentUser?.displayName ?? 'Bạn',
                   avatarUrl:
@@ -242,6 +249,9 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
                   caption: _captionController.text.trim(),
                   sticker: _sticker,
                   stickerOffset: _sticker != null ? _stickerOffset : null,
+                  likes: 0,
+                  views: 0,
+                  likedBy: [],
                 ),
               ],
               initialIndex: 0,
@@ -620,7 +630,12 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
                         maxLines: 3,
                         maxLength: 150,
                         enabled: !_isLoading,
-                        style: const TextStyle(fontFamily: 'Poppins'),
+                        style: const TextStyle(
+                          fontFamily: 'Poppins',
+                          color:
+                              Colors
+                                  .black, // Sửa màu chữ thành màu đen để dễ đọc
+                        ),
                         decoration: InputDecoration(
                           labelText: 'Chú thích (tùy chọn)',
                           hintText: 'Chia sẻ cảm xúc của bạn...',
