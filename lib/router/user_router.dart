@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_facebook_clone/client/screens/group_chat_screen.dart';
+import 'package:flutter_facebook_clone/client/screens/post_screen.dart';
 import 'package:flutter_facebook_clone/client/screens/profile_screen.dart';
 import 'package:flutter_facebook_clone/widgets/avatar_selection_screen.dart';
 import 'package:flutter_facebook_clone/widgets/email_screen.dart';
@@ -181,9 +182,9 @@ final GoRouter userRouter = GoRouter(
         ),
         GoRoute(
           path: 'group/:groupId',
-          builder: (context, state) => GroupChatScreen(
-            groupId: state.pathParameters['groupId']!,
-          ),
+          builder:
+              (context, state) =>
+                  GroupChatScreen(groupId: state.pathParameters['groupId']!),
         ),
         // GoRoute(
         //       path: 'group/:groupId',
@@ -192,13 +193,13 @@ final GoRouter userRouter = GoRouter(
         //         return GroupChatScreen(groupId: groupId);
         //       },
         //     ),
-            // GoRoute(
-            //   path: 'group/:groupId/details',
-            //   builder: (context, state) {
-            //     final groupId = state.pathParameters['groupId']!;
-            //     return GroupDetailsScreen(groupId: groupId);
-            //   },
-            // ),
+        // GoRoute(
+        //   path: 'group/:groupId/details',
+        //   builder: (context, state) {
+        //     final groupId = state.pathParameters['groupId']!;
+        //     return GroupDetailsScreen(groupId: groupId);
+        //   },
+        // ),
       ],
     ),
     GoRoute(
@@ -241,6 +242,13 @@ final GoRouter userRouter = GoRouter(
     GoRoute(
       path: '/game-word-chain',
       builder: (context, state) => const GameWordChainScreen(),
+    ),
+    GoRoute(
+      path: '/post/:postId',
+      builder: (context, state) {
+        final postId = state.pathParameters['postId']!;
+        return PostScreen(postId: postId);
+      },
     ),
   ],
 );
@@ -379,7 +387,7 @@ class _ScaffoldWithNavBarState extends State<ScaffoldWithNavBar> {
           style: TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 24,
-            color: Color.fromARGB(255, 237, 119, 255), 
+            color: Color.fromARGB(255, 237, 119, 255),
           ),
         ),
         actions: [
