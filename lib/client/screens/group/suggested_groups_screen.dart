@@ -21,10 +21,8 @@ class _SuggestedGroupsScreenState extends State<SuggestedGroupsScreen> {
       return [];
     }
 
-    // Fetch all groups without filtering by privacy
     Query query = _firestore.collection('groups');
 
-    // Optional: Sort by createdAt if desired
     try {
       query = query.orderBy('createdAt', descending: true);
     } catch (e) {
@@ -33,31 +31,62 @@ class _SuggestedGroupsScreenState extends State<SuggestedGroupsScreen> {
 
     final snapshot = await query.get();
 
-    return snapshot.docs
-        .map((doc) => Group.fromMap(doc.data() as Map<String, dynamic>, doc.id))
-        .toList();
+    // Lấy tất cả nhóm
+    final allGroups =
+        snapshot.docs
+            .map(
+              (doc) =>
+                  Group.fromMap(doc.data() as Map<String, dynamic>, doc.id),
+            )
+            .toList();
+
+    // Lọc bỏ các nhóm mà người dùng đã tham gia hoặc đã gửi yêu cầu tham gia
+    return allGroups.where((group) {
+      final isMember = group.members.contains(user.uid);
+      final hasPendingRequest = group.pendingRequests.contains(user.uid);
+      return !isMember &&
+          !hasPendingRequest; // Chỉ giữ các nhóm chưa tham gia và chưa gửi yêu cầu
+    }).toList();
   }
 
-  Future<void> _joinGroup(String groupId) async {
+  Future<void> _joinGroup(Group group) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
     try {
-      await _firestore.collection('groups').doc(groupId).update({
-        'members': FieldValue.arrayUnion([_auth.currentUser!.uid]),
-        'memberCount': FieldValue.increment(1), // Update memberCount
-      });
+      if (group.privacy == GroupPrivacy.public) {
+        // Nhóm công khai: Thêm trực tiếp vào members
+        await _firestore.collection('groups').doc(group.id).update({
+          'members': FieldValue.arrayUnion([user.uid]),
+          'memberCount': FieldValue.increment(1),
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Đã tham gia nhóm'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      } else {
+        // Nhóm riêng tư: Thêm vào pendingRequests
+        await _firestore.collection('groups').doc(group.id).update({
+          'pendingRequests': FieldValue.arrayUnion([user.uid]),
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Đã gửi yêu cầu tham gia'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Đã tham gia nhóm'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-
-      // Refresh the list after joining
+      // Refresh danh sách sau khi tham gia hoặc gửi yêu cầu
       setState(() {});
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Lỗi khi tham gia nhóm: $e'),
+          content: Text(
+            'Lỗi khi ${group.privacy == GroupPrivacy.public ? "tham gia nhóm" : "gửi yêu cầu tham gia"}: $e',
+          ),
           duration: const Duration(seconds: 2),
         ),
       );
@@ -75,7 +104,6 @@ class _SuggestedGroupsScreenState extends State<SuggestedGroupsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Add title
         const Padding(
           padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
           child: Text(
@@ -207,7 +235,7 @@ class _SuggestedGroupsScreenState extends State<SuggestedGroupsScreen> {
                             overflow: TextOverflow.ellipsis,
                           ),
                           trailing: TextButton(
-                            onPressed: () => _joinGroup(group.id),
+                            onPressed: () => _joinGroup(group),
                             style: TextButton.styleFrom(
                               foregroundColor: const Color(0xFF1877F2),
                               padding: const EdgeInsets.symmetric(
@@ -218,7 +246,11 @@ class _SuggestedGroupsScreenState extends State<SuggestedGroupsScreen> {
                                 borderRadius: BorderRadius.circular(8),
                               ),
                             ),
-                            child: const Text('Tham gia'),
+                            child: Text(
+                              group.privacy == GroupPrivacy.public
+                                  ? 'Tham gia'
+                                  : 'Tham gia',
+                            ),
                           ),
                           onTap: () {
                             Navigator.push(
