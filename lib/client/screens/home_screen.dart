@@ -351,7 +351,6 @@ Future<void> fetchStory() async {
             (post) => PostCard(
               userId: post.userId,
               postId: post.id,
-              userId: post.userId,
               name: post.name,
               avatarUrl: post.avatarUrl,
               time: timeAgo(

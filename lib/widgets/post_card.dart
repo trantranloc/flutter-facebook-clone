@@ -5,7 +5,6 @@ import 'package:share_plus/share_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../client/screens/comment_screen.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_facebook_clone/providers/user_provider.dart';
 import '../client/screens/profile_screen.dart';
@@ -184,7 +183,7 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
       }
 
       final overlayBox =
-          Overlay.of(context)?.context.findRenderObject() as RenderBox?;
+          Overlay.of(context).context.findRenderObject() as RenderBox?;
       if (overlayBox == null) return;
 
       final offset = box.localToGlobal(Offset.zero, ancestor: overlayBox);
@@ -261,54 +260,6 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
     _dismissTimer?.cancel();
   }
 
-  void _editPost() {
-    final TextEditingController editController = TextEditingController(
-      text: widget.caption,
-    );
-
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Chỉnh sửa bài viết'),
-            content: TextField(
-              controller: editController,
-              maxLines: null,
-              decoration: const InputDecoration(
-                hintText: 'Nhập nội dung mới...',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Huỷ'),
-              ),
-              ElevatedButton(
-                onPressed: () async {
-                  final newCaption = editController.text.trim();
-                  if (newCaption.isNotEmpty && newCaption != widget.caption) {
-                    await FirebaseFirestore.instance
-                        .collection('posts')
-                        .doc(widget.postId)
-                        .update({'content': newCaption});
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Đã cập nhật bài viết')),
-                    );
-                    setState(
-                      () {},
-                    ); // Gợi ý: có thể cần load lại hoặc dùng Provider để cập nhật
-                  } else {
-                    Navigator.pop(context);
-                  }
-                },
-                child: const Text('Lưu'),
-              ),
-            ],
-          ),
-    );
-  }
 
   void _openCommentSection() {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
@@ -486,12 +437,10 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
                   icon: const Icon(Icons.more_horiz),
                   splashRadius: 20,
                   onPressed: () {
-                    final userProvider = Provider.of<UserProvider>(
+                    Provider.of<UserProvider>(
                       context,
                       listen: false,
                     );
-                    final isOwner =
-                        userProvider.userModel?.uid == widget.userId;
 
                     showModalBottomSheet(
                       context: context,

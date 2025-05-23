@@ -8,11 +8,11 @@ import 'package:cloudinary_public/cloudinary_public.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_facebook_clone/providers/user_provider.dart';
 import 'package:flutter_facebook_clone/models/User.dart';
-import 'package:flutter_facebook_clone/providers/theme_provider.dart'; // Import ThemeProvider
+import 'package:flutter_facebook_clone/providers/theme_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../models/Post.dart'; // Model bài viết
-import '../../widgets/post_card.dart'; // Widget hiển thị bài viết
-import 'create_post_screen.dart'; // Màn hình tạo bài viết
+import '../../models/Post.dart';
+import '../../widgets/post_card.dart';
+import 'create_post_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String uid;
@@ -60,41 +60,41 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   Future<void> fetchUserPosts() async {
-    final currentUser =
-        Provider.of<UserProvider>(context, listen: false).userModel;
+    try {
+      final currentUser =
+          Provider.of<UserProvider>(context, listen: false).userModel;
 
-    if (currentUser == null) return;
+      if (currentUser == null) return;
 
-    // Cho xem nếu là chính mình hoặc là bạn bè
-    final isAllowed =
-        currentUser.uid == widget.uid ||
-        currentUser.friends.contains(widget.uid);
+      // Check if user is allowed to view posts
+      final isAllowed =
+          currentUser.uid == widget.uid ||
+          currentUser.friends.contains(widget.uid);
 
-    if (!isAllowed) {
-      setState(() {
-        _posts = [];
-      });
-      return;
-    }
+      if (!isAllowed) {
+        setState(() {
+          _posts = [];
+        });
+        return;
+      }
 
-    final snapshot =
-        await FirebaseFirestore.instance
-            .collection('posts')
-            .where('userId', isEqualTo: widget.uid)
-            .orderBy('createdAt', descending: true)
-            .get();
+      final snapshot =
+          await FirebaseFirestore.instance
+              .collection('posts')
+              .where('userId', isEqualTo: widget.uid)
+              .orderBy('createdAt', descending: true)
+              .get();
 
-      // print(
-      //   'Lấy được ${snapshot.docs.length} bài viết cho userId: ${widget.uid}',
-      // );
       setState(() {
         _posts = snapshot.docs.map((doc) => Post.fromDocument(doc)).toList();
       });
     } catch (e) {
-      print('Lỗi khi lấy bài viết: $e');
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Lỗi khi tải bài viết: $e')));
+      print('Error fetching posts: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error loading posts: $e')));
+      }
     }
   }
 
@@ -157,7 +157,6 @@ class _ProfileScreenState extends State<ProfileScreen>
                   return PostCard(
                     userId: post.userId,
                     postId: post.id,
-                    userId: post.userId,
                     name: post.name,
                     avatarUrl: post.avatarUrl,
                     time: timeAgo(post.createdAt.toDate()),
@@ -199,7 +198,7 @@ class _ProfileScreenState extends State<ProfileScreen>
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Lỗi khi tải thông tin: $e')));
+        ).showSnackBar(SnackBar(content: Text('Error loading user data: $e')));
       }
     } finally {
       if (mounted) {
@@ -248,8 +247,6 @@ class _ProfileScreenState extends State<ProfileScreen>
                       'Bạn có muốn sử dụng ảnh này làm ảnh đại diện?',
                       textAlign: TextAlign.center,
                     ),
-                    // Hiển thị danh sách bài viết
-                    _buildPostsSection(),
                   ],
                 ),
                 actions: [
@@ -319,7 +316,7 @@ class _ProfileScreenState extends State<ProfileScreen>
         }
       }
     } catch (e) {
-      print('Lỗi khi chọn hoặc upload ảnh: $e');
+      print('Error selecting or uploading image: $e');
       final userProvider = Provider.of<UserProvider>(context, listen: false);
       userProvider.setLoading(false);
       ScaffoldMessenger.of(context).showSnackBar(
