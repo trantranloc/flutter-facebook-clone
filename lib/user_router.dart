@@ -13,6 +13,7 @@ import 'package:flutter_facebook_clone/widgets/personal_info_screen.dart';
 import 'package:flutter_facebook_clone/screens/search_screen.dart';
 import 'package:flutter_facebook_clone/widgets/verification_sceen.dart';
 import 'package:flutter_facebook_clone/screens/chat_screen.dart';
+import 'package:flutter_facebook_clone/screens/group_chat_screen.dart';
 import 'package:flutter_facebook_clone/screens/list_friend_screen.dart';
 import 'package:flutter_facebook_clone/screens/edit_profile_screen.dart';
 import 'package:flutter_facebook_clone/screens/forgot_password_screen.dart';
@@ -176,6 +177,26 @@ final GoRouter userRouter = GoRouter(
             return ChatScreen(userId: userId);
           },
         ),
+        GoRoute(
+          path: 'group/:groupId',
+          builder: (context, state) => GroupChatScreen(
+            groupId: state.pathParameters['groupId']!,
+          ),
+        ),
+        // GoRoute(
+        //       path: 'group/:groupId',
+        //       builder: (context, state) {
+        //         final groupId = state.pathParameters['groupId']!;
+        //         return GroupChatScreen(groupId: groupId);
+        //       },
+        //     ),
+            // GoRoute(
+            //   path: 'group/:groupId/details',
+            //   builder: (context, state) {
+            //     final groupId = state.pathParameters['groupId']!;
+            //     return GroupDetailsScreen(groupId: groupId);
+            //   },
+            // ),
       ],
     ),
     GoRoute(
