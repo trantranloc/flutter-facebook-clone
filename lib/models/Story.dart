@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class Story {
   final String? id;
+  final String? userId; // Thêm trường này
   final String imageUrl;
   final String user;
   final String avatarUrl;
@@ -16,6 +17,7 @@ class Story {
 
   Story({
     this.id,
+    this.userId, // Thêm vào constructor
     required this.imageUrl,
     required this.user,
     required this.avatarUrl,
@@ -31,6 +33,7 @@ class Story {
   Map<String, dynamic> toMap() {
     return {
       'id': id,
+      'userId': userId, // Lưu userId
       'imageUrl': imageUrl,
       'user': user,
       'avatarUrl': avatarUrl,
@@ -42,6 +45,7 @@ class Story {
       'likes': likes,
       'views': views,
       'likedBy': likedBy,
+      'viewedBy': [], // Thêm trường này để lưu danh sách người đã xem
     };
   }
 
@@ -49,6 +53,7 @@ class Story {
     final data = doc.data() as Map<String, dynamic>;
     return Story(
       id: doc.id,
+      userId: data['userId'], // Lấy userId
       imageUrl: data['imageUrl'] ?? '',
       user: data['userName'] ?? data['user'] ?? 'Unknown',
       avatarUrl:

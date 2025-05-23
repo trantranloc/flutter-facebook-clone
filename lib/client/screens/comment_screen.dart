@@ -11,6 +11,7 @@ class CommentScreen extends StatefulWidget {
   final ScrollController scrollController;
   final String currentUserName;
   final String currentAvatarUrl;
+
   const CommentScreen({
     super.key,
     required this.postId,
@@ -58,6 +59,9 @@ class _CommentScreenState extends State<CommentScreen> {
   Future<void> _addOrUpdateComment(String text) async {
     if (text.trim().isEmpty) return;
 
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return;
+
     if (_isEditing && _editingCommentId != null) {
       await _commentService.updateComment(
         widget.postId,
@@ -72,6 +76,7 @@ class _CommentScreenState extends State<CommentScreen> {
       replies.insert(0, {
         "name": widget.currentUserName,
         "avatarUrl": widget.currentAvatarUrl,
+        "userId": currentUser.uid,
         "text": text,
         "liked": false,
         "time": Timestamp.now(),
@@ -82,12 +87,66 @@ class _CommentScreenState extends State<CommentScreen> {
         commentId: parent["id"],
         updates: {"replies": replies},
       );
+
+      // Tạo thông báo cho chủ bài viết hoặc chủ bình luận gốc
+      final postDoc =
+          await FirebaseFirestore.instance
+              .collection('posts')
+              .doc(widget.postId)
+              .get();
+      final postData = postDoc.data();
+      if (postData != null) {
+        final senderDoc =
+            await FirebaseFirestore.instance
+                .collection('users')
+                .doc(currentUser.uid)
+                .get();
+        final senderData = senderDoc.data();
+        if (senderData != null) {
+          final senderName = senderData['name'] ?? 'Người dùng';
+          final senderAvatarUrl =
+              senderData['avatarUrl'] ?? 'https://i.pravatar.cc/150?img=1';
+
+          // Thông báo cho chủ bài viết
+          await FirebaseFirestore.instance.collection('notifications').add({
+            'userId': postData['userId'], // Người nhận thông báo (chủ bài viết)
+            'senderId': currentUser.uid,
+            'senderName': senderName,
+            'senderAvatarUrl': senderAvatarUrl,
+            'action': 'đã trả lời bình luận trong bài viết của bạn.',
+            'type': 'comment',
+            'postId': widget.postId,
+            'isRead': false,
+            'timestamp': FieldValue.serverTimestamp(),
+            'date': 'Hôm nay',
+          });
+
+          // Thông báo cho chủ bình luận gốc (nếu không phải là chính người trả lời)
+          if (parent['userId'] != currentUser.uid) {
+            await FirebaseFirestore.instance.collection('notifications').add({
+              'userId':
+                  parent['userId'], // Người nhận thông báo (chủ bình luận gốc)
+              'senderId': currentUser.uid,
+              'senderName': senderName,
+              'senderAvatarUrl': senderAvatarUrl,
+              'action': 'đã trả lời bình luận của bạn.',
+              'type': 'comment_reply',
+              'postId': widget.postId,
+              'commentId': parent['id'],
+              'isRead': false,
+              'timestamp': FieldValue.serverTimestamp(),
+              'date': 'Hôm nay',
+            });
+          }
+        }
+      }
+
       _replyingToIndex = null;
     } else {
       await _commentService.addComment(widget.postId, {
         "name": widget.currentUserName,
         "avatarUrl": widget.currentAvatarUrl,
-        "userId": FirebaseAuth.instance.currentUser?.uid ?? '',
+        "userId": currentUser.uid,
         "text": text.trim(),
         "liked": false,
         "time": Timestamp.now(),
@@ -100,6 +159,40 @@ class _CommentScreenState extends State<CommentScreen> {
           .collection('posts')
           .doc(widget.postId)
           .update({'comments': FieldValue.increment(1)});
+
+      // Tạo thông báo cho chủ bài viết
+      final postDoc =
+          await FirebaseFirestore.instance
+              .collection('posts')
+              .doc(widget.postId)
+              .get();
+      final postData = postDoc.data();
+      if (postData != null) {
+        final senderDoc =
+            await FirebaseFirestore.instance
+                .collection('users')
+                .doc(currentUser.uid)
+                .get();
+        final senderData = senderDoc.data();
+        if (senderData != null) {
+          final senderName = senderData['name'] ?? 'Người dùng';
+          final senderAvatarUrl =
+              senderData['avatarUrl'] ?? 'https://i.pravatar.cc/150?img=1';
+
+          await FirebaseFirestore.instance.collection('notifications').add({
+            'userId': postData['userId'], // Người nhận thông báo (chủ bài viết)
+            'senderId': currentUser.uid,
+            'senderName': senderName,
+            'senderAvatarUrl': senderAvatarUrl,
+            'action': 'đã bình luận bài viết của bạn.',
+            'type': 'comment',
+            'postId': widget.postId,
+            'isRead': false,
+            'timestamp': FieldValue.serverTimestamp(),
+            'date': 'Hôm nay',
+          });
+        }
+      }
     }
 
     _controller.clear();
@@ -108,21 +201,131 @@ class _CommentScreenState extends State<CommentScreen> {
 
   Future<void> _toggleLike(int index, {int? replyIndex}) async {
     final comment = _comments[index];
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return;
 
     if (replyIndex != null) {
       final replies = List<Map<String, dynamic>>.from(comment["replies"]);
-      replies[replyIndex]["liked"] = !replies[replyIndex]["liked"];
+      final hasLiked = replies[replyIndex]["liked"];
+      replies[replyIndex]["liked"] = !hasLiked;
       await _commentService.toggleLikeOrReplies(
         postId: widget.postId,
         commentId: comment["id"],
         updates: {"replies": replies},
       );
+
+      // Tạo hoặc xóa thông báo
+      final postDoc =
+          await FirebaseFirestore.instance
+              .collection('posts')
+              .doc(widget.postId)
+              .get();
+      final postData = postDoc.data();
+      if (postData != null) {
+        final senderDoc =
+            await FirebaseFirestore.instance
+                .collection('users')
+                .doc(currentUser.uid)
+                .get();
+        final senderData = senderDoc.data();
+        if (senderData != null) {
+          final senderName = senderData['name'] ?? 'Người dùng';
+          final senderAvatarUrl =
+              senderData['avatarUrl'] ?? 'https://i.pravatar.cc/150?img=1';
+
+          if (!hasLiked && comment['userId'] != currentUser.uid) {
+            // Tạo thông báo khi thích
+            await FirebaseFirestore.instance.collection('notifications').add({
+              'userId':
+                  comment['userId'], // Người nhận thông báo (chủ bình luận)
+              'senderId': currentUser.uid,
+              'senderName': senderName,
+              'senderAvatarUrl': senderAvatarUrl,
+              'action': 'đã thích trả lời của bạn trong bài viết.',
+              'type': 'comment_like',
+              'postId': widget.postId,
+              'commentId': comment['id'],
+              'isRead': false,
+              'timestamp': FieldValue.serverTimestamp(),
+              'date': 'Hôm nay',
+            });
+          } else {
+            // Xóa thông báo khi bỏ thích
+            final notificationSnapshot =
+                await FirebaseFirestore.instance
+                    .collection('notifications')
+                    .where('userId', isEqualTo: comment['userId'])
+                    .where('senderId', isEqualTo: currentUser.uid)
+                    .where('type', isEqualTo: 'comment_like')
+                    .where('postId', isEqualTo: widget.postId)
+                    .where('commentId', isEqualTo: comment['id'])
+                    .get();
+            for (var doc in notificationSnapshot.docs) {
+              await doc.reference.delete();
+            }
+          }
+        }
+      }
     } else {
+      final hasLiked = comment["liked"] ?? false;
       await _commentService.toggleLikeOrReplies(
         postId: widget.postId,
         commentId: comment["id"],
-        updates: {"liked": !(comment["liked"] ?? false)},
+        updates: {"liked": !hasLiked},
       );
+
+      // Tạo hoặc xóa thông báo
+      final postDoc =
+          await FirebaseFirestore.instance
+              .collection('posts')
+              .doc(widget.postId)
+              .get();
+      final postData = postDoc.data();
+      if (postData != null) {
+        final senderDoc =
+            await FirebaseFirestore.instance
+                .collection('users')
+                .doc(currentUser.uid)
+                .get();
+        final senderData = senderDoc.data();
+        if (senderData != null) {
+          final senderName = senderData['name'] ?? 'Người dùng';
+          final senderAvatarUrl =
+              senderData['avatarUrl'] ?? 'https://i.pravatar.cc/150?img=1';
+
+          if (!hasLiked && comment['userId'] != currentUser.uid) {
+            // Tạo thông báo khi thích
+            await FirebaseFirestore.instance.collection('notifications').add({
+              'userId':
+                  comment['userId'], // Người nhận thông báo (chủ bình luận)
+              'senderId': currentUser.uid,
+              'senderName': senderName,
+              'senderAvatarUrl': senderAvatarUrl,
+              'action': 'đã thích bình luận của bạn trong bài viết.',
+              'type': 'comment_like',
+              'postId': widget.postId,
+              'commentId': comment['id'],
+              'isRead': false,
+              'timestamp': FieldValue.serverTimestamp(),
+              'date': 'Hôm nay',
+            });
+          } else {
+            // Xóa thông báo khi bỏ thích
+            final notificationSnapshot =
+                await FirebaseFirestore.instance
+                    .collection('notifications')
+                    .where('userId', isEqualTo: comment['userId'])
+                    .where('senderId', isEqualTo: currentUser.uid)
+                    .where('type', isEqualTo: 'comment_like')
+                    .where('postId', isEqualTo: widget.postId)
+                    .where('commentId', isEqualTo: comment['id'])
+                    .get();
+            for (var doc in notificationSnapshot.docs) {
+              await doc.reference.delete();
+            }
+          }
+        }
+      }
     }
 
     _loadComments();
@@ -174,7 +377,6 @@ class _CommentScreenState extends State<CommentScreen> {
                   ? const Icon(Icons.person, size: 14)
                   : null,
         ),
-
         title: Text(
           reply["name"],
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
@@ -256,7 +458,6 @@ class _CommentScreenState extends State<CommentScreen> {
                                 ? const Icon(Icons.person)
                                 : null,
                       ),
-
                       title: Row(
                         children: [
                           Text(

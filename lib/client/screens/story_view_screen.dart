@@ -114,9 +114,44 @@ class _StoryViewScreenState extends State<StoryViewScreen> {
     final currentUser = _auth.currentUser;
     if (currentUser == null) return;
 
-    await _firestore.collection('stories').doc(story.id).update({
-      'views': FieldValue.increment(1),
-    });
+    final storyRef = _firestore.collection('stories').doc(story.id);
+    final storyDoc = await storyRef.get();
+    final data = storyDoc.data();
+    if (data == null) return;
+
+    // Kiểm tra nếu người xem đã xem story này chưa
+    final viewedBy = List<String>.from(data['viewedBy'] ?? []);
+    if (!viewedBy.contains(currentUser.uid)) {
+      await storyRef.update({
+        'views': FieldValue.increment(1),
+        'viewedBy': FieldValue.arrayUnion([currentUser.uid]),
+      });
+
+      // Lấy thông tin người gửi để tạo thông báo
+      final senderDoc =
+          await _firestore.collection('users').doc(currentUser.uid).get();
+      final senderData = senderDoc.data();
+      if (senderData != null) {
+        final senderName = senderData['name'] ?? 'Người dùng';
+        final senderAvatarUrl =
+            senderData['avatarUrl'] ?? 'https://i.pravatar.cc/150?img=1';
+
+        // Tạo thông báo cho chủ story
+        await _firestore.collection('notifications').add({
+          'userId': storyDoc['userId'], // Người nhận thông báo (chủ story)
+          'senderId': currentUser.uid, // Người gửi (người xem)
+          'senderName': senderName,
+          'senderAvatarUrl': senderAvatarUrl,
+          'action': 'đã xem story của bạn.',
+          'type': 'story_view',
+          'storyId': story.id,
+          'isRead': false,
+          'timestamp': FieldValue.serverTimestamp(),
+          'date': 'Hôm nay',
+          'story': story.toMap(),
+        });
+      }
+    }
   }
 
   Future<void> _toggleLike(Story story) async {
@@ -137,12 +172,49 @@ class _StoryViewScreenState extends State<StoryViewScreen> {
         'likes': FieldValue.increment(-1),
         'likedBy': likedBy,
       });
+      // Xóa thông báo tương ứng (nếu có)
+      final notificationSnapshot =
+          await _firestore
+              .collection('notifications')
+              .where('userId', isEqualTo: storyDoc['userId'])
+              .where('senderId', isEqualTo: currentUser.uid)
+              .where('type', isEqualTo: 'story_like')
+              .where('storyId', isEqualTo: story.id)
+              .get();
+      for (var doc in notificationSnapshot.docs) {
+        await doc.reference.delete();
+      }
     } else {
       likedBy.add(currentUser.uid);
       await storyRef.update({
         'likes': FieldValue.increment(1),
         'likedBy': likedBy,
       });
+
+      // Lấy thông tin người gửi để tạo thông báo
+      final senderDoc =
+          await _firestore.collection('users').doc(currentUser.uid).get();
+      final senderData = senderDoc.data();
+      if (senderData != null) {
+        final senderName = senderData['name'] ?? 'Người dùng';
+        final senderAvatarUrl =
+            senderData['avatarUrl'] ?? 'https://i.pravatar.cc/150?img=1';
+
+        // Tạo thông báo cho chủ story
+        await _firestore.collection('notifications').add({
+          'userId': storyDoc['userId'], // Người nhận thông báo (chủ story)
+          'senderId': currentUser.uid, // Người gửi (người like)
+          'senderName': senderName,
+          'senderAvatarUrl': senderAvatarUrl,
+          'action': 'đã thích story của bạn.',
+          'type': 'story_like',
+          'storyId': story.id, // Để xác định story liên quan
+          'isRead': false,
+          'timestamp': FieldValue.serverTimestamp(),
+          'date': 'Hôm nay',
+          'story': story.toMap(), // Lưu thông tin story để hiển thị
+        });
+      }
     }
 
     setState(() {});
