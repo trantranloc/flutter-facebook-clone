@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_facebook_clone/client/screens/comment_screen.dart';
+import 'package:flutter_facebook_clone/providers/user_provider.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'notification_settings_screen.dart';
 import 'story_view_screen.dart';
 import 'event_and_birthday_screen.dart';
@@ -26,174 +29,6 @@ class _NotificationScreenState extends State<NotificationScreen> {
     'events': true,
   };
   bool _isLoadingSettings = false;
-
-  // Danh sách thông báo ảo
-  List<Map<String, dynamic>> mockNotifications = [
-    {
-      'id': 'mock1',
-      'userId': 'mockUserId',
-      'senderId': 'mockSender1',
-      'senderName': 'Jane Smith',
-      'senderAvatarUrl': 'https://i.pravatar.cc/150?img=5',
-      'action': 'đã thích bài viết của bạn.',
-      'time': '5 phút trước',
-      'type': 'like',
-      'isRead': false,
-      'timestamp': Timestamp.fromDate(
-        DateTime.now().subtract(const Duration(minutes: 5)),
-      ),
-      'date': 'Hôm nay',
-    },
-    {
-      'id': 'mock2',
-      'userId': 'mockUserId',
-      'senderId': 'mockSender2',
-      'senderName': 'John Doe',
-      'senderAvatarUrl': 'https://i.pravatar.cc/150?img=12',
-      'action': 'đã bình luận về story của bạn.',
-      'time': '1 giờ trước',
-      'type': 'comment',
-      'isRead': false,
-      'timestamp': Timestamp.fromDate(
-        DateTime.now().subtract(const Duration(hours: 1)),
-      ),
-      'story': Story(
-        imageUrl: 'https://picsum.photos/200/300',
-        user: 'Your Name',
-        avatarUrl: 'https://i.pravatar.cc/150?img=1',
-        time: DateTime.now().subtract(const Duration(hours: 1)),
-        caption: 'Amazing day!',
-      ),
-      'date': 'Hôm nay',
-    },
-    {
-      'id': 'mock3',
-      'userId': 'mockUserId',
-      'senderId': 'mockSender3',
-      'senderName': 'Anna Lee',
-      'senderAvatarUrl': 'https://i.pravatar.cc/150?img=8',
-      'action': 'đã xem story của bạn.',
-      'time': '2 giờ trước',
-      'type': 'story_view',
-      'isRead': true,
-      'timestamp': Timestamp.fromDate(
-        DateTime.now().subtract(const Duration(hours: 2)),
-      ),
-      'story': Story(
-        imageUrl: 'https://picsum.photos/200/301',
-        user: 'Your Name',
-        avatarUrl: 'https://i.pravatar.cc/150?img=1',
-        time: DateTime.now().subtract(const Duration(hours: 2)),
-      ),
-      'date': 'Hôm nay',
-    },
-    {
-      'id': 'mock4',
-      'userId': 'mockUserId',
-      'senderId': 'mockSender4',
-      'senderName': 'Mike Brown',
-      'senderAvatarUrl': 'https://i.pravatar.cc/150?img=15',
-      'action': 'đã mời bạn tham gia sự kiện "Hội thảo Flutter 2025".',
-      'time': '1 ngày trước',
-      'type': 'event',
-      'isRead': false,
-      'timestamp': Timestamp.fromDate(
-        DateTime.now().subtract(const Duration(days: 1)),
-      ),
-      'date': 'Hôm qua',
-    },
-    {
-      'id': 'mock5',
-      'userId': 'mockUserId',
-      'senderId': 'mockSender5',
-      'senderName': 'Sarah Wilson',
-      'senderAvatarUrl': 'https://i.pravatar.cc/150?img=20',
-      'action': 'đã gửi lời mời kết bạn.',
-      'time': '1 ngày trước',
-      'type': 'friend_request',
-      'isRead': false,
-      'timestamp': Timestamp.fromDate(
-        DateTime.now().subtract(const Duration(days: 1)),
-      ),
-      'date': 'Hôm qua',
-    },
-    {
-      'id': 'mock6',
-      'userId': 'mockUserId',
-      'senderId': 'mockSender6',
-      'senderName': 'Tom Clark',
-      'senderAvatarUrl': 'https://i.pravatar.cc/150?img=25',
-      'action': 'đã chia sẻ bài viết của bạn.',
-      'time': '2 ngày trước',
-      'type': 'share',
-      'isRead': false,
-      'timestamp': Timestamp.fromDate(
-        DateTime.now().subtract(const Duration(days: 2)),
-      ),
-      'date': 'Hôm qua',
-    },
-    {
-      'id': 'mock7',
-      'userId': 'mockUserId',
-      'senderId': 'mockSender7',
-      'senderName': 'Emily Davis',
-      'senderAvatarUrl': 'https://i.pravatar.cc/150?img=30',
-      'action': 'nhắc bạn về sinh nhật của cô ấy vào ngày mai.',
-      'time': '3 ngày trước',
-      'type': 'birthday',
-      'isRead': true,
-      'timestamp': Timestamp.fromDate(
-        DateTime.now().subtract(const Duration(days: 3)),
-      ),
-      'date': 'Trước đó',
-    },
-    {
-      'id': 'mock8',
-      'userId': 'mockUserId',
-      'senderId': 'mockSender8',
-      'senderName': 'David Miller',
-      'senderAvatarUrl': 'https://i.pravatar.cc/150?img=35',
-      'action': 'đã gắn thẻ bạn trong một bài viết.',
-      'time': '4 ngày trước',
-      'type': 'tag',
-      'isRead': false,
-      'timestamp': Timestamp.fromDate(
-        DateTime.now().subtract(const Duration(days: 4)),
-      ),
-      'date': 'Trước đó',
-    },
-    {
-      'id': 'mock9',
-      'userId': 'mockUserId',
-      'senderId': 'mockSender9',
-      'senderName': 'Laura Adams',
-      'senderAvatarUrl': 'https://i.pravatar.cc/150?img=40',
-      'action':
-          'đã nhắc bạn về sự kiện "Buổi hòa nhạc ngoài trời" vào ngày mai.',
-      'time': '5 ngày trước',
-      'type': 'event_reminder',
-      'isRead': false,
-      'timestamp': Timestamp.fromDate(
-        DateTime.now().subtract(const Duration(days: 5)),
-      ),
-      'date': 'Trước đó',
-    },
-    {
-      'id': 'mock10',
-      'userId': 'mockUserId',
-      'senderId': 'mockSender10',
-      'senderName': 'Chris Evans',
-      'senderAvatarUrl': 'https://i.pravatar.cc/150?img=45',
-      'action': 'đã gắn thẻ bạn trong một bình luận.',
-      'time': '6 ngày trước',
-      'type': 'comment_tag',
-      'isRead': true,
-      'timestamp': Timestamp.fromDate(
-        DateTime.now().subtract(const Duration(days: 6)),
-      ),
-      'date': 'Trước đó',
-    },
-  ];
 
   @override
   void initState() {
@@ -256,12 +91,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
   Future<void> _markAsRead(String notificationId, bool isMock) async {
     if (isMock) {
       setState(() {
-        final index = mockNotifications.indexWhere(
-          (n) => n['id'] == notificationId,
-        );
-        if (index != -1) {
-          mockNotifications[index]['isRead'] = true;
-        }
+        // Không có mock notifications nữa
       });
     } else {
       try {
@@ -294,12 +124,6 @@ class _NotificationScreenState extends State<NotificationScreen> {
         await doc.reference.update({'isRead': true});
       }
 
-      setState(() {
-        for (var notification in mockNotifications) {
-          notification['isRead'] = true;
-        }
-      });
-
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Đã đánh dấu tất cả là đã đọc')),
@@ -316,19 +140,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
 
   Future<void> _deleteNotification(String notificationId, bool isMock) async {
     if (isMock) {
-      setState(() {
-        final index = mockNotifications.indexWhere(
-          (n) => n['id'] == notificationId,
-        );
-        if (index != -1) {
-          mockNotifications.removeAt(index);
-        }
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Đã xóa thông báo ảo')));
-      }
+      // Không có mock notifications nữa
     } else {
       try {
         await _firestore
@@ -407,12 +219,14 @@ class _NotificationScreenState extends State<NotificationScreen> {
         notifications.where((n) {
           if (n['type'] == 'like' && !_notificationSettings['likes']!)
             return false;
-          if ((n['type'] == 'comment' || n['type'] == 'comment_tag') &&
+          if ((n['type'] == 'comment' ||
+                  n['type'] == 'comment_tag' ||
+                  n['type'] == 'comment_reply' ||
+                  n['type'] == 'comment_like') &&
               !_notificationSettings['comments']!)
             return false;
-          if (n['type'] == 'story_view' && !_notificationSettings['stories']!) {
+          if (n['type'] == 'story_view' && !_notificationSettings['stories']!)
             return false;
-          }
           if ((n['type'] == 'event' ||
                   n['type'] == 'event_reminder' ||
                   n['type'] == 'birthday') &&
@@ -445,7 +259,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.check_circle),
-            onPressed: () => _markAllAsRead(mockNotifications),
+            onPressed: () => _markAllAsRead([]),
             tooltip: 'Đánh dấu tất cả là đã đọc',
           ),
           IconButton(
@@ -515,13 +329,11 @@ class _NotificationScreenState extends State<NotificationScreen> {
                     'isRead': data['isRead'] ?? false,
                     'timestamp': data['timestamp'],
                     'date': data['date'] ?? 'Hôm nay',
-                    'isMock': false,
+                    'story':
+                        data['story'] != null ? Story.fromDocument(doc) : null,
+                    'postId': data['postId'],
+                    'commentId': data['commentId'],
                   };
-                }).toList();
-          } else {
-            notifications =
-                mockNotifications.map((notification) {
-                  return {...notification, 'isMock': true};
                 }).toList();
           }
 
@@ -618,7 +430,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                                       onDismissed:
                                           (_) => _deleteNotification(
                                             notification['id'],
-                                            notification['isMock'],
+                                            false,
                                           ),
                                       child: AnimatedOpacity(
                                         opacity:
@@ -723,7 +535,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                                             onTap: () {
                                               _markAsRead(
                                                 notification['id'],
-                                                notification['isMock'],
+                                                false,
                                               );
                                               _handleNotificationTap(
                                                 context,
@@ -798,6 +610,8 @@ class _NotificationScreenState extends State<NotificationScreen> {
   Widget _buildNotificationIcon(String type) {
     switch (type) {
       case 'like':
+      case 'story_like':
+      case 'comment_like':
         return CircleAvatar(
           radius: 10,
           backgroundColor: Colors.red,
@@ -809,6 +623,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
         );
       case 'comment':
       case 'comment_tag':
+      case 'comment_reply':
         return CircleAvatar(
           radius: 10,
           backgroundColor: Colors.blue,
@@ -889,19 +704,15 @@ class _NotificationScreenState extends State<NotificationScreen> {
     Map<String, dynamic> notification,
     int index,
   ) {
-    if (notification['isMock']) {
-      switch (notification['type']) {
-        case 'event':
-        case 'event_reminder':
-          return ElevatedButton(
-            onPressed: () {
-              _markAsRead(notification['id'], true);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const EventAndBirthdayScreen(),
-                ),
-              );
+    if (notification['type'] == 'friend_request') {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ElevatedButton(
+            onPressed: () async {
+              await _markAsRead(notification['id'], false);
+              await _handleFriendRequest(notification['senderId'], true);
+              await _deleteNotification(notification['id'], false);
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF1877F2),
@@ -910,250 +721,101 @@ class _NotificationScreenState extends State<NotificationScreen> {
                 borderRadius: BorderRadius.circular(8),
               ),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              textStyle: const TextStyle(fontSize: 14),
             ),
-            child: Text(
-              notification['type'] == 'event' ? 'Tham gia' : 'Xem sự kiện',
-            ),
-          );
-        case 'comment':
-        case 'comment_tag':
-          return IconButton(
-            icon: const Icon(Icons.reply, color: Color(0xFF1877F2)),
-            onPressed: () {
-              _markAsRead(notification['id'], true);
-              showDialog(
-                context: context,
-                builder:
-                    (context) => AlertDialog(
-                      title: const Text('Trả lời bình luận'),
-                      content: TextField(
-                        decoration: const InputDecoration(
-                          hintText: 'Viết trả lời...',
-                        ),
-                        onSubmitted: (value) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Trả lời: $value')),
-                          );
-                          Navigator.pop(context);
-                        },
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text('Hủy'),
-                        ),
-                      ],
-                    ),
-              );
-            },
-            tooltip: 'Trả lời',
-          );
-        case 'friend_request':
-          return Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ElevatedButton(
-                onPressed: () {
-                  _markAsRead(notification['id'], true);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Đã chấp nhận lời mời từ ${notification['senderName']} (ảo)',
-                      ),
-                    ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1877F2),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                ),
-                child: const Text('Chấp nhận'),
-              ),
-              const SizedBox(width: 8),
-              ElevatedButton(
-                onPressed: () {
-                  _markAsRead(notification['id'], true);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Đã từ chối lời mời từ ${notification['senderName']} (ảo)',
-                      ),
-                    ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.grey[300],
-                  foregroundColor: Colors.black,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                ),
-                child: const Text('Từ chối'),
-              ),
-            ],
-          );
-        case 'birthday':
-          return ElevatedButton(
-            onPressed: () {
-              _markAsRead(notification['id'], true);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Đã gửi lời chúc mừng!')),
-              );
+            child: const Text('Chấp nhận'),
+          ),
+          const SizedBox(width: 8),
+          ElevatedButton(
+            onPressed: () async {
+              await _markAsRead(notification['id'], false);
+              await _handleFriendRequest(notification['senderId'], false);
+              await _deleteNotification(notification['id'], false);
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF1877F2),
-              foregroundColor: Colors.white,
+              backgroundColor: Colors.grey[300],
+              foregroundColor: Colors.black,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              textStyle: const TextStyle(fontSize: 14),
             ),
-            child: const Text('Chúc mừng'),
+            child: const Text('Từ chối'),
+          ),
+        ],
+      );
+    } else if (notification['type'] == 'event' ||
+        notification['type'] == 'event_reminder') {
+      return ElevatedButton(
+        onPressed: () {
+          _markAsRead(notification['id'], false);
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const EventAndBirthdayScreen()),
           );
-        default:
-          return null;
-      }
-    } else {
-      switch (notification['type']) {
-        case 'event':
-        case 'event_reminder':
-          return ElevatedButton(
-            onPressed: () {
-              _markAsRead(notification['id'], false);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const EventAndBirthdayScreen(),
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF1877F2),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              textStyle: const TextStyle(fontSize: 14),
-            ),
-            child: Text(
-              notification['type'] == 'event' ? 'Tham gia' : 'Xem sự kiện',
-            ),
+        },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF1877F2),
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          textStyle: const TextStyle(fontSize: 14),
+        ),
+        child: Text(
+          notification['type'] == 'event' ? 'Tham gia' : 'Xem sự kiện',
+        ),
+      );
+    } else if (notification['type'] == 'birthday') {
+      return ElevatedButton(
+        onPressed: () {
+          _markAsRead(notification['id'], false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Đã gửi lời chúc mừng!')),
           );
-        case 'comment':
-        case 'comment_tag':
-          return IconButton(
-            icon: const Icon(Icons.reply, color: Color(0xFF1877F2)),
-            onPressed: () {
-              _markAsRead(notification['id'], false);
-              showDialog(
-                context: context,
-                builder:
-                    (context) => AlertDialog(
-                      title: const Text('Trả lời bình luận'),
-                      content: TextField(
-                        decoration: const InputDecoration(
-                          hintText: 'Viết trả lời...',
-                        ),
-                        onSubmitted: (value) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Trả lời: $value')),
-                          );
-                          Navigator.pop(context);
-                        },
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text('Hủy'),
-                        ),
-                      ],
+        },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF1877F2),
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          textStyle: const TextStyle(fontSize: 14),
+        ),
+        child: const Text('Chúc mừng'),
+      );
+    } else if (notification['type'] == 'comment' ||
+        notification['type'] == 'comment_tag') {
+      return IconButton(
+        icon: const Icon(Icons.reply, color: Color(0xFF1877F2)),
+        onPressed: () {
+          _markAsRead(notification['id'], false);
+          showDialog(
+            context: context,
+            builder:
+                (context) => AlertDialog(
+                  title: const Text('Trả lời bình luận'),
+                  content: TextField(
+                    decoration: const InputDecoration(
+                      hintText: 'Viết trả lời...',
                     ),
-              );
-            },
-            tooltip: 'Trả lời',
-          );
-        case 'friend_request':
-          return Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ElevatedButton(
-                onPressed: () async {
-                  await _markAsRead(notification['id'], false);
-                  await _handleFriendRequest(notification['senderId'], true);
-                  await _deleteNotification(notification['id'], false);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1877F2),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    onSubmitted: (value) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Trả lời: $value')),
+                      );
+                      Navigator.pop(context);
+                    },
                   ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Hủy'),
+                    ),
+                  ],
                 ),
-                child: const Text('Chấp nhận'),
-              ),
-              const SizedBox(width: 8),
-              ElevatedButton(
-                onPressed: () async {
-                  await _markAsRead(notification['id'], false);
-                  await _handleFriendRequest(notification['senderId'], false);
-                  await _deleteNotification(notification['id'], false);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.grey[300],
-                  foregroundColor: Colors.black,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                ),
-                child: const Text('Từ chối'),
-              ),
-            ],
           );
-        case 'birthday':
-          return ElevatedButton(
-            onPressed: () {
-              _markAsRead(notification['id'], false);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Đã gửi lời chúc mừng!')),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF1877F2),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              textStyle: const TextStyle(fontSize: 14),
-            ),
-            child: const Text('Chúc mừng'),
-          );
-        default:
-          return null;
-      }
+        },
+        tooltip: 'Trả lời',
+      );
     }
+    return null;
   }
 
   void _handleNotificationTap(
@@ -1162,8 +824,38 @@ class _NotificationScreenState extends State<NotificationScreen> {
   ) {
     switch (notification['type']) {
       case 'comment':
-      case 'story_view':
       case 'comment_tag':
+      case 'comment_reply':
+      case 'comment_like':
+        if (notification['postId'] != null) {
+          final userProvider = Provider.of<UserProvider>(
+            context,
+            listen: false,
+          );
+          final currentUserName = userProvider.userModel?.name ?? 'Ẩn danh';
+          final currentAvatarUrl = userProvider.userModel?.avatarUrl ?? '';
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder:
+                  (_) => CommentScreen(
+                    postId: notification['postId'],
+                    name: notification['senderName'],
+                    caption: '', // Cần lấy caption từ bài viết nếu có
+                    scrollController: ScrollController(),
+                    currentUserName: currentUserName,
+                    currentAvatarUrl: currentAvatarUrl,
+                  ),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Đã xem: ${notification['action']}')),
+          );
+        }
+        break;
+      case 'story_view':
+      case 'story_like':
         if (notification['story'] != null) {
           Navigator.push(
             context,
