@@ -7,120 +7,118 @@ class ChatService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final Uuid _uuid = const Uuid();
 
-  Future<List<Map<String, dynamic>>> getFriendsWithLastMessage() async {
-    try {
-      final user = _auth.currentUser;
-      if (user == null) {
-        print('Lỗi: Người dùng chưa đăng nhập');
-        return [];
-      }
-
-      final userDoc = await _firestore.collection('users').doc(user.uid).get();
-      if (!userDoc.exists) {
-        print('Lỗi: Tài khoản người dùng không tồn tại');
-        return [];
-      }
-      if (userDoc.data()?['isBlocked'] == true) {
-        print('Lỗi: Tài khoản đã bị khóa');
-        return [];
-      }
-
-      final friends = List<String>.from(userDoc.data()?['friends'] ?? []);
-      final pinnedChats = List<String>.from(
-        userDoc.data()?['pinnedChats'] ?? [],
-      );
-      final groups = List<String>.from(userDoc.data()?['groups'] ?? []);
-
-      List<Map<String, dynamic>> friendsData = [];
-
-      // Handle individual friends
-      for (String friendId in friends) {
-        final friendDoc =
-            await _firestore.collection('users').doc(friendId).get();
-        if (!friendDoc.exists) {
-          print('Bạn bè $friendId không tồn tại');
-          continue;
-        }
-
-        final chatId = [user.uid, friendId]..sort();
-        final chatSnapshot =
-            await _firestore
-                .collection('messages')
-                .doc(chatId.join('_'))
-                .collection('messages')
-                .orderBy('timestamp', descending: true)
-                .limit(1)
-                .get();
-
-        String lastMessage = 'Bắt đầu trò chuyện';
-        Timestamp? lastMessageTimestamp;
-        bool isActive = friendDoc.data()?['isOnline'] ?? false;
-        if (chatSnapshot.docs.isNotEmpty) {
-          lastMessage =
-              chatSnapshot.docs.first.data()['message'] ?? lastMessage;
-          lastMessageTimestamp =
-              chatSnapshot.docs.first.data()['timestamp'] as Timestamp?;
-        }
-
-        friendsData.add({
-          'uid': friendId,
-          'name': friendDoc.data()?['name'] ?? 'Không xác định',
-          'avatarUrl': friendDoc.data()?['avatarUrl'] ?? 'assets/user.jpg',
-          'lastMessage': lastMessage,
-          'lastMessageTimestamp': lastMessageTimestamp,
-          'isActive': isActive,
-          'isPinned': pinnedChats.contains(friendId),
-          'isGroup': false,
-        });
-      }
-
-      // Handle groups
-      for (String groupId in groups) {
-        final groupDoc =
-            await _firestore.collection('groups').doc(groupId).get();
-        if (!groupDoc.exists) {
-          print('Nhóm $groupId không tồn tại');
-          continue;
-        }
-
-        final chatSnapshot =
-            await _firestore
-                .collection('messages')
-                .doc(groupId)
-                .collection('messages')
-                .orderBy('timestamp', descending: true)
-                .limit(1)
-                .get();
-
-        String lastMessage = 'Bắt đầu trò chuyện nhóm';
-        Timestamp? lastMessageTimestamp;
-        bool isActive = false;
-        if (chatSnapshot.docs.isNotEmpty) {
-          lastMessage =
-              chatSnapshot.docs.first.data()['message'] ?? lastMessage;
-          lastMessageTimestamp =
-              chatSnapshot.docs.first.data()['timestamp'] as Timestamp?;
-        }
-
-        friendsData.add({
-          'uid': groupId,
-          'name': groupDoc.data()?['name'] ?? 'Nhóm không tên',
-          'avatarUrl': groupDoc.data()?['avatarUrl'] ?? 'assets/group.jpg',
-          'lastMessage': lastMessage,
-          'lastMessageTimestamp': lastMessageTimestamp,
-          'isActive': isActive,
-          'isPinned': pinnedChats.contains(groupId),
-          'isGroup': true,
-        });
-      }
-
-      return friendsData;
-    } catch (e) {
-      print('Lỗi khi lấy danh sách bạn bè: $e');
+Future<List<Map<String, dynamic>>> getFriendsWithLastMessage() async {
+  try {
+    final user = _auth.currentUser;
+    if (user == null) {
+      print('Lỗi: Người dùng chưa đăng nhập');
       return [];
     }
-  }
 
+    final userDoc = await _firestore.collection('users').doc(user.uid).get();
+    if (!userDoc.exists) {
+      print('Lỗi: Tài khoản người dùng không tồn tại');
+      return [];
+    }
+    if (userDoc.data()?['isBlocked'] == true) {
+      print('Lỗi: Tài khoản đã bị khóa');
+      return [];
+    }
+
+    final friends = List<String>.from(userDoc.data()?['friends'] ?? []);
+    final pinnedChats = List<String>.from(userDoc.data()?['pinnedChats'] ?? []);
+    final groups = List<String>.from(userDoc.data()?['groups'] ?? []);
+
+    List<Map<String, dynamic>> friendsData = [];
+
+    // Handle individual friends
+    for (String friendId in friends) {
+      final friendDoc = await _firestore.collection('users').doc(friendId).get();
+      if (!friendDoc.exists) {
+        print('Bạn bè $friendId không tồn tại');
+        continue;
+      }
+
+      final chatId = [user.uid, friendId]..sort();
+      final chatSnapshot = await _firestore
+          .collection('messages')
+          .doc(chatId.join('_'))
+          .collection('messages')
+          .orderBy('timestamp', descending: true)
+          .limit(1)
+          .get();
+
+      String lastMessage = 'Bắt đầu trò chuyện';
+      Timestamp? lastMessageTimestamp;
+      bool isActive = friendDoc.data()?['isOnline'] ?? false;
+      if (chatSnapshot.docs.isNotEmpty) {
+        final data = chatSnapshot.docs.first.data();
+        lastMessage = data['message'] ?? lastMessage;
+        lastMessageTimestamp = data['timestamp'] is Timestamp
+            ? data['timestamp'] as Timestamp?
+            : null;
+      }
+
+      friendsData.add({
+        'uid': friendId,
+        'name': friendDoc.data()?['name'] ?? 'Không xác định',
+        'avatarUrl': friendDoc.data()?['avatarUrl'] ?? 'assets/user.jpg',
+        'lastMessage': lastMessage,
+        'lastMessageTimestamp': lastMessageTimestamp,
+        'isActive': isActive,
+        'isPinned': pinnedChats.contains(friendId),
+        'isGroup': false,
+      });
+    }
+
+    // Handle groups
+    for (String groupId in groups) {
+      final groupDoc = await _firestore.collection('groups').doc(groupId).get();
+      if (!groupDoc.exists) {
+        print('Nhóm $groupId không tồn tại');
+        continue;
+      }
+
+      final chatSnapshot = await _firestore
+          .collection('messages')
+          .doc(groupId)
+          .collection('messages')
+          .orderBy('timestamp', descending: true)
+          .limit(1)
+          .get();
+
+      String lastMessage = 'Bắt đầu trò chuyện nhóm';
+      Timestamp? lastMessageTimestamp;
+      bool isActive = false;
+      if (chatSnapshot.docs.isNotEmpty) {
+        final data = chatSnapshot.docs.first.data();
+        lastMessage = data['message'] ?? lastMessage;
+        lastMessageTimestamp = data['timestamp'] is Timestamp
+            ? data['timestamp'] as Timestamp?
+            : null;
+      }
+
+      friendsData.add({
+        'uid': groupId,
+        'name': groupDoc.data()?['name'] ?? 'Nhóm không tên',
+        'avatarUrl': groupDoc.data()?['avatarUrl'] ?? 'assets/group.jpg',
+        'lastMessage': lastMessage,
+        'lastMessageTimestamp': lastMessageTimestamp,
+        'isActive': isActive,
+        'isPinned': pinnedChats.contains(groupId),
+        'isGroup': true,
+      });
+    }
+
+    return friendsData;
+  } catch (e) {
+    print('Lỗi khi lấy danh sách bạn bè: $e');
+    if (e is ArgumentError) {
+      print('Chi tiết lỗi ArgumentError: ${e.message}');
+    }
+    return [];
+  }
+}
   Stream<List<Map<String, dynamic>>> getGroupMessages(String groupId) {
     final user = _auth.currentUser;
     if (user == null) {
