@@ -329,7 +329,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 4),
                       if (isLoading)
                         const SizedBox(
                           width: 20,
