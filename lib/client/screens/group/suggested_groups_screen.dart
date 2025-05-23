@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_facebook_clone/client/screens/group/group_home_screen.dart';
+import 'package:flutter_facebook_clone/models/Group.dart' show GroupPrivacy;
 import 'package:flutter_facebook_clone/models/group.dart';
 
 class SuggestedGroupsScreen extends StatefulWidget {
