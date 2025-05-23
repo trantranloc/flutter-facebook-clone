@@ -27,7 +27,8 @@ class _ManageGroupScreenState extends State<ManageGroupScreen> {
 
   Future<void> _loadGroupData() async {
     try {
-      final doc = await _firestore.collection('groups').doc(widget.groupId).get();
+      final doc =
+          await _firestore.collection('groups').doc(widget.groupId).get();
       if (doc.exists) {
         final data = doc.data()!;
         // Đảm bảo các trường có giá trị mặc định nếu thiếu
@@ -48,9 +49,9 @@ class _ManageGroupScreenState extends State<ManageGroupScreen> {
       setState(() {
         _isLoading = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi khi tải dữ liệu nhóm: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Lỗi khi tải dữ liệu nhóm: $e')));
     }
   }
 
@@ -60,13 +61,13 @@ class _ManageGroupScreenState extends State<ManageGroupScreen> {
       await _firestore.collection('groups').doc(widget.groupId).update({
         'members': FieldValue.arrayRemove([memberUid]),
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đã xóa thành viên')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Đã xóa thành viên')));
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi khi xóa thành viên: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Lỗi khi xóa thành viên: $e')));
     }
   }
 
@@ -77,13 +78,13 @@ class _ManageGroupScreenState extends State<ManageGroupScreen> {
         'members': FieldValue.arrayUnion([userUid]),
         'pendingRequests': FieldValue.arrayRemove([userUid]),
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đã chấp nhận yêu cầu')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Đã chấp nhận yêu cầu')));
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi khi chấp nhận yêu cầu: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Lỗi khi chấp nhận yêu cầu: $e')));
     }
   }
 
@@ -93,18 +94,21 @@ class _ManageGroupScreenState extends State<ManageGroupScreen> {
       await _firestore.collection('groups').doc(widget.groupId).update({
         'pendingRequests': FieldValue.arrayRemove([userUid]),
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đã từ chối yêu cầu')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Đã từ chối yêu cầu')));
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi khi từ chối yêu cầu: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Lỗi khi từ chối yêu cầu: $e')));
     }
   }
 
   // Hiển thị dialog xác nhận xóa thành viên
-  Future<void> _showRemoveMemberDialog(String memberUid, String memberName) async {
+  Future<void> _showRemoveMemberDialog(
+    String memberUid,
+    String memberName,
+  ) async {
     return showDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -152,10 +156,11 @@ class _ManageGroupScreenState extends State<ManageGroupScreen> {
     List<Map<String, dynamic>> users = [];
 
     for (var chunk in chunks) {
-      final snapshot = await _firestore
-          .collection('users')
-          .where(FieldPath.documentId, whereIn: chunk)
-          .get();
+      final snapshot =
+          await _firestore
+              .collection('users')
+              .where(FieldPath.documentId, whereIn: chunk)
+              .get();
 
       users.addAll(snapshot.docs.map((doc) => {'uid': doc.id, ...doc.data()}));
     }
@@ -181,7 +186,10 @@ class _ManageGroupScreenState extends State<ManageGroupScreen> {
     }
 
     return DefaultTabController(
-      length: _group!.privacy == GroupPrivacy.private ? 2 : 1, // Chỉ hiển thị tab "Duyệt thành viên" nếu nhóm riêng tư
+      length:
+          _group!.privacy == GroupPrivacy.private
+              ? 2
+              : 1, // Chỉ hiển thị tab "Duyệt thành viên" nếu nhóm riêng tư
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Quản lý nhóm'),
@@ -195,7 +203,8 @@ class _ManageGroupScreenState extends State<ManageGroupScreen> {
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => GroupHomeScreen(groupId: widget.groupId),
+                    builder:
+                        (context) => GroupHomeScreen(groupId: widget.groupId),
                   ),
                 );
               },
@@ -219,7 +228,10 @@ class _ManageGroupScreenState extends State<ManageGroupScreen> {
                   padding: const EdgeInsets.all(16.0),
                   child: Text(
                     'Thành viên (${_group!.members.length})',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
                   ),
                 ),
                 if (_group!.members.isEmpty)
@@ -229,32 +241,52 @@ class _ManageGroupScreenState extends State<ManageGroupScreen> {
                   )
                 else
                   StreamBuilder<DocumentSnapshot>(
-                    stream: _firestore.collection('groups').doc(widget.groupId).snapshots(),
+                    stream:
+                        _firestore
+                            .collection('groups')
+                            .doc(widget.groupId)
+                            .snapshots(),
                     builder: (context, groupSnapshot) {
-                      if (groupSnapshot.connectionState == ConnectionState.waiting) {
+                      if (groupSnapshot.connectionState ==
+                          ConnectionState.waiting) {
                         return const Center(child: CircularProgressIndicator());
                       }
                       if (groupSnapshot.hasError) {
-                        return Center(child: Text('Lỗi: ${groupSnapshot.error}'));
+                        return Center(
+                          child: Text('Lỗi: ${groupSnapshot.error}'),
+                        );
                       }
-                      if (!groupSnapshot.hasData || !groupSnapshot.data!.exists) {
-                        return const Center(child: Text('Không có dữ liệu nhóm'));
+                      if (!groupSnapshot.hasData ||
+                          !groupSnapshot.data!.exists) {
+                        return const Center(
+                          child: Text('Không có dữ liệu nhóm'),
+                        );
                       }
 
-                      final groupData = groupSnapshot.data!.data() as Map<String, dynamic>;
-                      final members = List<String>.from(groupData['members'] ?? []);
+                      final groupData =
+                          groupSnapshot.data!.data() as Map<String, dynamic>;
+                      final members = List<String>.from(
+                        groupData['members'] ?? [],
+                      );
 
                       return FutureBuilder<List<Map<String, dynamic>>>(
                         future: _fetchUsers(members),
                         builder: (context, snapshot) {
-                          if (snapshot.connectionState == ConnectionState.waiting) {
-                            return const Center(child: CircularProgressIndicator());
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const Center(
+                              child: CircularProgressIndicator(),
+                            );
                           }
                           if (snapshot.hasError) {
-                            return Center(child: Text('Lỗi: ${snapshot.error}'));
+                            return Center(
+                              child: Text('Lỗi: ${snapshot.error}'),
+                            );
                           }
                           if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                            return const Center(child: Text('Không có dữ liệu thành viên'));
+                            return const Center(
+                              child: Text('Không có dữ liệu thành viên'),
+                            );
                           }
 
                           final memberData = snapshot.data!;
@@ -265,7 +297,8 @@ class _ManageGroupScreenState extends State<ManageGroupScreen> {
                             itemBuilder: (context, index) {
                               final member = memberData[index];
                               final memberUid = member['uid'];
-                              final memberName = member['name'] ?? 'Không xác định';
+                              final memberName =
+                                  member['name'] ?? 'Không xác định';
                               final isAdmin = memberUid == _group!.adminUid;
 
                               return ListTile(
@@ -277,13 +310,23 @@ class _ManageGroupScreenState extends State<ManageGroupScreen> {
                                   ),
                                 ),
                                 title: Text(memberName),
-                                subtitle: Text(isAdmin ? 'Quản lý nhóm' : 'Thành viên'),
-                                trailing: !isAdmin
-                                    ? IconButton(
-                                        icon: const Icon(Icons.remove_circle, color: Colors.red),
-                                        onPressed: () => _showRemoveMemberDialog(memberUid, memberName),
-                                      )
-                                    : null,
+                                subtitle: Text(
+                                  isAdmin ? 'Quản lý nhóm' : 'Thành viên',
+                                ),
+                                trailing:
+                                    !isAdmin
+                                        ? IconButton(
+                                          icon: const Icon(
+                                            Icons.remove_circle,
+                                            color: Colors.red,
+                                          ),
+                                          onPressed:
+                                              () => _showRemoveMemberDialog(
+                                                memberUid,
+                                                memberName,
+                                              ),
+                                        )
+                                        : null,
                               );
                             },
                           );
@@ -302,7 +345,10 @@ class _ManageGroupScreenState extends State<ManageGroupScreen> {
                     padding: const EdgeInsets.all(16.0),
                     child: Text(
                       'Yêu cầu tham gia (${_group!.pendingRequests.length})',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
                     ),
                   ),
                   if (_group!.pendingRequests.isEmpty)
@@ -312,32 +358,54 @@ class _ManageGroupScreenState extends State<ManageGroupScreen> {
                     )
                   else
                     StreamBuilder<DocumentSnapshot>(
-                      stream: _firestore.collection('groups').doc(widget.groupId).snapshots(),
+                      stream:
+                          _firestore
+                              .collection('groups')
+                              .doc(widget.groupId)
+                              .snapshots(),
                       builder: (context, groupSnapshot) {
-                        if (groupSnapshot.connectionState == ConnectionState.waiting) {
-                          return const Center(child: CircularProgressIndicator());
+                        if (groupSnapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const Center(
+                            child: CircularProgressIndicator(),
+                          );
                         }
                         if (groupSnapshot.hasError) {
-                          return Center(child: Text('Lỗi: ${groupSnapshot.error}'));
+                          return Center(
+                            child: Text('Lỗi: ${groupSnapshot.error}'),
+                          );
                         }
-                        if (!groupSnapshot.hasData || !groupSnapshot.data!.exists) {
-                          return const Center(child: Text('Không có dữ liệu nhóm'));
+                        if (!groupSnapshot.hasData ||
+                            !groupSnapshot.data!.exists) {
+                          return const Center(
+                            child: Text('Không có dữ liệu nhóm'),
+                          );
                         }
 
-                        final groupData = groupSnapshot.data!.data() as Map<String, dynamic>;
-                        final pendingRequests = List<String>.from(groupData['pendingRequests'] ?? []);
+                        final groupData =
+                            groupSnapshot.data!.data() as Map<String, dynamic>;
+                        final pendingRequests = List<String>.from(
+                          groupData['pendingRequests'] ?? [],
+                        );
 
                         return FutureBuilder<List<Map<String, dynamic>>>(
                           future: _fetchUsers(pendingRequests),
                           builder: (context, snapshot) {
-                            if (snapshot.connectionState == ConnectionState.waiting) {
-                              return const Center(child: CircularProgressIndicator());
+                            if (snapshot.connectionState ==
+                                ConnectionState.waiting) {
+                              return const Center(
+                                child: CircularProgressIndicator(),
+                              );
                             }
                             if (snapshot.hasError) {
-                              return Center(child: Text('Lỗi: ${snapshot.error}'));
+                              return Center(
+                                child: Text('Lỗi: ${snapshot.error}'),
+                              );
                             }
                             if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                              return const Center(child: Text('Không có dữ liệu yêu cầu'));
+                              return const Center(
+                                child: Text('Không có dữ liệu yêu cầu'),
+                              );
                             }
 
                             final requestData = snapshot.data!;
@@ -348,7 +416,8 @@ class _ManageGroupScreenState extends State<ManageGroupScreen> {
                               itemBuilder: (context, index) {
                                 final user = requestData[index];
                                 final userUid = user['uid'];
-                                final userName = user['name'] ?? 'Không xác định';
+                                final userName =
+                                    user['name'] ?? 'Không xác định';
 
                                 return ListTile(
                                   leading: CircleAvatar(
@@ -363,12 +432,20 @@ class _ManageGroupScreenState extends State<ManageGroupScreen> {
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       IconButton(
-                                        icon: const Icon(Icons.check, color: Colors.green),
-                                        onPressed: () => _acceptRequest(userUid),
+                                        icon: const Icon(
+                                          Icons.check,
+                                          color: Colors.green,
+                                        ),
+                                        onPressed:
+                                            () => _acceptRequest(userUid),
                                       ),
                                       IconButton(
-                                        icon: const Icon(Icons.close, color: Colors.red),
-                                        onPressed: () => _rejectRequest(userUid),
+                                        icon: const Icon(
+                                          Icons.close,
+                                          color: Colors.red,
+                                        ),
+                                        onPressed:
+                                            () => _rejectRequest(userUid),
                                       ),
                                     ],
                                   ),
