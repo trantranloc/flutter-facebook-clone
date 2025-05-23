@@ -9,20 +9,20 @@ import 'package:image_picker/image_picker.dart';
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:permission_handler/permission_handler.dart';
 
-class ChatScreen extends StatefulWidget {
-  final String userId;
+class GroupChatScreen extends StatefulWidget {
+  final String groupId;
 
-  const ChatScreen({super.key, required this.userId});
+  const GroupChatScreen({super.key, required this.groupId});
 
   @override
-  State<ChatScreen> createState() => _ChatScreenState();
+  State<GroupChatScreen> createState() => _GroupChatScreenState();
 }
 
-class _ChatScreenState extends State<ChatScreen> {
+class _GroupChatScreenState extends State<GroupChatScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ChatService _chatService = ChatService();
   final ImagePicker _picker = ImagePicker();
-  Map<String, dynamic>? _otherUserData;
+  Map<String, dynamic>? _groupData;
   final ScrollController _scrollController = ScrollController();
   RtcEngine? _engine;
   bool _isJoined = false;
@@ -36,16 +36,16 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchOtherUserData();
+    _fetchGroupData();
     _initAgora();
-    _channelName = 'voice_${widget.userId}_${FirebaseAuth.instance.currentUser?.uid ?? 'unknown'}';
+    _channelName = 'group_${widget.groupId}';
   }
 
-  Future<void> _fetchOtherUserData() async {
-    final userDoc = await FirebaseFirestore.instance.collection('users').doc(widget.userId).get();
-    if (userDoc.exists && mounted) {
+  Future<void> _fetchGroupData() async {
+    final groupDoc = await FirebaseFirestore.instance.collection('groups').doc(widget.groupId).get();
+    if (groupDoc.exists && mounted) {
       setState(() {
-        _otherUserData = userDoc.data();
+        _groupData = groupDoc.data();
       });
     }
   }
@@ -75,12 +75,12 @@ class _ChatScreenState extends State<ChatScreen> {
           },
           onUserJoined: (RtcConnection connection, int remoteUid, int elapsed) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Người dùng khác đã tham gia cuộc gọi')),
+              const SnackBar(content: Text('Thành viên khác đã tham gia cuộc gọi')),
             );
           },
           onUserOffline: (RtcConnection connection, int remoteUid, UserOfflineReasonType reason) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Người dùng khác đã rời cuộc gọi')),
+              const SnackBar(content: Text('Thành viên khác đã rời cuộc gọi')),
             );
           },
           onLeaveChannel: (RtcConnection connection, RtcStats stats) {
@@ -121,7 +121,7 @@ class _ChatScreenState extends State<ChatScreen> {
         _isVideoEnabled = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đã bắt đầu cuộc gọi thoại')),
+        const SnackBar(content: Text('Đã bắt đầu cuộc gọi thoại nhóm')),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -145,7 +145,7 @@ class _ChatScreenState extends State<ChatScreen> {
         _isVideoEnabled = true;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đã bắt đầu cuộc gọi video')),
+        const SnackBar(content: Text('Đã bắt đầu cuộc gọi video nhóm')),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -166,17 +166,17 @@ class _ChatScreenState extends State<ChatScreen> {
     if (_engine == null || !_isJoined) return;
     await _engine!.leaveChannel();
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Cuộc gọi đã kết thúc')),
+      const SnackBar(content: Text('Cuộc gọi nhóm đã kết thúc')),
     );
   }
 
   void _sendMessage() {
     if (_messageController.text.trim().isEmpty) return;
-    
+
     try {
       if (_editingMessageId != null) {
-        _chatService.editMessage(
-          widget.userId,
+        _chatService.editGroupMessage(
+          widget.groupId,
           _editingMessageId!,
           _messageController.text.trim(),
         );
@@ -184,8 +184,8 @@ class _ChatScreenState extends State<ChatScreen> {
           _editingMessageId = null;
         });
       } else {
-        _chatService.sendMessage(
-          widget.userId,
+        _chatService.sendGroupMessage(
+          widget.groupId,
           _messageController.text.trim(),
           'text',
         );
@@ -237,8 +237,8 @@ class _ChatScreenState extends State<ChatScreen> {
         return;
       }
 
-      await _chatService.sendMessage(
-        widget.userId,
+      await _chatService.sendGroupMessage(
+        widget.groupId,
         'Đã gửi một ảnh',
         'image',
         fileUrl: base64Image,
@@ -280,12 +280,12 @@ class _ChatScreenState extends State<ChatScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Thư viện ảnh'),
+        title: const Text('Thư viện ảnh nhóm'),
         content: SizedBox(
           width: double.maxFinite,
           height: 400,
           child: StreamBuilder<List<Map<String, dynamic>>>(
-            stream: _chatService.getMessages(widget.userId),
+            stream: _chatService.getGroupMessages(widget.groupId),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
@@ -376,8 +376,8 @@ class _ChatScreenState extends State<ChatScreen> {
           TextButton(
             onPressed: () {
               try {
-                _chatService.sendMessage(
-                  widget.userId,
+                _chatService.sendGroupMessage(
+                  widget.groupId,
                   'Đã chia sẻ file: sample.pdf',
                   'file',
                   fileUrl: 'https://example.com/sample.pdf',
@@ -431,7 +431,7 @@ class _ChatScreenState extends State<ChatScreen> {
               leading: const Icon(Icons.delete),
               title: const Text('Recall message'),
               onTap: () {
-                _chatService.recallMessage(widget.userId, messageId);
+                _chatService.recallGroupMessage(widget.groupId, messageId);
                 Navigator.pop(context);
               },
             ),
@@ -455,42 +455,44 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
         title: Row(
           children: [
-            Stack(
-              children: [
-                CircleAvatar(
-                  radius: 18,
-                  backgroundImage: _otherUserData?['avatarUrl']?.isNotEmpty == true
-                      ? NetworkImage(_otherUserData!['avatarUrl'])
-                      : null,
-                  child: _otherUserData?['avatarUrl']?.isNotEmpty != true
-                      ? const Icon(Icons.person, color: Colors.white)
-                      : null,
-                ),
-                Positioned(
-                  right: 0,
-                  bottom: 0,
-                  child: Container(
-                    width: 14,
-                    height: 14,
-                    decoration: BoxDecoration(
-                      color: _otherUserData?['isOnline'] == true
-                          ? Colors.green
-                          : Colors.grey,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 2),
-                    ),
-                  ),
-                ),
-              ],
+            CircleAvatar(
+              radius: 18,
+              backgroundImage: _groupData?['avatarUrl']?.isNotEmpty == true
+                  ? NetworkImage(_groupData!['avatarUrl'])
+                  : const AssetImage('assets/group.jpg') as ImageProvider,
             ),
             const SizedBox(width: 8),
-            Text(
-              _otherUserData?['name'] ?? widget.userId,
-              style: const TextStyle(
-                color: Colors.black,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _groupData?['name'] ?? 'Nhóm không tên',
+                  style: const TextStyle(
+                    color: Colors.black,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                FutureBuilder<List<String>>(
+                  future: _getMemberNames(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Text('Đang tải...', style: TextStyle(fontSize: 12, color: Colors.grey));
+                    }
+                    if (snapshot.hasError || !snapshot.hasData) {
+                      return const Text('Lỗi tải thành viên', style: TextStyle(fontSize: 12, color: Colors.grey));
+                    }
+                    final names = snapshot.data!.take(3).join(', ');
+                    final more = snapshot.data!.length > 3 ? '...' : '';
+                    return Text(
+                      '$names$more',
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    );
+                  },
+                ),
+              ],
             ),
           ],
         ),
@@ -511,6 +513,8 @@ class _ChatScreenState extends State<ChatScreen> {
             onSelected: (value) {
               if (value == 'gallery') {
                 _showImageGallery();
+              } else if (value == 'details') {
+                context.go('/message/group/${widget.groupId}/details');
               }
             },
             itemBuilder: (BuildContext context) {
@@ -518,6 +522,10 @@ class _ChatScreenState extends State<ChatScreen> {
                 const PopupMenuItem<String>(
                   value: 'gallery',
                   child: Text('Xem thư viện ảnh'),
+                ),
+                const PopupMenuItem<String>(
+                  value: 'details',
+                  child: Text('Xem chi tiết nhóm'),
                 ),
               ];
             },
@@ -568,7 +576,7 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           Expanded(
             child: StreamBuilder<List<Map<String, dynamic>>>(
-              stream: _chatService.getMessages(widget.userId),
+              stream: _chatService.getGroupMessages(widget.groupId),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
@@ -584,7 +592,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   itemCount: messages.length,
                   itemBuilder: (context, index) {
                     final message = messages[index];
-                    final isMe = message['sender'] == 'You';
+                    final isMe = message['senderId'] == FirebaseAuth.instance.currentUser?.uid;
                     final timestamp = (message['timestamp'] as Timestamp?)?.toDate();
                     final timeString = timestamp != null
                         ? '${timestamp.hour}:${timestamp.minute.toString().padLeft(2, '0')}'
@@ -602,89 +610,55 @@ class _ChatScreenState extends State<ChatScreen> {
                             color: isMe ? Colors.blue[100] : Colors.grey[200],
                             borderRadius: BorderRadius.circular(12.0),
                           ),
-                          child: message['type'] == 'image'
-                              ? Column(
-                                  crossAxisAlignment:
-                                      isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-                                  children: [
-                                    GestureDetector(
-                                      onTap: () {
-                                        _viewFullImage(context, message['fileUrl']);
-                                      },
-                                      child: ConstrainedBox(
-                                        constraints: BoxConstraints(
-                                          maxWidth: MediaQuery.of(context).size.width * 0.6,
-                                          maxHeight: 200,
-                                        ),
-                                        child: ClipRRect(
-                                          borderRadius: BorderRadius.circular(8.0),
-                                          child: Image.memory(
-                                            base64Decode(message['fileUrl']),
-                                            fit: BoxFit.cover,
-                                            errorBuilder: (context, error, stackTrace) =>
-                                                const Text('Lỗi tải ảnh'),
-                                          ),
-                                        ),
+                          child: Column(
+                            crossAxisAlignment:
+                                isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                            children: [
+                              if (!isMe)
+                                FutureBuilder<String>(
+                                  future: _getSenderName(message['senderId']),
+                                  builder: (context, snapshot) {
+                                    return Text(
+                                      snapshot.data ?? 'Unknown',
+                                      style: const TextStyle(
+                                        fontSize: 12.0,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    );
+                                  },
+                                ),
+                              if (message['type'] == 'image')
+                                GestureDetector(
+                                  onTap: () {
+                                    _viewFullImage(context, message['fileUrl']);
+                                  },
+                                  child: ConstrainedBox(
+                                    constraints: BoxConstraints(
+                                      maxWidth: MediaQuery.of(context).size.width * 0.6,
+                                      maxHeight: 200,
+                                    ),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(8.0),
+                                      child: Image.memory(
+                                        base64Decode(message['fileUrl']),
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (context, error, stackTrace) =>
+                                            const Text('Lỗi tải ảnh'),
                                       ),
                                     ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      message['message']!,
-                                      style: const TextStyle(fontSize: 12.0),
-                                    ),
-                                    Text(
-                                      timeString,
-                                      style: const TextStyle(fontSize: 10.0, color: Colors.grey),
-                                    ),
-                                  ],
-                                )
-                              : message['type'] == 'file'
-                                  ? Column(
-                                      crossAxisAlignment:
-                                          isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-                                      children: [
-                                        InkWell(
-                                          onTap: () {
-                                            print('Mở file: ${message['fileUrl']}');
-                                          },
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                message['message']!,
-                                                style: const TextStyle(fontSize: 16.0),
-                                              ),
-                                              Text(
-                                                message['fileUrl']!,
-                                                style: const TextStyle(
-                                                  fontSize: 12.0,
-                                                  color: Colors.blue,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        Text(
-                                          timeString,
-                                          style: const TextStyle(fontSize: 10.0, color: Colors.grey),
-                                        ),
-                                      ],
-                                    )
-                                  : Column(
-                                      crossAxisAlignment:
-                                          isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          message['message']!,
-                                          style: const TextStyle(fontSize: 16.0),
-                                        ),
-                                        Text(
-                                          timeString,
-                                          style: const TextStyle(fontSize: 10.0, color: Colors.grey),
-                                        ),
-                                      ],
-                                    ),
+                                  ),
+                                ),
+                              if (message['type'] == 'image') const SizedBox(height: 4),
+                              Text(
+                                message['message']!,
+                                style: const TextStyle(fontSize: 16.0),
+                              ),
+                              Text(
+                                timeString,
+                                style: const TextStyle(fontSize: 10.0, color: Colors.grey),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     );
@@ -715,7 +689,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         borderSide: BorderSide.none,
                       ),
                       filled: true,
-                      // fillColor: Colors.grey[200],
+                      fillColor: Colors.grey[200],
                     ),
                     onSubmitted: (value) => _sendMessage(),
                   ),
@@ -733,6 +707,21 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
+  Future<String> _getSenderName(String senderId) async {
+    final userDoc = await FirebaseFirestore.instance.collection('users').doc(senderId).get();
+    return userDoc.data()?['name'] ?? 'Unknown';
+  }
+
+  Future<List<String>> _getMemberNames() async {
+    final members = List<String>.from(_groupData?['members'] ?? []);
+    List<String> names = [];
+    for (String memberId in members) {
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(memberId).get();
+      names.add(userDoc.data()?['name'] ?? 'Unknown');
+    }
+    return names;
+  }
+
   @override
   void dispose() {
     _messageController.dispose();
@@ -742,4 +731,3 @@ class _ChatScreenState extends State<ChatScreen> {
     super.dispose();
   }
 }
-//màn hình chat
