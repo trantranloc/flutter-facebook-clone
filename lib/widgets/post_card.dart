@@ -145,7 +145,7 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
     super.dispose();
   }
 
-  void _handleReaction(String newReaction) async {
+  void _handleReactionWithToggle(String tappedReaction) async {
     final user = Provider.of<UserProvider>(context, listen: false).userModel;
     if (user == null) return;
     final postRef = FirebaseFirestore.instance
@@ -155,95 +155,144 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
 
     final oldReaction = _userReaction;
 
+    if (oldReaction == tappedReaction) {
+      // Bỏ cảm xúc
+      setState(() {
+        if (_reactionCounts.containsKey(oldReaction)) {
+          final currentCount = _reactionCounts[oldReaction]!;
+          _reactionCounts[oldReaction!] =
+              (currentCount > 0 ? currentCount - 1 : 0);
+        }
+        _userReaction = null;
+      });
+
+      await postRef.update({
+        'reactionCounts.$oldReaction': FieldValue.increment(-1),
+      });
+
+      await postRef.collection('reactions').doc(userId).delete();
+      return;
+    }
+
+    // Gán cảm xúc mới
     setState(() {
-      if (oldReaction != null) {
+      if (oldReaction != null && oldReaction != tappedReaction) {
         _reactionCounts[oldReaction] = (_reactionCounts[oldReaction] ?? 1) - 1;
       }
-      _reactionCounts[newReaction] = (_reactionCounts[newReaction] ?? 0) + 1;
-      _userReaction = newReaction;
+      _reactionCounts[tappedReaction] =
+          (_reactionCounts[tappedReaction] ?? 0) + 1;
+      _userReaction = tappedReaction;
     });
 
     await postRef.update({
-      'reactionCounts.$newReaction': FieldValue.increment(1),
-      if (oldReaction != null && oldReaction != newReaction)
+      'reactionCounts.$tappedReaction': FieldValue.increment(1),
+      if (oldReaction != null && oldReaction != tappedReaction)
         'reactionCounts.$oldReaction': FieldValue.increment(-1),
     });
 
     await postRef.collection('reactions').doc(userId).set({
-      'type': newReaction,
+      'type': tappedReaction,
     });
   }
 
   void _showOverlayReaction() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final box = _likeKey.currentContext?.findRenderObject() as RenderBox?;
-      if (box == null) {
-        print("⚠️ Không tìm thấy RenderBox của _likeKey");
-        return;
-      }
+      final overlay = Overlay.of(context);
+      if (box == null || overlay == null) return;
 
-      final overlayBox =
-          Overlay.of(context).context.findRenderObject() as RenderBox?;
-      if (overlayBox == null) return;
-
-      final offset = box.localToGlobal(Offset.zero, ancestor: overlayBox);
+      final offset = box.localToGlobal(Offset.zero);
+      final size = box.size;
 
       _popupController.forward(from: 0);
+      _dismissTimer?.cancel();
 
       _overlayEntry = OverlayEntry(
-        builder:
-            (context) => Positioned(
-              left: offset.dx - 20,
-              top: offset.dy - 60,
-              child: Material(
-                color: Colors.transparent,
-                child: ScaleTransition(
-                  scale: _popupAnim,
-                  child: MouseRegion(
-                    onEnter: (_) => _dismissTimer?.cancel(),
-                    onExit: (_) => _startAutoDismiss(),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
+        builder: (context) {
+          return GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onTap: _removeOverlay,
+            child: Stack(
+              children: [
+                Positioned(
+                  left: offset.dx + size.width / 2 - 150, // căn giữa
+                  top: offset.dy - 80,
+                  child: ScaleTransition(
+                    scale: _popupAnim,
+                    child: MouseRegion(
+                      onEnter: (_) => _dismissTimer?.cancel(),
+                      onExit: (_) => _startAutoDismiss(),
+                      child: Material(
+                        elevation: 6,
                         borderRadius: BorderRadius.circular(30),
-                        boxShadow: [
-                          BoxShadow(color: Colors.black26, blurRadius: 5),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children:
-                            reactionIcons.entries.map((entry) {
-                              return InkWell(
-                                onTap: () {
-                                  _handleReaction(entry.key);
-                                  _removeOverlay();
-                                },
-                                borderRadius: BorderRadius.circular(30),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 6,
-                                  ),
-                                  child: Text(
-                                    entry.value,
-                                    style: const TextStyle(fontSize: 26),
-                                  ),
-                                ),
-                              );
-                            }).toList(),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(30),
+                            boxShadow: [
+                              BoxShadow(blurRadius: 6, color: Colors.black26),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children:
+                                reactionIcons.entries.map((entry) {
+                                  return GestureDetector(
+                                    onTap: () {
+                                      _handleReactionWithToggle(entry.key);
+                                      _removeOverlay();
+                                    },
+                                    child: AnimatedScale(
+                                      duration: const Duration(
+                                        milliseconds: 160,
+                                      ),
+                                      scale:
+                                          _userReaction == entry.key
+                                              ? 1.3
+                                              : 1.0,
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                        ),
+                                        child: Column(
+                                          children: [
+                                            Text(
+                                              entry.value,
+                                              style: const TextStyle(
+                                                fontSize: 28,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              reactionTexts[entry.key]!,
+                                              style: const TextStyle(
+                                                fontSize: 10,
+                                                color: Colors.grey,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
+                          ),
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
+              ],
             ),
+          );
+        },
       );
 
-      Overlay.of(context).insert(_overlayEntry!);
+      overlay.insert(_overlayEntry!);
       _startAutoDismiss();
     });
   }
@@ -259,7 +308,6 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
     _overlayEntry = null;
     _dismissTimer?.cancel();
   }
-
 
   void _openCommentSection() {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
@@ -437,16 +485,12 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
                   icon: const Icon(Icons.more_horiz),
                   splashRadius: 20,
                   onPressed: () {
-                    Provider.of<UserProvider>(
-                      context,
-                      listen: false,
-                    );
+                    Provider.of<UserProvider>(context, listen: false);
 
                     showModalBottomSheet(
                       context: context,
                       shape: const RoundedRectangleBorder(
                         borderRadius: BorderRadius.vertical(
-
                           top: Radius.circular(20),
                         ),
                       ),
@@ -564,7 +608,6 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
                                           context,
                                         ).showSnackBar(
                                           const SnackBar(
-
                                             content: Text(
                                               'Xóa bài viết thành công',
                                             ),
@@ -826,32 +869,39 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
                 // LIKE
                 GestureDetector(
                   key: _likeKey,
-                  onTap: () => _handleReaction('like'),
-                  onLongPress: () {
-                    print("🟦 Long press triggered");
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      _showOverlayReaction();
-                    });
+                  onTap: () {
+                    _animController.forward(from: 0); // hiệu ứng nhấn mềm
+                    _handleReactionWithToggle('like');
                   },
-
-                  child: ScaleTransition(
-                    scale: _scaleAnim,
+                  onLongPress: () {
+                    HapticFeedback.mediumImpact(); // rung nhẹ khi long press
+                    _showOverlayReaction();
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
                     child: Row(
                       children: [
                         if (_userReaction != null) ...[
                           Text(
                             reactionIcons[_userReaction]!,
                             style: TextStyle(
-                              fontSize: 22,
+                              fontSize: 24,
                               color: reactionColors[_userReaction]!,
+                              shadows: [
+                                Shadow(
+                                  offset: Offset(0, 1),
+                                  blurRadius: 1,
+                                  color: Colors.black26,
+                                ),
+                              ],
                             ),
                           ),
                           const SizedBox(width: 6),
                           Text(
-                            _userReaction != null &&
-                                    _reactionCounts[_userReaction] != null
-                                ? '${_reactionCounts[_userReaction!]!} ${reactionTexts[_userReaction]!}'
-                                : reactionTexts[_userReaction]!,
+                            reactionTexts[_userReaction!]!,
                             style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w500,
