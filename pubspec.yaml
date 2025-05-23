@@ -53,6 +53,9 @@ dependencies:
   uuid: ^4.0.0
   cloud_functions: ^5.5.0
   fl_chart: ^1.0.0
+  firebase_app_check: ^0.3.0
+  agora_rtc_engine: ^6.2.0
+  
 dev_dependencies:
   flutter_test:
     sdk: flutter

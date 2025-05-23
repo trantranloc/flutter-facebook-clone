@@ -9,7 +9,7 @@ import 'background_tasks.dart';
 import 'providers/theme_provider.dart';
 import 'providers/user_provider.dart';
 import 'app_router.dart'; 
-
+import 'package:firebase_app_check/firebase_app_check.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await _initializeServices();
@@ -33,6 +33,11 @@ Future<void> _initializeServices() async {
   } catch (e) {
     debugPrint('Firebase initialization error: $e');
   }
+  // Khởi tạo Firebase App Check
+    await FirebaseAppCheck.instance.activate(
+      androidProvider: AndroidProvider.debug,
+    );
+    debugPrint('Firebase App Check initialized successfully');
 }
 
 class MyApp extends StatelessWidget {
