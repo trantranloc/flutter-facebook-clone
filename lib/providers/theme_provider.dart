@@ -86,7 +86,7 @@ class ThemeProvider extends ChangeNotifier {
       cardColor: Colors.white,
       colorScheme: const ColorScheme.light(
         primary: Color(0xFFFF6F61),
-        secondary: Color(0xFF40C4FF),
+        secondary: Color.fromARGB(255, 135, 44, 255),
         error: Colors.red,
       ),
     );
@@ -96,7 +96,7 @@ class ThemeProvider extends ChangeNotifier {
   static ThemeData get darkTheme {
     return ThemeData(
       brightness: Brightness.dark,
-      primaryColor: const Color(0xFF00FF7F), // Neon Green
+      primaryColor: const Color.fromARGB(255, 234, 0, 255), // Neon Green
       scaffoldBackgroundColor: const Color(0xFF121212), // Dark Background
       textTheme: const TextTheme(
         headlineLarge: TextStyle(
@@ -129,7 +129,7 @@ class ThemeProvider extends ChangeNotifier {
       ),
       cardColor: const Color(0xFF1E1E1E),
       colorScheme: const ColorScheme.dark(
-        primary: Color(0xFF00FF7F),
+        primary: Color.fromARGB(255, 135, 44, 255),
         secondary: Color(0xFFE040FB),
         error: Colors.redAccent,
       ),

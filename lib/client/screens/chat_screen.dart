@@ -585,108 +585,68 @@ class _ChatScreenState extends State<ChatScreen> {
                   itemBuilder: (context, index) {
                     final message = messages[index];
                     final isMe = message['sender'] == 'You';
-                    final timestamp = (message['timestamp'] as Timestamp?)?.toDate();
-                    final timeString = timestamp != null
-                        ? '${timestamp.hour}:${timestamp.minute.toString().padLeft(2, '0')}'
-                        : '';
-                    final messageId = snapshot.data![index]['id'];
-
-                    return GestureDetector(
-                      onLongPress: () => _showMessageOptions(context, messageId, message['message'], isMe),
-                      child: Align(
-                        alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-                        child: Container(
-                          margin: const EdgeInsets.symmetric(vertical: 4.0),
-                          padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-                          decoration: BoxDecoration(
-                            color: isMe ? Colors.blue[100] : Colors.grey[200],
-                            borderRadius: BorderRadius.circular(12.0),
-                          ),
-                          child: message['type'] == 'image'
-                              ? Column(
-                                  crossAxisAlignment:
-                                      isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-                                  children: [
-                                    GestureDetector(
-                                      onTap: () {
-                                        _viewFullImage(context, message['fileUrl']);
-                                      },
-                                      child: ConstrainedBox(
-                                        constraints: BoxConstraints(
-                                          maxWidth: MediaQuery.of(context).size.width * 0.6,
-                                          maxHeight: 200,
-                                        ),
-                                        child: ClipRRect(
-                                          borderRadius: BorderRadius.circular(8.0),
-                                          child: Image.memory(
-                                            base64Decode(message['fileUrl']),
-                                            fit: BoxFit.cover,
-                                            errorBuilder: (context, error, stackTrace) =>
-                                                const Text('Lỗi tải ảnh'),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      message['message']!,
-                                      style: const TextStyle(fontSize: 12.0),
-                                    ),
-                                    Text(
-                                      timeString,
-                                      style: const TextStyle(fontSize: 10.0, color: Colors.grey),
-                                    ),
-                                  ],
-                                )
-                              : message['type'] == 'file'
-                                  ? Column(
-                                      crossAxisAlignment:
-                                          isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-                                      children: [
-                                        InkWell(
-                                          onTap: () {
-                                            print('Mở file: ${message['fileUrl']}');
-                                          },
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                message['message']!,
-                                                style: const TextStyle(fontSize: 16.0),
-                                              ),
-                                              Text(
-                                                message['fileUrl']!,
-                                                style: const TextStyle(
-                                                  fontSize: 12.0,
-                                                  color: Colors.blue,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        Text(
-                                          timeString,
-                                          style: const TextStyle(fontSize: 10.0, color: Colors.grey),
-                                        ),
-                                      ],
-                                    )
-                                  : Column(
-                                      crossAxisAlignment:
-                                          isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                    return Align(
+                      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(vertical: 4.0),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12.0,
+                          vertical: 8.0,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isMe ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.surface,
+                          borderRadius: BorderRadius.circular(12.0),
+                        ),
+                        child: message['type'] == 'image'
+                            ? Column(
+                                crossAxisAlignment:
+                                    isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                                children: [
+                                  Image.network(
+                                    message['fileUrl'],
+                                    width: 200,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) =>
+                                        const Text('Error loading image'),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    message['message']!,
+                                    style: const TextStyle(fontSize: 12.0),
+                                  ),
+                                ],
+                              )
+                            : message['type'] == 'file'
+                                ? InkWell(
+                                    onTap: () {
+                                      print('Opening file: ${message['fileUrl']}');
+                                    },
+                                    child: Column(
+                                      crossAxisAlignment: isMe
+                                          ? CrossAxisAlignment.end
+                                          : CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           message['message']!,
-                                          style: const TextStyle(fontSize: 16.0),
+                                          style: const TextStyle(
+                                            fontSize: 16.0,
+                                            color: Colors.black,
+                                          ),
                                         ),
                                         Text(
-                                          timeString,
+                                          "",
                                           style: const TextStyle(fontSize: 10.0, color: Colors.grey),
                                         ),
                                       ],
                                     ),
-                        ),
-                      ),
+                                  )
+                                : Text(
+                                    message['message']!,
+                                    style: const TextStyle(
+                                      fontSize: 16.0,
+                                      color: Colors.black,
+                                    ),
+                                  ),                      ),
                     );
                   },
                 );
@@ -715,7 +675,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         borderSide: BorderSide.none,
                       ),
                       filled: true,
-                      fillColor: Colors.grey[200],
+                      // fillColor: Colors.grey[200],
                     ),
                     onSubmitted: (value) => _sendMessage(),
                   ),

@@ -18,10 +18,11 @@ class UserProvider with ChangeNotifier {
   //Admin
   bool _isAdmin = false;
   bool _useAdminRouter = false;
+  bool _isBlocked = false;
 
   bool get isAdmin => _isAdmin;
   bool get useAdminRouter => _useAdminRouter;
-
+  bool get isBlocked => _isBlocked;
   void setLoading(bool value) {
     _isLoading = value;
     _error = null;
@@ -33,9 +34,10 @@ class UserProvider with ChangeNotifier {
       _isAdmin = await AuthService().isAdmin();
       print('Admin status checked: $_isAdmin');
       _useAdminRouter = _isAdmin;
-         if (_isAdmin && FirebaseAuth.instance.currentUser != null) {
+      if (_isAdmin && FirebaseAuth.instance.currentUser != null) {
         _useAdminRouter = true;
       }
+
       notifyListeners();
     } catch (e) {
       print('Error checking admin status: $e');
@@ -46,8 +48,8 @@ class UserProvider with ChangeNotifier {
   }
 
   void setAdminRouter(bool useAdminRouter) {
-      _useAdminRouter = useAdminRouter;
-      notifyListeners();
+    _useAdminRouter = useAdminRouter;
+    notifyListeners();
   }
 
   // Load user data
@@ -58,29 +60,42 @@ class UserProvider with ChangeNotifier {
       return;
     }
 
-    // Check cache first
-    UserModel? cachedUser = await _getCachedUser();
-    if (cachedUser != null && cachedUser.uid == uid) {
-      _userModel = cachedUser;
-      _isLoading = false;
-      _error = null;
-      notifyListeners();
-      // Refresh data in background
-      _refreshUserData(uid, userService).catchError((e) {
-        print('Background refresh failed: $e');
-      });
-      return;
-    }
-
-    // Load from Firebase if no cache
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
+      // Kiểm tra trạng thái isBlocked trực tiếp từ Firestore
+      bool isBlocked = await AuthService().isUserBlocked(uid);
+      if (isBlocked) {
+        _isBlocked = true;
+        _userModel = null;
+        _error = 'Tài khoản của bạn đã bị khóa';
+        _isLoading = false;
+        notifyListeners();
+        return;
+      }
+
+      // Kiểm tra cache
+      UserModel? cachedUser = await _getCachedUser();
+      if (cachedUser != null && cachedUser.uid == uid) {
+        _userModel = cachedUser;
+        _isBlocked = cachedUser.isBlocked;
+        _isLoading = false;
+        _error = null;
+        notifyListeners();
+        // Làm mới dữ liệu ở chế độ nền
+        _refreshUserData(uid, userService).catchError((e) {
+          print('Background refresh failed: $e');
+        });
+        return;
+      }
+
+      // Tải dữ liệu từ Firestore nếu không có cache
       final userModel = await userService.getUser(uid);
       if (userModel != null) {
         _userModel = userModel;
+        _isBlocked = userModel.isBlocked;
         await _cacheUser(userModel);
       } else {
         _error = 'User not found';
@@ -93,7 +108,8 @@ class UserProvider with ChangeNotifier {
       notifyListeners();
     }
   }
-void resetStatus() {
+
+  void resetStatus() {
     _isAdmin = false;
     _useAdminRouter = false;
     _userModel = null;
@@ -106,6 +122,7 @@ void resetStatus() {
     _userModel = null;
     _isLoading = false;
     _error = null;
+    _isBlocked = false;
     await _clearCache();
     notifyListeners();
   }

@@ -30,8 +30,10 @@ class AuthService {
 
   Future<bool> isUserBlocked(String uid) async {
     try {
-      DocumentSnapshot userDoc =
-          await _firestore.collection('users').doc(uid).get();
+      DocumentSnapshot userDoc = await _firestore
+          .collection('users')
+          .doc(uid)
+          .get(const GetOptions(source: Source.server));
       if (!userDoc.exists) return false;
       final data = userDoc.data() as Map<String, dynamic>;
       return data['isBlocked'] == true;

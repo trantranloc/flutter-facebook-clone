@@ -8,11 +8,11 @@ import 'package:cloudinary_public/cloudinary_public.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_facebook_clone/providers/user_provider.dart';
 import 'package:flutter_facebook_clone/models/User.dart';
-import 'package:flutter_facebook_clone/providers/theme_provider.dart'; // Import ThemeProvider
+import 'package:flutter_facebook_clone/providers/theme_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../models/Post.dart'; // Model bài viết
-import '../widgets/post_card.dart'; // Widget hiển thị bài viết
-import 'create_post_screen.dart'; // Màn hình tạo bài viết
+import '../../models/Post.dart';
+import '../../widgets/post_card.dart';
+import 'create_post_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String uid;
@@ -60,16 +60,42 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   Future<void> fetchUserPosts() async {
-    final snapshot =
-        await FirebaseFirestore.instance
-            .collection('posts')
-            .where('userId', isEqualTo: widget.uid)
-            .orderBy('createdAt', descending: true)
-            .get();
+    try {
+      final currentUser =
+          Provider.of<UserProvider>(context, listen: false).userModel;
 
-    setState(() {
-      _posts = snapshot.docs.map((doc) => Post.fromDocument(doc)).toList();
-    });
+      if (currentUser == null) return;
+
+      // Check if user is allowed to view posts
+      final isAllowed =
+          currentUser.uid == widget.uid ||
+          currentUser.friends.contains(widget.uid);
+
+      if (!isAllowed) {
+        setState(() {
+          _posts = [];
+        });
+        return;
+      }
+
+      final snapshot =
+          await FirebaseFirestore.instance
+              .collection('posts')
+              .where('userId', isEqualTo: widget.uid)
+              .orderBy('createdAt', descending: true)
+              .get();
+
+      setState(() {
+        _posts = snapshot.docs.map((doc) => Post.fromDocument(doc)).toList();
+      });
+    } catch (e) {
+      print('Error fetching posts: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error loading posts: $e')));
+      }
+    }
   }
 
   String timeAgo(DateTime dateTime) {
@@ -112,7 +138,16 @@ class _ProfileScreenState extends State<ProfileScreen>
           ),
           const SizedBox(height: 8),
           _posts.isEmpty
-              ? const Center(child: Text('Chưa có bài viết nào'))
+              ? Center(
+                child:
+                    FirebaseAuth.instance.currentUser?.uid != widget.uid &&
+                            !Provider.of<UserProvider>(
+                              context,
+                              listen: false,
+                            ).userModel!.friends.contains(widget.uid)
+                        ? const Text('Bạn không có quyền xem bài viết này')
+                        : const Text('Chưa có bài viết nào'),
+              )
               : ListView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
@@ -120,6 +155,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                 itemBuilder: (context, index) {
                   final post = _posts[index];
                   return PostCard(
+                    userId: post.userId,
                     postId: post.id,
                     name: post.name,
                     avatarUrl: post.avatarUrl,
@@ -162,7 +198,7 @@ class _ProfileScreenState extends State<ProfileScreen>
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Lỗi khi tải thông tin: $e')));
+        ).showSnackBar(SnackBar(content: Text('Error loading user data: $e')));
       }
     } finally {
       if (mounted) {
@@ -211,8 +247,6 @@ class _ProfileScreenState extends State<ProfileScreen>
                       'Bạn có muốn sử dụng ảnh này làm ảnh đại diện?',
                       textAlign: TextAlign.center,
                     ),
-                    // Hiển thị danh sách bài viết
-                    _buildPostsSection(),
                   ],
                 ),
                 actions: [
@@ -282,7 +316,7 @@ class _ProfileScreenState extends State<ProfileScreen>
         }
       }
     } catch (e) {
-      print('Lỗi khi chọn hoặc upload ảnh: $e');
+      print('Error selecting or uploading image: $e');
       final userProvider = Provider.of<UserProvider>(context, listen: false);
       userProvider.setLoading(false);
       ScaffoldMessenger.of(context).showSnackBar(

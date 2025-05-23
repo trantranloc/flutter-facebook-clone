@@ -5,7 +5,6 @@ class MessageProvider with ChangeNotifier {
   List<Map<String, dynamic>> _friendsList = [];
   List<Map<String, dynamic>> _filteredFriends = [];
   bool _isLoading = true;
-  String _searchQuery = '';
 
   List<Map<String, dynamic>> get friendsList => _filteredFriends;
   bool get isLoading => _isLoading;
@@ -35,7 +34,6 @@ class MessageProvider with ChangeNotifier {
   }
 
   void searchFriends(String query) {
-    _searchQuery = query;
     if (query.isEmpty) {
       _filteredFriends = _friendsList;
     } else {
@@ -48,7 +46,6 @@ class MessageProvider with ChangeNotifier {
   }
 
   void clearSearch() {
-    _searchQuery = '';
     _filteredFriends = _friendsList;
     notifyListeners();
   }

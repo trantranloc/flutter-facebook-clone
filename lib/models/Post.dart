@@ -9,6 +9,9 @@ class Post {
   final List<String> imageUrls;
   final Timestamp createdAt;
   final int likes;
+  final int comments;
+  final Map<String, int> reactionCounts;
+  final String? reactionType;
 
   Post({
     required this.id,
@@ -19,6 +22,9 @@ class Post {
     required this.imageUrls,
     required this.createdAt,
     required this.likes,
+    required this.comments,
+    required this.reactionCounts,
+    this.reactionType,
   });
 
   factory Post.fromDocument(DocumentSnapshot doc) {
@@ -32,6 +38,9 @@ class Post {
       imageUrls: List<String>.from(data['imageUrls'] ?? []),
       createdAt: data['createdAt'] ?? Timestamp.now(),
       likes: data['likes'] ?? 0,
+      comments: data['comments'] ?? 0,
+      reactionCounts: Map<String, int>.from(data['reactionCounts'] ?? {}),
+      reactionType: null, // sẽ load riêng trong PostCard nếu cần
     );
   }
 
@@ -44,6 +53,16 @@ class Post {
       'imageUrls': imageUrls,
       'createdAt': createdAt,
       'likes': likes,
+      'comments': comments,
+      'reactionCounts': {
+        'like': 0,
+        'love': 0,
+        'care': 0,
+        'haha': 0,
+        'wow': 0,
+        'sad': 0,
+        'angry': 0,
+      },
     };
   }
 }

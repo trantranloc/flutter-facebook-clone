@@ -8,8 +8,8 @@ import 'firebase_options.dart';
 import 'background_tasks.dart';
 import 'providers/theme_provider.dart';
 import 'providers/user_provider.dart';
-import 'app_router.dart'; 
 import 'package:firebase_app_check/firebase_app_check.dart';
+import 'router/app_router.dart'; 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await _initializeServices();
@@ -86,7 +86,6 @@ class AuthWrapper extends StatelessWidget {
         }
 
         final userProvider = Provider.of<UserProvider>(context);
-        debugPrint('Using admin router: ${userProvider.useAdminRouter}');
 
         // Sử dụng AppRouter để lấy router phù hợp
         final router = AppRouter.getRouter(context);

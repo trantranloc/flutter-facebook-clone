@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_facebook_clone/providers/user_provider.dart';
-import 'package:flutter_facebook_clone/admin_router.dart';
-import 'package:flutter_facebook_clone/user_router.dart';
+import 'package:flutter_facebook_clone/router/admin_router.dart';
+import 'package:flutter_facebook_clone/router/user_router.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
@@ -21,10 +21,10 @@ class AppRouter {
 
     // Sử dụng adminRouter nếu useAdminRouter là true
     if (userProvider.useAdminRouter) {
-      debugPrint('Using admin router');
+      // debugPrint('Using admin router');
       return adminRouter;
     } else {
-      debugPrint('Using user router');
+      // debugPrint('Using user router');
       return userRouter;
     }
   }
