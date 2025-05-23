@@ -7,10 +7,12 @@ import 'package:flutter_facebook_clone/client/screens/group/events_screen.dart';
 import 'package:flutter_facebook_clone/client/screens/group/group_screen.dart';
 import 'package:flutter_facebook_clone/client/screens/group/invite_friends_screen.dart';
 import 'package:flutter_facebook_clone/client/screens/group/manage_group_screen.dart';
+import 'package:flutter_facebook_clone/models/Group.dart' show GroupPrivacy;
 import 'package:flutter_facebook_clone/models/group.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cloudinary_public/cloudinary_public.dart';
 import 'package:intl/intl.dart';
+
 
 class GroupHomeScreen extends StatefulWidget {
   final String groupId;
