@@ -183,7 +183,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                     mainAxisSpacing: 16,
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    childAspectRatio: 1.1,
+                    childAspectRatio: 0.8,
                     children: [
                       _buildEnhancedStatsCard(
                         icon: Icons.people_rounded,
@@ -329,7 +329,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 8),
                       if (isLoading)
                         const SizedBox(
                           width: 20,
