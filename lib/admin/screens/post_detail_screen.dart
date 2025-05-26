@@ -57,6 +57,20 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     }
   }
 
+  Future<String> _getUserName(String? userId) async {
+    if (userId == null || userId.isEmpty) return 'Ẩn danh';
+    try {
+      var doc =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(userId)
+              .get();
+      return doc.exists ? doc.get('displayName') ?? 'Ẩn danh' : 'Ẩn danh';
+    } catch (e) {
+      return 'Ẩn danh';
+    }
+  }
+
   // Hàm xử lý hành động trên bài viết - Tối ưu với better error handling
   Future<void> _handlePostAction(String action) async {
     if (_isLoading) return; // Tránh spam click
@@ -239,7 +253,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     // Gửi thông báo cảnh báo
     await _firestore.collection('notifications').add({
       'userId': userId,
-      'message':
+      'senderName': 'Quản trị viên',
+      'senderAvatarUrl': "assets/images/logos.png",
+      'action':
           'Bài viết của bạn đã bị báo cáo do vi phạm chính sách cộng đồng. '
           'Vui lòng đọc kỹ quy định và tuân thủ để tránh bị xử lý nặng hơn.',
       'type': 'warning',
@@ -611,12 +627,13 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Người báo cáo: ${report['reportedBy'] ?? 'Ẩn danh'}',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
+                    FutureBuilder<String>(
+                      future: _getUserName(report['reportedBy']),
+                      builder:
+                          (context, snapshot) => Text(
+                            'Người báo cáo: ${snapshot.data ?? 'Đang tải...'}',
+                            style: TextStyle(fontSize: 16),
+                          ),
                     ),
                     const SizedBox(height: 4),
                     Container(
