@@ -161,7 +161,7 @@ class _PostManagementScreenState extends State<PostManagementScreen> {
         if (postSnapshot.connectionState == ConnectionState.waiting) {
           return Card(
             margin: const EdgeInsets.symmetric(vertical: 8.0),
-            child: Container(
+            child: SizedBox(
               height: 120,
               child: const Center(child: CircularProgressIndicator()),
             ),

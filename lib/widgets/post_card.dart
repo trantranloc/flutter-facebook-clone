@@ -52,7 +52,6 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
   String? _userReaction;
 
   late AnimationController _animController;
-  late Animation<double> _scaleAnim;
   late AnimationController _popupController;
   late Animation<double> _popupAnim;
   Timer? _dismissTimer;
@@ -95,10 +94,6 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
-    _scaleAnim = Tween<double>(
-      begin: 0.5,
-      end: 1.2,
-    ).chain(CurveTween(curve: Curves.elasticOut)).animate(_animController);
 
     _popupController = AnimationController(
       vsync: this,
@@ -199,7 +194,7 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final box = _likeKey.currentContext?.findRenderObject() as RenderBox?;
       final overlay = Overlay.of(context);
-      if (box == null || overlay == null) return;
+      if (box == null) return;
 
       final offset = box.localToGlobal(Offset.zero);
       final size = box.size;
@@ -396,6 +391,7 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
           ..sort((a, b) => b.value.compareTo(a.value));
     final topReactions =
         sorted.take(3).map((e) => reactionIcons[e.key]!).toList();
+    // ignore: avoid_types_as_parameter_names
     final total = counts.values.fold(0, (sum, e) => sum + e);
 
     return Row(
@@ -416,6 +412,7 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
     // final String displayReaction = reactionIcons[_userReaction ?? 'like']!;
 
     // final totalLikes =
+    // ignore: avoid_types_as_parameter_names
     _reactionCounts.values.fold(0, (sum, e) => sum + e);
 
     return Card(
