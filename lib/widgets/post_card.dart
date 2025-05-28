@@ -23,6 +23,11 @@ class PostCard extends StatefulWidget {
   final Map<String, int>? reactionCounts;
   final void Function(String)? onReact;
   final String userId;
+  final String? sharedFromPostId;
+  final String? sharedFromUserName;
+  final String? sharedFromAvatarUrl;
+  final String? sharedFromContent;
+  final List<String>? sharedFromImageUrls;
 
   const PostCard({
     super.key,
@@ -39,6 +44,11 @@ class PostCard extends StatefulWidget {
     this.reactionCounts,
     this.onReact,
     required this.userId,
+    this.sharedFromPostId,
+    this.sharedFromUserName,
+    this.sharedFromAvatarUrl,
+    this.sharedFromContent,
+    this.sharedFromImageUrls,
   });
 
   @override
@@ -134,6 +144,51 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
       setState(() {
         _userReaction = reactionDoc['type'];
       });
+    }
+  }
+
+  Future<void> _shareToProfile() async {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final user = userProvider.userModel;
+
+    if (user == null) return;
+
+    try {
+      await FirebaseFirestore.instance.collection('posts').add({
+        'userId': user.uid,
+        'name': user.name,
+        'avatarUrl': user.avatarUrl,
+        'content': 'Đã chia sẻ một bài viết',
+        'imageUrls': [],
+        'createdAt': Timestamp.now(),
+        'likes': 0,
+        'comments': 0,
+        'reactionCounts': {
+          'like': 0,
+          'love': 0,
+          'care': 0,
+          'haha': 0,
+          'wow': 0,
+          'sad': 0,
+          'angry': 0,
+        },
+        'sharedPostId': widget.postId,
+      });
+
+      if (mounted) {
+        Navigator.pop(context); // Đóng sheet nếu có
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Đã chia sẻ bài viết về trang cá nhân.'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Lỗi khi chia sẻ: $e')));
+      }
     }
   }
 
@@ -378,9 +433,9 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
 
                 ListTile(
                   leading: const Icon(Icons.share),
-                  title: const Text('Chia sẻ qua ứng dụng khác'),
+                  title: const Text('Chia sẽ về trang cá nhân'),
                   onTap: () {
-                    Share.share("Xem bài viết: https://link.to/post");
+                    _shareToProfile();
                     Navigator.pop(context);
                   },
                 ),
@@ -841,17 +896,97 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
 
             const SizedBox(height: 10),
 
-            // Caption
-            Text(widget.caption, style: const TextStyle(fontSize: 14)),
+            // Nếu là bài chia sẻ
+            if (widget.sharedFromPostId != null) ...[
+              if (widget.caption.isNotEmpty)
+                Text(widget.caption, style: const TextStyle(fontSize: 14)),
 
-            const SizedBox(height: 10),
+              const SizedBox(height: 10),
 
-            // Image
-            if (widget.imageUrl.isNotEmpty)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: Image.network(widget.imageUrl, fit: BoxFit.cover),
+              // Khung bài viết được chia sẻ
+              Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  border: Border.all(color: Colors.grey[300]!),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.1),
+                      blurRadius: 6,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                padding: const EdgeInsets.all(10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header người đăng bài gốc
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 16,
+                          backgroundImage:
+                              widget.sharedFromAvatarUrl != null
+                                  ? NetworkImage(widget.sharedFromAvatarUrl!)
+                                  : const AssetImage(
+                                        'assets/avatar_placeholder.png',
+                                      )
+                                      as ImageProvider,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            widget.sharedFromUserName ?? 'Người dùng',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 8),
+
+                    // Nội dung bài gốc
+                    if ((widget.sharedFromContent ?? '').isNotEmpty)
+                      Text(
+                        widget.sharedFromContent!,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Colors.black87,
+                        ),
+                      ),
+
+                    const SizedBox(height: 8),
+
+                    // Ảnh bài gốc (nếu có)
+                    if ((widget.sharedFromImageUrls?.isNotEmpty ?? false))
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: Image.network(
+                          widget.sharedFromImageUrls!.first,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                  ],
+                ),
               ),
+            ] else ...[
+              // Bài viết bình thường
+              if (widget.caption.isNotEmpty)
+                Text(widget.caption, style: const TextStyle(fontSize: 14)),
+
+              const SizedBox(height: 10),
+
+              if (widget.imageUrl.isNotEmpty)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Image.network(widget.imageUrl, fit: BoxFit.cover),
+                ),
+            ],
 
             // Reaction Summary
             if (_reactionCounts.isNotEmpty)

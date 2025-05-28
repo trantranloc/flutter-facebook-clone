@@ -45,7 +45,7 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     fetchPosts();
     fetchStory();
-   WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       final userProvider = Provider.of<UserProvider>(context, listen: false);
       final userId = FirebaseAuth.instance.currentUser?.uid;
       if (userId != null) {
@@ -54,7 +54,7 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-Future<void> fetchStory() async {
+  Future<void> fetchStory() async {
     try {
       final now = DateTime.now();
       final snapshot =
@@ -91,6 +91,7 @@ Future<void> fetchStory() async {
       ).showSnackBar(SnackBar(content: Text('Lỗi khi tải story: $e')));
     }
   }
+
   Future<void> fetchPosts() async {
     try {
       final snapshot =
@@ -99,11 +100,9 @@ Future<void> fetchStory() async {
               .orderBy('createdAt', descending: true)
               .get();
 
-      final List<Post> loaded =
-          snapshot.docs.map((doc) {
-            return Post.fromDocument(doc);
-          }).toList();
-
+      final List<Post> loaded = await Future.wait(
+        snapshot.docs.map((doc) => Post.fromDocumentWithShare(doc)),
+      );
 
       setState(() {
         posts = loaded;
@@ -141,6 +140,7 @@ Future<void> fetchStory() async {
       await fetchStory(); // Làm mới stories
     }
   }
+
   @override
   Widget build(BuildContext context) {
     final userProvider = Provider.of<UserProvider>(context);
@@ -363,7 +363,12 @@ Future<void> fetchStory() async {
               comments: post.comments,
               shares: 0,
               reactionCounts: post.reactionCounts,
-              reactionType: post.reactionType, 
+              reactionType: post.reactionType,
+              sharedFromPostId: post.sharedPostId,
+              sharedFromUserName: post.sharedFromUserName,
+              sharedFromAvatarUrl: post.sharedFromAvatarUrl,
+              sharedFromContent: post.sharedFromContent,
+              sharedFromImageUrls: post.sharedFromImageUrls,
             ),
           ),
         ],
