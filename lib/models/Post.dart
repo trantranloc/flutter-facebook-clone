@@ -12,7 +12,13 @@ class Post {
   final int comments;
   final Map<String, int> reactionCounts;
   final String? reactionType;
-
+  final String? sharedFromPostId;
+  final String? sharedFromUserName;
+  final String? sharedFromAvatarUrl;
+  final String? sharedFromContent;
+  final List<String>? sharedFromImageUrls;
+  final Post? sharedPost;
+  final String? sharedPostId;
   Post({
     required this.id,
     required this.userId,
@@ -25,6 +31,13 @@ class Post {
     required this.comments,
     required this.reactionCounts,
     this.reactionType,
+    this.sharedFromPostId,
+    this.sharedFromUserName,
+    this.sharedFromAvatarUrl,
+    this.sharedFromContent,
+    this.sharedFromImageUrls,
+    this.sharedPost,
+    this.sharedPostId,
   });
 
   factory Post.fromDocument(DocumentSnapshot doc) {
@@ -41,6 +54,51 @@ class Post {
       comments: data['comments'] ?? 0,
       reactionCounts: Map<String, int>.from(data['reactionCounts'] ?? {}),
       reactionType: null, // sẽ load riêng trong PostCard nếu cần
+      sharedPostId: data['sharedPostId'],
+    );
+  }
+  static Future<Post> fromDocumentWithShare(DocumentSnapshot doc) async {
+    final data = doc.data() as Map<String, dynamic>;
+
+    String? sharedPostId = data['sharedPostId'];
+    String? sharedFromUserName;
+    String? sharedFromAvatarUrl;
+    String? sharedFromContent;
+    List<String>? sharedFromImageUrls;
+
+    if (sharedPostId != null) {
+      final sharedDoc =
+          await FirebaseFirestore.instance
+              .collection('posts')
+              .doc(sharedPostId)
+              .get();
+
+      if (sharedDoc.exists) {
+        final sharedData = sharedDoc.data() as Map<String, dynamic>;
+        sharedFromUserName = sharedData['name'];
+        sharedFromAvatarUrl = sharedData['avatarUrl'];
+        sharedFromContent = sharedData['content'];
+        sharedFromImageUrls = List<String>.from(sharedData['imageUrls'] ?? []);
+      }
+    }
+
+    return Post(
+      id: doc.id,
+      userId: data['userId'],
+      name: data['name'] ?? '',
+      avatarUrl: data['avatarUrl'] ?? '',
+      content: data['content'] ?? '',
+      imageUrls: List<String>.from(data['imageUrls'] ?? []),
+      createdAt: data['createdAt'] ?? Timestamp.now(),
+      likes: data['likes'] ?? 0,
+      comments: data['comments'] ?? 0,
+      reactionCounts: Map<String, int>.from(data['reactionCounts'] ?? {}),
+      reactionType: null,
+      sharedPostId: sharedPostId,
+      sharedFromUserName: sharedFromUserName,
+      sharedFromAvatarUrl: sharedFromAvatarUrl,
+      sharedFromContent: sharedFromContent,
+      sharedFromImageUrls: sharedFromImageUrls,
     );
   }
 

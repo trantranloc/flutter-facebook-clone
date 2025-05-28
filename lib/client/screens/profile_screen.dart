@@ -85,8 +85,12 @@ class _ProfileScreenState extends State<ProfileScreen>
               .orderBy('createdAt', descending: true)
               .get();
 
+      final postsWithShare = await Future.wait(
+        snapshot.docs.map((doc) => Post.fromDocumentWithShare(doc)),
+      );
+
       setState(() {
-        _posts = snapshot.docs.map((doc) => Post.fromDocument(doc)).toList();
+        _posts = postsWithShare;
       });
     } catch (e) {
       print('Error fetching posts: $e');
@@ -166,6 +170,13 @@ class _ProfileScreenState extends State<ProfileScreen>
                     likes: post.likes,
                     comments: 0,
                     shares: 0,
+                    reactionCounts: post.reactionCounts,
+                    reactionType: post.reactionType,
+                    sharedFromPostId: post.sharedPostId,
+                    sharedFromUserName: post.sharedFromUserName,
+                    sharedFromAvatarUrl: post.sharedFromAvatarUrl,
+                    sharedFromContent: post.sharedFromContent,
+                    sharedFromImageUrls: post.sharedFromImageUrls,
                   );
                 },
               ),
