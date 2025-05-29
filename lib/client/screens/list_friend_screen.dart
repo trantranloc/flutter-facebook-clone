@@ -51,53 +51,53 @@ class _FriendListScreenState extends State<FriendListScreen> {
   }
 
   Future<void> _unfriend(String friendUid) async {
-  final confirm = await showDialog<bool>(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: const Text('Hủy kết bạn'),
-      content: const Text('Bạn có chắc muốn hủy kết bạn không?'),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context, false),
-          child: const Text('Hủy'),
-        ),
-        TextButton(
-          onPressed: () => Navigator.pop(context, true),
-          child: const Text('Xác nhận'),
-        ),
-      ],
-    ),
-  );
-
-  if (confirm != true) return;
-
-  final currentUser = _auth.currentUser;
-  if (currentUser == null) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Bạn cần đăng nhập để hủy kết bạn')),
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Hủy kết bạn'),
+        content: const Text('Bạn có chắc muốn hủy kết bạn không?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Hủy'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Xác nhận'),
+          ),
+        ],
+      ),
     );
-    return;
+
+    if (confirm != true) return;
+
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Bạn cần đăng nhập để hủy kết bạn')),
+      );
+      return;
+    }
+
+    try {
+      await _firestore.collection('users').doc(currentUser.uid).update({
+        'friends': FieldValue.arrayRemove([friendUid]),
+      });
+      await _firestore.collection('users').doc(friendUid).update({
+        'friends': FieldValue.arrayRemove([currentUser.uid]),
+      });
+      setState(() {
+        _friendsFuture = _fetchFriends();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Đã hủy kết bạn')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Lỗi: $e')),
+      );
+    }
   }
-
-  try {
-    await _firestore.collection('users').doc(currentUser.uid).update({
-      'friends': FieldValue.arrayRemove([friendUid]),
-    });
-    await _firestore.collection('users').doc(friendUid).update({
-      'friends': FieldValue.arrayRemove([currentUser.uid]),
-    });
-    setState(() {
-      _friendsFuture = _fetchFriends();
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Đã hủy kết bạn')),
-    );
-  } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Lỗi: $e')),
-    );
-  }
-}
 
   void _retryFetch() {
     setState(() {
@@ -116,7 +116,7 @@ class _FriendListScreenState extends State<FriendListScreen> {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () {
             context.go('/friend');
           },
@@ -126,13 +126,14 @@ class _FriendListScreenState extends State<FriendListScreen> {
           style: TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 18,
+            color: Colors.black,
           ),
         ),
-        backgroundColor: Theme.of(context).primaryColorDark, 
+        backgroundColor: Colors.white,
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(56.0),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
@@ -172,16 +173,28 @@ class _FriendListScreenState extends State<FriendListScreen> {
           }
           final friends = snapshot.data ?? [];
 
-
           final filteredFriends = friends
               .where((friend) => friend.name.toLowerCase().contains(_searchQuery))
               .toList();
 
           if (filteredFriends.isEmpty && _searchQuery.isEmpty) {
             return const Center(
-              child: Text(
-                'Bạn chưa có bạn bè nào.',
-                style: TextStyle(fontSize: 16, color: Colors.grey),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.person_add, size: 100, color: Colors.grey),
+                  SizedBox(height: 20),
+                  Text(
+                    'Bạn chưa có bạn bè nào',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 10),
+                  Text(
+                    'Hãy kết bạn để bắt đầu.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 16, color: Colors.grey),
+                  ),
+                ],
               ),
             );
           }
@@ -199,7 +212,7 @@ class _FriendListScreenState extends State<FriendListScreen> {
                     ),
                     TextButton(
                       onPressed: () {
-
+                        // Logic sắp xếp (có thể triển khai sau)
                       },
                       child: const Text(
                         'Sắp xếp',
@@ -212,14 +225,23 @@ class _FriendListScreenState extends State<FriendListScreen> {
               ...filteredFriends.map((friend) => Column(
                 children: [
                   ListTile(
-                    leading: CircleAvatar(
-                      backgroundImage: NetworkImage(
-                        friend.avatarUrl.isNotEmpty
-                            ? friend.avatarUrl
-                            : 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-4.0.3&auto=format&fit=crop&w=1350&q=80',
+                    onTap: () => context.push('/other-profile/${friend.uid}'),
+                    leading: GestureDetector(
+                      onTap: () => context.push('/other-profile/${friend.uid}'),
+                      child: CircleAvatar(
+                        radius: 25,
+                        backgroundImage: NetworkImage(
+                          friend.avatarUrl.isNotEmpty
+                              ? friend.avatarUrl
+                              : 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-4.0.3&auto=format&fit=crop&w=1350&q=80',
+                        ),
+                        onBackgroundImageError: (_, __) => const Icon(Icons.person, size: 25),
                       ),
                     ),
-                    title: Text(friend.name),
+                    title: Text(
+                      friend.name,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
                     subtitle: Text('${friend.friends.length} bạn chung'),
                     trailing: PopupMenuButton<String>(
                       icon: const Icon(Icons.more_horiz),
@@ -233,7 +255,6 @@ class _FriendListScreenState extends State<FriendListScreen> {
                           value: 'unfriend',
                           child: Text('Hủy kết bạn'),
                         ),
-
                       ],
                     ),
                   ),
