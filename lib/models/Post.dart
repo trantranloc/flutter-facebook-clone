@@ -102,6 +102,28 @@ class Post {
     );
   }
 
+  Post copyWith({String? content, List<String>? imageUrls}) {
+    return Post(
+      id: id,
+      userId: userId,
+      name: name,
+      avatarUrl: avatarUrl,
+      content: content ?? this.content,
+      imageUrls: imageUrls ?? this.imageUrls,
+      createdAt: createdAt,
+      likes: likes,
+      comments: comments,
+      reactionCounts: reactionCounts,
+      reactionType: reactionType,
+      sharedPostId: sharedPostId,
+      sharedFromUserName: sharedFromUserName,
+      sharedFromAvatarUrl: sharedFromAvatarUrl,
+      sharedFromContent: sharedFromContent,
+      sharedFromImageUrls: sharedFromImageUrls,
+      sharedPost: sharedPost,
+    );
+  }
+
   Map<String, dynamic> toMap() {
     return {
       'userId': userId,
@@ -112,15 +134,7 @@ class Post {
       'createdAt': createdAt,
       'likes': likes,
       'comments': comments,
-      'reactionCounts': {
-        'like': 0,
-        'love': 0,
-        'care': 0,
-        'haha': 0,
-        'wow': 0,
-        'sad': 0,
-        'angry': 0,
-      },
+      'reactionCounts': reactionCounts,
     };
   }
 }
