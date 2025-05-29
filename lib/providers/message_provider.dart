@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_facebook_clone/services/chat_service.dart';
 
@@ -5,7 +6,6 @@ class MessageProvider with ChangeNotifier {
   List<Map<String, dynamic>> _friendsList = [];
   List<Map<String, dynamic>> _filteredFriends = [];
   bool _isLoading = true;
-  String _searchQuery = '';
 
   List<Map<String, dynamic>> get friendsList => _filteredFriends;
   bool get isLoading => _isLoading;
@@ -21,21 +21,28 @@ class MessageProvider with ChangeNotifier {
     notifyListeners();
 
     _friendsList = await _chatService.getFriendsWithLastMessage();
-    // Sort pinned chats to top
+    // Sắp xếp danh sách: ưu tiên ghim, sau đó theo thời gian mới nhất
     _friendsList.sort((a, b) {
       final aPinned = a['isPinned'] ?? false;
       final bPinned = b['isPinned'] ?? false;
+
+      // Ưu tiên ghim
       if (aPinned && !bPinned) return -1;
       if (!aPinned && bPinned) return 1;
-      return 0;
+
+      // Sắp xếp theo lastMessageTimestamp hoặc createdAt
+      final aTime = a['lastMessageTimestamp'] ?? a['createdAt'] ?? Timestamp.fromDate(DateTime(1970));
+      final bTime = b['lastMessageTimestamp'] ?? b['createdAt'] ?? Timestamp.fromDate(DateTime(1970));
+
+      return bTime.compareTo(aTime); // Sắp xếp giảm dần (mới nhất lên đầu)
     });
+
     _filteredFriends = _friendsList;
     _isLoading = false;
     notifyListeners();
   }
 
   void searchFriends(String query) {
-    _searchQuery = query;
     if (query.isEmpty) {
       _filteredFriends = _friendsList;
     } else {
@@ -43,12 +50,24 @@ class MessageProvider with ChangeNotifier {
           .where((friend) =>
               friend['name'].toLowerCase().contains(query.toLowerCase()))
           .toList();
+      // Giữ nguyên logic sắp xếp khi tìm kiếm
+      _filteredFriends.sort((a, b) {
+        final aPinned = a['isPinned'] ?? false;
+        final bPinned = b['isPinned'] ?? false;
+
+        if (aPinned && !bPinned) return -1;
+        if (!aPinned && bPinned) return 1;
+
+        final aTime = a['lastMessageTimestamp'] ?? a['createdAt'] ?? Timestamp.fromDate(DateTime(1970));
+        final bTime = b['lastMessageTimestamp'] ?? b['createdAt'] ?? Timestamp.fromDate(DateTime(1970));
+
+        return bTime.compareTo(aTime);
+      });
     }
     notifyListeners();
   }
 
   void clearSearch() {
-    _searchQuery = '';
     _filteredFriends = _friendsList;
     notifyListeners();
   }
