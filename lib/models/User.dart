@@ -12,6 +12,7 @@ class UserModel {
   final bool isAdmin;
   final bool isBlocked; 
 
+
   const UserModel({
     required this.uid,
     required this.name,
