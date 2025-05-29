@@ -8,6 +8,8 @@ import '../client/screens/comment_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_facebook_clone/providers/user_provider.dart';
 import '../client/screens/profile_screen.dart';
+import '../client/screens/create_post_screen.dart';
+import '../models/Post.dart';
 
 class PostCard extends StatefulWidget {
   final String postId;
@@ -490,7 +492,11 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => ProfileScreen(uid: widget.userId),
+                        builder:
+                            (_) => ProfileScreen(
+                              uid: widget.userId,
+                              hideAppBar: true,
+                            ),
                       ),
                     );
                   },
@@ -581,32 +587,47 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
                                   ),
                                   title: const Text('Sửa bài viết'),
                                   onTap: () async {
-                                    Navigator.pop(context); // Đóng bottom sheet
-                                    // Chuyển đến màn hình sửa bài viết
-                                    // await Navigator.push(
-                                    //   context,
-                                    //   MaterialPageRoute(
-                                    //     builder:
-                                    //         (context) => CreatePostScreen(
-                                    //           post: Post(
-                                    //             id: widget.postId,
-                                    //             userId: widget.userId,
-                                    //             name: widget.name,
-                                    //             avatarUrl: widget.avatarUrl,
-                                    //             content: widget.caption,
-                                    //             imageUrls:
-                                    //                 widget.imageUrl.isNotEmpty
-                                    //                     ? [widget.imageUrl]
-                                    //                     : [],
-                                    //             likes: widget.likes,
-                                    //             createdAt:
-                                    //                 Timestamp.now(), // Cần lấy đúng createdAt nếu có
-                                    //           ),
-                                    //         ),
-                                    //   ),
-                                    // );
-                                    // Làm mới bài viết sau khi sửa (nếu có callback)
-                                    // if (widget.onRefresh != null) widget.onRefresh!();
+                                    Navigator.pop(context);
+                                    final editedPost = await Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder:
+                                            (context) => CreatePostScreen(
+                                              post: Post(
+                                                id: widget.postId,
+                                                userId: widget.userId,
+                                                name: widget.name,
+                                                avatarUrl:
+                                                    widget.avatarUrl ?? '',
+                                                content: widget.caption,
+                                                imageUrls:
+                                                    widget.imageUrl.isNotEmpty
+                                                        ? [widget.imageUrl]
+                                                        : [],
+                                                createdAt:
+                                                    Timestamp.now(), // hoặc giữ nguyên nếu bạn có field gốc
+                                                likes: widget.likes,
+                                                comments: widget.comments,
+                                                reactionCounts:
+                                                    widget.reactionCounts ?? {},
+                                              ),
+                                            ),
+                                      ),
+                                    );
+                                    if (editedPost != null) {
+                                      // Gọi callback để HomeScreen làm mới bài viết
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              'Cập nhật thành công',
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                    }
                                   },
                                 ),
                                 ListTile(
