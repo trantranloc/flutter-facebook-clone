@@ -59,35 +59,42 @@ final GoRouter userRouter = GoRouter(
       '/password',
       '/avatar',
     ];
-    // Handle admin paths
-    if (currentPath == '/admin' || currentPath == '/admin/choice') {
-      // Kiểm tra xem người dùng có phải là admin không
-      if (context.mounted) {
-        final userProvider = Provider.of<UserProvider>(context, listen: false);
-        if (userProvider.isAdmin) {
-          // Chuyển sang router admin nếu đang ở router user
-          if (!userProvider.useAdminRouter) {
-            userProvider.setAdminRouter(true);
-          }
-          return null; // Cho phép tiếp tục
-        } else {
-          return '/'; // Chuyển hướng về trang chủ nếu không phải admin
-        }
-      }
-    }
+    // Cho phép các route đăng ký
     if (registrationRoutes.any((route) => currentPath.startsWith(route))) {
-      return null; // Không chuyển hướng
+      return null;
     }
-    // Nếu chưa đăng nhập và cố gắng vào tuyến đường được bảo vệ, chuyển hướng đến /login
+
+    // Nếu chưa đăng nhập và cố gắng vào route được bảo vệ
     if (!isLoggedIn &&
         protectedRoutes.any((route) => currentPath.startsWith(route))) {
       return '/login';
     }
-    // Nếu đã đăng nhập và ở trang đăng nhập, chuyển hướng đến /home
+
+    // Nếu đã đăng nhập và ở trang đăng nhập
     if (isLoggedIn && currentPath == '/login') {
+      // Kiểm tra admin status trước khi redirect
+      if (context.mounted) {
+        final userProvider = Provider.of<UserProvider>(context, listen: false);
+        // Đợi admin status được load (nếu chưa có)
+        if (userProvider.userModel != null && userProvider.isAdmin) {
+          return '/admin/choice';
+        }
+      }
       return '/';
     }
-    return null; // Không chuyển hướng
+
+    // Handle admin paths - cho phép truy cập nếu là admin
+    if (currentPath.startsWith('/admin')) {
+      if (context.mounted) {
+        final userProvider = Provider.of<UserProvider>(context, listen: false);
+        if (!userProvider.isAdmin) {
+          return '/'; // Chuyển về trang chủ nếu không phải admin
+        }
+      }
+      return null; // Cho phép tiếp tục nếu là admin
+    }
+
+    return null;
   },
   routes: [
     // Không cần thanh điều hướng và appBar

@@ -54,6 +54,35 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+
+  Future<List<String>> fetchFriendIds(String currentUserId) async {
+    final friendSnap1 =
+        await FirebaseFirestore.instance
+            .collection('friends')
+            .where('status', isEqualTo: 'accepted')
+            .where('userId1', isEqualTo: currentUserId)
+            .get();
+
+    final friendSnap2 =
+        await FirebaseFirestore.instance
+            .collection('friends')
+            .where('status', isEqualTo: 'accepted')
+            .where('userId2', isEqualTo: currentUserId)
+            .get();
+
+    List<String> friendIds = [];
+
+    for (var doc in friendSnap1.docs) {
+      friendIds.add(doc['userId2']);
+    }
+
+    for (var doc in friendSnap2.docs) {
+      friendIds.add(doc['userId1']);
+    }
+
+    return friendIds;
+  }
+
   Future<void> fetchStory() async {
     try {
       final now = DateTime.now();
@@ -134,25 +163,57 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> fetchPosts() async {
     try {
-      final snapshot =
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) return;
+
+      // Lấy danh sách bạn bè từ trường `friends` của user hiện tại
+      final currentUserDoc =
           await FirebaseFirestore.instance
-              .collection('posts')
-              .orderBy('createdAt', descending: true)
+              .collection('users')
+              .doc(currentUser.uid)
               .get();
 
-      final List<Post> loaded =
-          snapshot.docs.map((doc) {
-            return Post.fromDocument(doc);
-          }).toList();
+      final userData = currentUserDoc.data();
+      final List<String> friendIds = List<String>.from(
+        userData?['friends'] ?? [],
+      );
+
+      // Thêm bài viết của chính người dùng
+      friendIds.add(currentUser.uid);
+
+      // Do Firestore giới hạn 10 phần tử trong `whereIn`, nên chia nhỏ
+      List<Post> allPosts = [];
+      const int chunkSize = 10;
+      for (int i = 0; i < friendIds.length; i += chunkSize) {
+        final chunk = friendIds.sublist(
+          i,
+          (i + chunkSize > friendIds.length) ? friendIds.length : i + chunkSize,
+        );
+
+        final snapshot =
+            await FirebaseFirestore.instance
+                .collection('posts')
+                .where('userId', whereIn: chunk)
+                .orderBy('createdAt', descending: true)
+                .get();
+
+        final chunkPosts = await Future.wait(
+          snapshot.docs.map((doc) => Post.fromDocumentWithShare(doc)),
+        );
+
+        allPosts.addAll(chunkPosts);
+      }
+
+      allPosts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
       setState(() {
-        posts = loaded;
+        posts = allPosts;
       });
     } catch (e) {
-      print('Error fetching posts: $e');
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Lỗi khi tải bài viết: $e')));
+      print('Error fetching posts for friends: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Lỗi khi tải bài viết bạn bè: $e')),
+      );
     }
   }
 
@@ -402,6 +463,11 @@ class _HomeScreenState extends State<HomeScreen> {
               shares: 0,
               reactionCounts: post.reactionCounts,
               reactionType: post.reactionType,
+              sharedFromPostId: post.sharedPostId,
+              sharedFromUserName: post.sharedFromUserName,
+              sharedFromAvatarUrl: post.sharedFromAvatarUrl,
+              sharedFromContent: post.sharedFromContent,
+              sharedFromImageUrls: post.sharedFromImageUrls,
             ),
           ),
         ],

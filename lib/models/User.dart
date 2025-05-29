@@ -10,7 +10,12 @@ class UserModel {
   final List<String> friends;
   final List<String> pendingRequests;
   final bool isAdmin;
-  final bool isBlocked; 
+  final bool isBlocked;
+  final bool isBanned;
+  final DateTime? bannedAt;
+  final String? bannedReason;
+  final DateTime? bannedUntil;
+
 
   const UserModel({
     required this.uid,
@@ -25,6 +30,10 @@ class UserModel {
     this.pendingRequests = const [],
     this.isAdmin = false,
     this.isBlocked = false,
+    this.isBanned = false,
+    this.bannedAt,
+    this.bannedReason,
+    this.bannedUntil,
   });
 
   factory UserModel.fromMap(Map<String, dynamic> map) {
@@ -44,6 +53,20 @@ class UserModel {
       pendingRequests: List<String>.from(map['pendingRequests'] ?? []),
       isAdmin: map['isAdmin'] ?? false,
       isBlocked: map['isBlocked'] ?? false,
+      isBanned: map['isBanned'] ?? false,
+      bannedAt:
+          map['bannedAt'] != null
+              ? (map['bannedAt'] is String
+                  ? DateTime.parse(map['bannedAt'])
+                  : (map['bannedAt'] as dynamic).toDate())
+              : null,
+      bannedReason: map['bannedReason'],
+      bannedUntil:
+          map['bannedUntil'] != null
+              ? (map['bannedUntil'] is String
+                  ? DateTime.parse(map['bannedUntil'])
+                  : (map['bannedUntil'] as dynamic).toDate())
+              : null,
     );
   }
 
@@ -61,6 +84,10 @@ class UserModel {
       'pendingRequests': pendingRequests,
       'isAdmin': isAdmin,
       'isBlocked': isBlocked,
+      'isBanned': isBanned,
+      'bannedAt': bannedAt?.toIso8601String(),
+      'bannedReason': bannedReason,
+      'bannedUntil': bannedUntil?.toIso8601String(),
     };
   }
 
@@ -78,7 +105,11 @@ class UserModel {
     List<String>? friends,
     List<String>? pendingRequests,
     bool? isAdmin,
-    bool? isBlocked, // Thêm isBlocked
+    bool? isBlocked,
+    bool? isBanned,
+    DateTime? bannedAt,
+    String? bannedReason,
+    DateTime? bannedUntil,
   }) {
     return UserModel(
       uid: uid ?? this.uid,
@@ -92,7 +123,11 @@ class UserModel {
       friends: friends ?? this.friends,
       pendingRequests: pendingRequests ?? this.pendingRequests,
       isAdmin: isAdmin ?? this.isAdmin,
-      isBlocked: isBlocked ?? this.isBlocked, 
+      isBlocked: isBlocked ?? this.isBlocked,
+      isBanned: isBanned ?? this.isBanned,
+      bannedAt: bannedAt ?? this.bannedAt,
+      bannedReason: bannedReason ?? this.bannedReason,
+      bannedUntil: bannedUntil ?? this.bannedUntil,
     );
   }
 
@@ -103,5 +138,53 @@ class UserModel {
     } catch (_) {
       return null;
     }
+  }
+
+  @override
+  String toString() {
+    return 'UserModel(uid: $uid, name: $name, email: $email, isAdmin: $isAdmin, isBanned: $isBanned)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+
+    return other is UserModel &&
+        other.uid == uid &&
+        other.name == name &&
+        other.email == email &&
+        other.avatarUrl == avatarUrl &&
+        other.coverUrl == coverUrl &&
+        other.bio == bio &&
+        other.gender == gender &&
+        other.createdAt == createdAt &&
+        other.friends.toString() == friends.toString() &&
+        other.pendingRequests.toString() == pendingRequests.toString() &&
+        other.isAdmin == isAdmin &&
+        other.isBlocked == isBlocked &&
+        other.isBanned == isBanned &&
+        other.bannedAt == bannedAt &&
+        other.bannedReason == bannedReason &&
+        other.bannedUntil == bannedUntil;
+  }
+
+  @override
+  int get hashCode {
+    return uid.hashCode ^
+        name.hashCode ^
+        email.hashCode ^
+        avatarUrl.hashCode ^
+        coverUrl.hashCode ^
+        bio.hashCode ^
+        gender.hashCode ^
+        createdAt.hashCode ^
+        friends.hashCode ^
+        pendingRequests.hashCode ^
+        isAdmin.hashCode ^
+        isBlocked.hashCode ^
+        isBanned.hashCode ^
+        bannedAt.hashCode ^
+        bannedReason.hashCode ^
+        bannedUntil.hashCode;
   }
 }

@@ -16,8 +16,9 @@ import 'create_post_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String uid;
+  final bool hideAppBar;
 
-  const ProfileScreen({super.key, required this.uid});
+  const ProfileScreen({super.key, required this.uid, this.hideAppBar = false});
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -85,8 +86,12 @@ class _ProfileScreenState extends State<ProfileScreen>
               .orderBy('createdAt', descending: true)
               .get();
 
+      final postsWithShare = await Future.wait(
+        snapshot.docs.map((doc) => Post.fromDocumentWithShare(doc)),
+      );
+
       setState(() {
-        _posts = snapshot.docs.map((doc) => Post.fromDocument(doc)).toList();
+        _posts = postsWithShare;
       });
     } catch (e) {
       print('Error fetching posts: $e');
@@ -166,6 +171,13 @@ class _ProfileScreenState extends State<ProfileScreen>
                     likes: post.likes,
                     comments: 0,
                     shares: 0,
+                    reactionCounts: post.reactionCounts,
+                    reactionType: post.reactionType,
+                    sharedFromPostId: post.sharedPostId,
+                    sharedFromUserName: post.sharedFromUserName,
+                    sharedFromAvatarUrl: post.sharedFromAvatarUrl,
+                    sharedFromContent: post.sharedFromContent,
+                    sharedFromImageUrls: post.sharedFromImageUrls,
                   );
                 },
               ),
@@ -533,6 +545,8 @@ class _ProfileScreenState extends State<ProfileScreen>
         final currentUser = FirebaseAuth.instance.currentUser;
         final bool isCurrentUserProfile =
             currentUser != null && currentUser.uid == widget.uid;
+        final bool shouldHideAppBar =
+            widget.hideAppBar && !isCurrentUserProfile;
 
         if (userModel != null) {
           _animationController.forward();
@@ -542,33 +556,37 @@ class _ProfileScreenState extends State<ProfileScreen>
           builder: (context, themeProvider, _) {
             return Scaffold(
               backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-              appBar: AppBar(
-                elevation: 0,
-                backgroundColor: Theme.of(context).cardColor,
-                leading: IconButton(
-                  icon: Icon(
-                    Icons.arrow_back,
-                    color: Theme.of(context).iconTheme.color,
-                  ),
-                  onPressed: () => context.go('/menu'),
-                ),
-                title: Text(
-                  userModel?.name ?? 'Profile',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                actions: [
-                  if (isCurrentUserProfile)
-                    IconButton(
-                      icon: Icon(
-                        Icons.qr_code,
-                        color: Theme.of(context).iconTheme.color,
+              appBar:
+                  shouldHideAppBar
+                      ? null
+                      : AppBar(
+                        elevation: 0,
+                        backgroundColor: Theme.of(context).cardColor,
+                        leading: IconButton(
+                          icon: Icon(
+                            Icons.arrow_back,
+                            color: Theme.of(context).iconTheme.color,
+                          ),
+                          onPressed: () => context.go('/menu'),
+                        ),
+                        title: Text(
+                          userModel?.name ?? 'Profile',
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                        actions: [
+                          if (isCurrentUserProfile)
+                            IconButton(
+                              icon: Icon(
+                                Icons.qr_code,
+                                color: Theme.of(context).iconTheme.color,
+                              ),
+                              onPressed: () {
+                                // Show QR code
+                              },
+                            ),
+                        ],
                       ),
-                      onPressed: () {
-                        // Show QR code
-                      },
-                    ),
-                ],
-              ),
+
               body:
                   isLoading && userModel == null
                       ? const Center(child: CircularProgressIndicator())

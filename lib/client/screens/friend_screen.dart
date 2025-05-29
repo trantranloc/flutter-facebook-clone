@@ -353,7 +353,7 @@ class _FriendScreenState extends State<FriendScreen> {
       return ElevatedButton(
         onPressed: () => _toggleFriendRequest(userUid),
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF1877F2),
+          backgroundColor: Theme.of(context).colorScheme.primary,
           foregroundColor: Colors.white,
         ),
         child: const Text('Thêm bạn bè'),

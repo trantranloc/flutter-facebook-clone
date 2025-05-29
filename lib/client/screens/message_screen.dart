@@ -22,124 +22,135 @@ class _MessageScreenState extends State<MessageScreen> {
   void _showSettingsMenu(BuildContext context, MessageProvider provider) {
     showModalBottomSheet(
       context: context,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.person_add),
-              title: const Text('New message'),
-              onTap: () {
-                Navigator.pop(context);
-                // TODO: Implement new message
-              },
+      builder:
+          (context) => Container(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.person_add),
+                  title: const Text('New message'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    //   Implement new message
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.group),
+                  title: const Text('New group'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showCreateGroupDialog(context, provider);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.mark_chat_unread),
+                  title: const Text('Mark all as read'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    //   Implement mark all as read
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.camera_alt),
+                  title: const Text('Camera'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    //   Implement camera
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.settings),
+                  title: const Text('Settings'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    //   Implement settings
+                  },
+                ),
+              ],
             ),
-            ListTile(
-              leading: const Icon(Icons.group),
-              title: const Text('New group'),
-              onTap: () {
-                Navigator.pop(context);
-                _showCreateGroupDialog(context, provider);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.mark_chat_unread),
-              title: const Text('Mark all as read'),
-              onTap: () {
-                Navigator.pop(context);
-                // TODO: Implement mark all as read
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.camera_alt),
-              title: const Text('Camera'),
-              onTap: () {
-                Navigator.pop(context);
-                // TODO: Implement camera
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.settings),
-              title: const Text('Settings'),
-              onTap: () {
-                Navigator.pop(context);
-                // TODO: Implement settings
-              },
-            ),
-          ],
-        ),
-      ),
+          ),
     );
   }
 
   void _showCreateGroupDialog(BuildContext context, MessageProvider provider) {
-    final TextEditingController _groupNameController = TextEditingController();
+    final TextEditingController groupNameController = TextEditingController();
     List<String> selectedMembers = [];
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Create New Group'),
-        content: StatefulBuilder(
-          builder: (context, setState) => Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: _groupNameController,
-                decoration: const InputDecoration(
-                  hintText: 'Enter group name',
-                  border: OutlineInputBorder(),
-                ),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Create New Group'),
+            content: StatefulBuilder(
+              builder:
+                  (context, setState) => Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextField(
+                        controller: groupNameController,
+                        decoration: const InputDecoration(
+                          hintText: 'Enter group name',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      const Text('Select members:'),
+                      SizedBox(
+                        height: 200,
+                        width: double.maxFinite,
+                        child: ListView.builder(
+                          itemCount: provider.friendsList.length,
+                          itemBuilder: (context, index) {
+                            final friend = provider.friendsList[index];
+                            return CheckboxListTile(
+                              title: Text(friend['name']),
+                              value: selectedMembers.contains(friend['uid']),
+                              onChanged: (bool? value) {
+                                setState(() {
+                                  if (value == true) {
+                                    selectedMembers.add(friend['uid']);
+                                  } else {
+                                    selectedMembers.remove(friend['uid']);
+                                  }
+                                });
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
               ),
-              const SizedBox(height: 16),
-              const Text('Select members:'),
-              Container(
-                height: 200,
-                width: double.maxFinite,
-                child: ListView.builder(
-                  itemCount: provider.friendsList.length,
-                  itemBuilder: (context, index) {
-                    final friend = provider.friendsList[index];
-                    return CheckboxListTile(
-                      title: Text(friend['name']),
-                      value: selectedMembers.contains(friend['uid']),
-                      onChanged: (bool? value) {
-                        setState(() {
-                          if (value == true) {
-                            selectedMembers.add(friend['uid']);
-                          } else {
-                            selectedMembers.remove(friend['uid']);
-                          }
-                        });
-                      },
+              TextButton(
+                onPressed: () {
+                  if (groupNameController.text.isNotEmpty &&
+                      selectedMembers.isNotEmpty) {
+                    provider.createGroup(
+                      groupNameController.text,
+                      selectedMembers,
                     );
-                  },
-                ),
+                    Navigator.pop(context);
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Please enter a group name and select at least one member',
+                        ),
+                      ),
+                    );
+                  }
+                },
+                child: const Text('Create'),
               ),
             ],
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              if (_groupNameController.text.isNotEmpty && selectedMembers.isNotEmpty) {
-                provider.createGroup(_groupNameController.text, selectedMembers);
-                Navigator.pop(context);
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Please enter a group name and select at least one member')),
-                );
-              }
-            },
-            child: const Text('Create'),
-          ),
-        ],
-      ),
     );
   }
 
@@ -172,7 +183,10 @@ class _MessageScreenState extends State<MessageScreen> {
               children: [
                 // Messenger-style Search Bar
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   child: TextField(
                     controller: _searchController,
                     decoration: InputDecoration(
@@ -191,54 +205,72 @@ class _MessageScreenState extends State<MessageScreen> {
                   ),
                 ),
                 Expanded(
-                  child: provider.isLoading
-                      ? const Center(child: CircularProgressIndicator())
-                      : ListView(
-                          children: [
-                            // Horizontal Friends Section
-                            Container(
-                              height: 90,
-                              padding: const EdgeInsets.symmetric(vertical: 5),
-                              child: ListView(
-                                scrollDirection: Axis.horizontal,
-                                children: provider.friendsList.take(7).map((friend) {
-                                  return FriendAvatar(
-                                    name: friend['name'],
-                                    image: friend['avatarUrl'],
-                                    isActive: friend['isActive'],
-                                    onTap: () {
-                                      context.go(friend['isGroup'] == true 
-                                        ? '/message/group/${friend['uid']}' 
-                                        : '/message/chat/${friend['uid']}');
-                                    },
-                                  );
-                                }).toList(),
+                  child:
+                      provider.isLoading
+                          ? const Center(child: CircularProgressIndicator())
+                          : ListView(
+                            children: [
+                              // Horizontal Friends Section
+                              Container(
+                                height: 90,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 5,
+                                ),
+                                child: ListView(
+                                  scrollDirection: Axis.horizontal,
+                                  children:
+                                      provider.friendsList.take(7).map((
+                                        friend,
+                                      ) {
+                                        return FriendAvatar(
+                                          name: friend['name'],
+                                          image: friend['avatarUrl'],
+                                          isActive: friend['isActive'],
+                                          onTap: () {
+                                            context.go(
+                                              friend['isGroup'] == true
+                                                  ? '/message/group/${friend['uid']}'
+                                                  : '/message/chat/${friend['uid']}',
+                                            );
+                                          },
+                                        );
+                                      }).toList(),
+                                ),
                               ),
-                            ),
-                            const Divider(),
-                            // Messages Section
-                            ...provider.friendsList.asMap().entries.map((entry) {
-                              final index = entry.key;
-                              final friend = entry.value;
-                              return MessageTile(
-                                name: friend['name'],
-                                message: friend['lastMessage'],
-                                avatarUrl: friend['avatarUrl'],
-                                isActive: friend['isActive'],
-                                isPinned: friend['isPinned'] ?? false,
-                                isGroup: friend['isGroup'] ?? false,
-                                onTap: () {
-                                  context.go(friend['isGroup'] == true 
-                                    ? '/message/group/${friend['uid']}' 
-                                    : '/message/chat/${friend['uid']}');
-                                },
-                                onMoreTap: () {
-                                  _showChatOptions(context, provider, friend['uid'], index, friend['isGroup'] ?? false);
-                                },
-                              );
-                            }),
-                          ],
-                        ),
+                              const Divider(),
+                              // Messages Section
+                              ...provider.friendsList.asMap().entries.map((
+                                entry,
+                              ) {
+                                final index = entry.key;
+                                final friend = entry.value;
+                                return MessageTile(
+                                  name: friend['name'],
+                                  message: friend['lastMessage'],
+                                  avatarUrl: friend['avatarUrl'],
+                                  isActive: friend['isActive'],
+                                  isPinned: friend['isPinned'] ?? false,
+                                  isGroup: friend['isGroup'] ?? false,
+                                  onTap: () {
+                                    context.go(
+                                      friend['isGroup'] == true
+                                          ? '/message/group/${friend['uid']}'
+                                          : '/message/chat/${friend['uid']}',
+                                    );
+                                  },
+                                  onMoreTap: () {
+                                    _showChatOptions(
+                                      context,
+                                      provider,
+                                      friend['uid'],
+                                      index,
+                                      friend['isGroup'] ?? false,
+                                    );
+                                  },
+                                );
+                              }),
+                            ],
+                          ),
                 ),
               ],
             ),
@@ -248,62 +280,81 @@ class _MessageScreenState extends State<MessageScreen> {
     );
   }
 
-  void _showChatOptions(BuildContext context, MessageProvider provider, String friendId, int index, bool isGroup) {
+  void _showChatOptions(
+    BuildContext context,
+    MessageProvider provider,
+    String friendId,
+    int index,
+    bool isGroup,
+  ) {
     showModalBottomSheet(
       context: context,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.push_pin),
-              title: Text(provider.friendsList[index]['isPinned'] ?? false ? 'Unpin chat' : 'Pin chat'),
-              onTap: () {
-                provider.togglePinChat(friendId);
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.delete),
-              title: const Text('Delete chat'),
-              onTap: () {
-                showDialog(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: const Text('Delete Chat'),
-                    content: const Text('Are you sure you want to delete this chat?'),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('Cancel'),
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          provider.deleteChat(friendId, isGroup: isGroup);
-                          Navigator.pop(context);
-                          Navigator.pop(context);
-                        },
-                        child: const Text('Delete', style: TextStyle(color: Colors.red)),
-                      ),
-                    ],
+      builder:
+          (context) => Container(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.push_pin),
+                  title: Text(
+                    provider.friendsList[index]['isPinned'] ?? false
+                        ? 'Unpin chat'
+                        : 'Pin chat',
                   ),
-                );
-              },
+                  onTap: () {
+                    provider.togglePinChat(friendId);
+                    Navigator.pop(context);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.delete),
+                  title: const Text('Delete chat'),
+                  onTap: () {
+                    showDialog(
+                      context: context,
+                      builder:
+                          (context) => AlertDialog(
+                            title: const Text('Delete Chat'),
+                            content: const Text(
+                              'Are you sure you want to delete this chat?',
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text('Cancel'),
+                              ),
+                              TextButton(
+                                onPressed: () {
+                                  provider.deleteChat(
+                                    friendId,
+                                    isGroup: isGroup,
+                                  );
+                                  Navigator.pop(context);
+                                  Navigator.pop(context);
+                                },
+                                child: const Text(
+                                  'Delete',
+                                  style: TextStyle(color: Colors.red),
+                                ),
+                              ),
+                            ],
+                          ),
+                    );
+                  },
+                ),
+                if (isGroup)
+                  ListTile(
+                    leading: const Icon(Icons.group),
+                    title: const Text('View group details'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      context.go('/message/group/$friendId/details');
+                    },
+                  ),
+              ],
             ),
-            if (isGroup)
-              ListTile(
-                leading: const Icon(Icons.group),
-                title: const Text('View group details'),
-                onTap: () {
-                  Navigator.pop(context);
-                  // TODO: Implement group details screen
-                  context.go('/message/group/${friendId}/details');
-                },
-              ),
-          ],
-        ),
-      ),
+          ),
     );
   }
 }
@@ -335,9 +386,11 @@ class FriendAvatar extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 28,
-                  backgroundImage: image.isNotEmpty
-                      ? NetworkImage(image)
-                      : const AssetImage('assets/user.jpg') as ImageProvider,
+                  backgroundImage:
+                      image.isNotEmpty
+                          ? NetworkImage(image)
+                          : const AssetImage('assets/user.jpg')
+                              as ImageProvider,
                   onBackgroundImageError: (exception, stackTrace) {
                     print('Error loading image: $exception');
                   },
@@ -404,9 +457,10 @@ class MessageTile extends StatelessWidget {
         children: [
           CircleAvatar(
             radius: 25,
-            backgroundImage: avatarUrl.isNotEmpty
-                ? NetworkImage(avatarUrl)
-                : const AssetImage('assets/group.jpg') as ImageProvider,
+            backgroundImage:
+                avatarUrl.isNotEmpty
+                    ? NetworkImage(avatarUrl)
+                    : const AssetImage('assets/group.jpg') as ImageProvider,
             onBackgroundImageError: (exception, stackTrace) {
               print('Error loading image: $exception');
             },
@@ -428,10 +482,7 @@ class MessageTile extends StatelessWidget {
       ),
       title: Row(
         children: [
-          Text(
-            name,
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
+          Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
           if (isPinned)
             const Padding(
               padding: EdgeInsets.only(left: 8.0),

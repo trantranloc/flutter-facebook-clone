@@ -8,6 +8,8 @@ import '../client/screens/comment_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_facebook_clone/providers/user_provider.dart';
 import '../client/screens/profile_screen.dart';
+import '../client/screens/create_post_screen.dart';
+import '../models/Post.dart';
 
 class PostCard extends StatefulWidget {
   final String postId;
@@ -23,6 +25,11 @@ class PostCard extends StatefulWidget {
   final Map<String, int>? reactionCounts;
   final void Function(String)? onReact;
   final String userId;
+  final String? sharedFromPostId;
+  final String? sharedFromUserName;
+  final String? sharedFromAvatarUrl;
+  final String? sharedFromContent;
+  final List<String>? sharedFromImageUrls;
 
   const PostCard({
     super.key,
@@ -39,6 +46,11 @@ class PostCard extends StatefulWidget {
     this.reactionCounts,
     this.onReact,
     required this.userId,
+    this.sharedFromPostId,
+    this.sharedFromUserName,
+    this.sharedFromAvatarUrl,
+    this.sharedFromContent,
+    this.sharedFromImageUrls,
   });
 
   @override
@@ -52,7 +64,6 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
   String? _userReaction;
 
   late AnimationController _animController;
-  late Animation<double> _scaleAnim;
   late AnimationController _popupController;
   late Animation<double> _popupAnim;
   Timer? _dismissTimer;
@@ -95,10 +106,6 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
-    _scaleAnim = Tween<double>(
-      begin: 0.5,
-      end: 1.2,
-    ).chain(CurveTween(curve: Curves.elasticOut)).animate(_animController);
 
     _popupController = AnimationController(
       vsync: this,
@@ -134,6 +141,51 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
       setState(() {
         _userReaction = reactionDoc['type'];
       });
+    }
+  }
+
+  Future<void> _shareToProfile() async {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final user = userProvider.userModel;
+
+    if (user == null) return;
+
+    try {
+      await FirebaseFirestore.instance.collection('posts').add({
+        'userId': user.uid,
+        'name': user.name,
+        'avatarUrl': user.avatarUrl,
+        'content': 'Đã chia sẻ một bài viết',
+        'imageUrls': [],
+        'createdAt': Timestamp.now(),
+        'likes': 0,
+        'comments': 0,
+        'reactionCounts': {
+          'like': 0,
+          'love': 0,
+          'care': 0,
+          'haha': 0,
+          'wow': 0,
+          'sad': 0,
+          'angry': 0,
+        },
+        'sharedPostId': widget.postId,
+      });
+
+      if (mounted) {
+        Navigator.pop(context); // Đóng sheet nếu có
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Đã chia sẻ bài viết về trang cá nhân.'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Lỗi khi chia sẻ: $e')));
+      }
     }
   }
 
@@ -199,7 +251,7 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final box = _likeKey.currentContext?.findRenderObject() as RenderBox?;
       final overlay = Overlay.of(context);
-      if (box == null || overlay == null) return;
+      if (box == null) return;
 
       final offset = box.localToGlobal(Offset.zero);
       final size = box.size;
@@ -378,9 +430,9 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
 
                 ListTile(
                   leading: const Icon(Icons.share),
-                  title: const Text('Chia sẻ qua ứng dụng khác'),
+                  title: const Text('Chia sẽ về trang cá nhân'),
                   onTap: () {
-                    Share.share("Xem bài viết: https://link.to/post");
+                    _shareToProfile();
                     Navigator.pop(context);
                   },
                 ),
@@ -396,6 +448,7 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
           ..sort((a, b) => b.value.compareTo(a.value));
     final topReactions =
         sorted.take(3).map((e) => reactionIcons[e.key]!).toList();
+    // ignore: avoid_types_as_parameter_names
     final total = counts.values.fold(0, (sum, e) => sum + e);
 
     return Row(
@@ -416,6 +469,7 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
     // final String displayReaction = reactionIcons[_userReaction ?? 'like']!;
 
     // final totalLikes =
+    // ignore: avoid_types_as_parameter_names
     _reactionCounts.values.fold(0, (sum, e) => sum + e);
 
     return Card(
@@ -435,7 +489,11 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => ProfileScreen(uid: widget.userId),
+                        builder:
+                            (_) => ProfileScreen(
+                              uid: widget.userId,
+                              hideAppBar: true,
+                            ),
                       ),
                     );
                   },
@@ -526,32 +584,47 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
                                   ),
                                   title: const Text('Sửa bài viết'),
                                   onTap: () async {
-                                    Navigator.pop(context); // Đóng bottom sheet
-                                    // Chuyển đến màn hình sửa bài viết
-                                    // await Navigator.push(
-                                    //   context,
-                                    //   MaterialPageRoute(
-                                    //     builder:
-                                    //         (context) => CreatePostScreen(
-                                    //           post: Post(
-                                    //             id: widget.postId,
-                                    //             userId: widget.userId,
-                                    //             name: widget.name,
-                                    //             avatarUrl: widget.avatarUrl,
-                                    //             content: widget.caption,
-                                    //             imageUrls:
-                                    //                 widget.imageUrl.isNotEmpty
-                                    //                     ? [widget.imageUrl]
-                                    //                     : [],
-                                    //             likes: widget.likes,
-                                    //             createdAt:
-                                    //                 Timestamp.now(), // Cần lấy đúng createdAt nếu có
-                                    //           ),
-                                    //         ),
-                                    //   ),
-                                    // );
-                                    // Làm mới bài viết sau khi sửa (nếu có callback)
-                                    // if (widget.onRefresh != null) widget.onRefresh!();
+                                    Navigator.pop(context);
+                                    final editedPost = await Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder:
+                                            (context) => CreatePostScreen(
+                                              post: Post(
+                                                id: widget.postId,
+                                                userId: widget.userId,
+                                                name: widget.name,
+                                                avatarUrl:
+                                                    widget.avatarUrl ?? '',
+                                                content: widget.caption,
+                                                imageUrls:
+                                                    widget.imageUrl.isNotEmpty
+                                                        ? [widget.imageUrl]
+                                                        : [],
+                                                createdAt:
+                                                    Timestamp.now(), // hoặc giữ nguyên nếu bạn có field gốc
+                                                likes: widget.likes,
+                                                comments: widget.comments,
+                                                reactionCounts:
+                                                    widget.reactionCounts ?? {},
+                                              ),
+                                            ),
+                                      ),
+                                    );
+                                    if (editedPost != null) {
+                                      // Gọi callback để HomeScreen làm mới bài viết
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              'Cập nhật thành công',
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                    }
                                   },
                                 ),
                                 ListTile(
@@ -630,83 +703,127 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
                               ] else ...[
                                 // Tùy chọn cho bài viết của người khác
                                 ListTile(
-                                  leading: const Icon(
+                                  leading: Icon(
                                     Icons.report,
-                                    color: Colors.red,
+                                    color: Colors.red[600],
+                                    size: 28,
                                   ),
-                                  title: const Text('Báo cáo bài viết'),
+                                  title: Text(
+                                    'Báo cáo bài viết',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 8,
+                                  ),
                                   onTap: () async {
                                     Navigator.pop(context); // Đóng bottom sheet
                                     // Logic báo cáo bài viết
                                     final reason = await showDialog<String>(
                                       context: context,
                                       builder:
-                                          (context) => AlertDialog(
-                                            title: const Text(
-                                              'Báo cáo bài viết',
+                                          (context) => Dialog(
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(16),
                                             ),
-                                            content: const Text(
-                                              'Vui lòng chọn lý do báo cáo:',
+                                            elevation: 8,
+                                            child: Padding(
+                                              padding: const EdgeInsets.all(20),
+                                              child: Column(
+                                                mainAxisSize: MainAxisSize.min,
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    'Báo cáo bài viết',
+                                                    style: TextStyle(
+                                                      fontSize: 20,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      color: Colors.grey[900],
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 12),
+                                                  Text(
+                                                    'Vui lòng chọn lý do báo cáo:',
+                                                    style: TextStyle(
+                                                      fontSize: 14,
+                                                      color: Colors.grey[600],
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 20),
+                                                  _buildReportOption(
+                                                    context,
+                                                    'Nội dung không phù hợp',
+                                                    Icons.content_paste_off,
+                                                  ),
+                                                  _buildReportOption(
+                                                    context,
+                                                    'Spam',
+                                                    Icons.report_problem,
+                                                  ),
+                                                  _buildReportOption(
+                                                    context,
+                                                    'Khác',
+                                                    Icons.info,
+                                                  ),
+                                                  const SizedBox(height: 16),
+                                                  Align(
+                                                    alignment:
+                                                        Alignment.centerRight,
+                                                    child: TextButton(
+                                                      onPressed:
+                                                          () => Navigator.pop(
+                                                            context,
+                                                          ),
+                                                      style:
+                                                          TextButton.styleFrom(
+                                                            foregroundColor:
+                                                                Colors
+                                                                    .grey[600],
+                                                            textStyle:
+                                                                const TextStyle(
+                                                                  fontSize: 16,
+                                                                ),
+                                                          ),
+                                                      child: const Text('Hủy'),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
                                             ),
-                                            actions: [
-                                              TextButton(
-                                                onPressed:
-                                                    () => Navigator.pop(
-                                                      context,
-                                                      'Nội dung không phù hợp',
-                                                    ),
-                                                child: const Text(
-                                                  'Nội dung không phù hợp',
-                                                ),
-                                              ),
-                                              TextButton(
-                                                onPressed:
-                                                    () => Navigator.pop(
-                                                      context,
-                                                      'Spam',
-                                                    ),
-                                                child: const Text('Spam'),
-                                              ),
-                                              TextButton(
-                                                onPressed:
-                                                    () => Navigator.pop(
-                                                      context,
-                                                      'Khác',
-                                                    ),
-                                                child: const Text('Khác'),
-                                              ),
-                                              TextButton(
-                                                onPressed:
-                                                    () =>
-                                                        Navigator.pop(context),
-                                                child: const Text('Hủy'),
-                                              ),
-                                            ],
                                           ),
                                     );
 
                                     if (reason != null && reason.isNotEmpty) {
                                       try {
-                                        // Lưu báo cáo vào Firestore
                                         await FirebaseFirestore.instance
                                             .collection('reports')
                                             .add({
                                               'postId': widget.postId,
-                                              'userId':
-                                                  FirebaseAuth
-                                                      .instance
-                                                      .currentUser
-                                                      ?.uid,
                                               'reason': reason,
                                               'timestamp': Timestamp.now(),
+                                              'reportedBy': FirebaseAuth.instance.currentUser?.uid,
+
                                             });
                                         ScaffoldMessenger.of(
                                           context,
                                         ).showSnackBar(
-                                          const SnackBar(
-                                            content: Text(
+                                          SnackBar(
+                                            content: const Text(
                                               'Báo cáo đã được gửi',
                                             ),
+                                            backgroundColor: Colors.green[600],
+                                            behavior: SnackBarBehavior.floating,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                            ),
+                                            margin: const EdgeInsets.all(16),
                                           ),
                                         );
                                       } catch (e) {
@@ -717,6 +834,13 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
                                             content: Text(
                                               'Lỗi khi gửi báo cáo: $e',
                                             ),
+                                            backgroundColor: Colors.red[600],
+                                            behavior: SnackBarBehavior.floating,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                            ),
+                                            margin: const EdgeInsets.all(16),
                                           ),
                                         );
                                       }
@@ -841,17 +965,97 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
 
             const SizedBox(height: 10),
 
-            // Caption
-            Text(widget.caption, style: const TextStyle(fontSize: 14)),
+            // Nếu là bài chia sẻ
+            if (widget.sharedFromPostId != null) ...[
+              if (widget.caption.isNotEmpty)
+                Text(widget.caption, style: const TextStyle(fontSize: 14)),
 
-            const SizedBox(height: 10),
+              const SizedBox(height: 10),
 
-            // Image
-            if (widget.imageUrl.isNotEmpty)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: Image.network(widget.imageUrl, fit: BoxFit.cover),
+              // Khung bài viết được chia sẻ
+              Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  border: Border.all(color: Colors.grey[300]!),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.1),
+                      blurRadius: 6,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                padding: const EdgeInsets.all(10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header người đăng bài gốc
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 16,
+                          backgroundImage:
+                              widget.sharedFromAvatarUrl != null
+                                  ? NetworkImage(widget.sharedFromAvatarUrl!)
+                                  : const AssetImage(
+                                        'assets/avatar_placeholder.png',
+                                      )
+                                      as ImageProvider,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            widget.sharedFromUserName ?? 'Người dùng',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 8),
+
+                    // Nội dung bài gốc
+                    if ((widget.sharedFromContent ?? '').isNotEmpty)
+                      Text(
+                        widget.sharedFromContent!,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Colors.black87,
+                        ),
+                      ),
+
+                    const SizedBox(height: 8),
+
+                    // Ảnh bài gốc (nếu có)
+                    if ((widget.sharedFromImageUrls?.isNotEmpty ?? false))
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: Image.network(
+                          widget.sharedFromImageUrls!.first,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                  ],
+                ),
               ),
+            ] else ...[
+              // Bài viết bình thường
+              if (widget.caption.isNotEmpty)
+                Text(widget.caption, style: const TextStyle(fontSize: 14)),
+
+              const SizedBox(height: 10),
+
+              if (widget.imageUrl.isNotEmpty)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Image.network(widget.imageUrl, fit: BoxFit.cover),
+                ),
+            ],
 
             // Reaction Summary
             if (_reactionCounts.isNotEmpty)
@@ -975,4 +1179,24 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
       ),
     );
   }
+}
+
+Widget _buildReportOption(BuildContext context, String reason, IconData icon) {
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 4),
+    child: ListTile(
+      leading: Icon(icon, color: Colors.grey[700], size: 24),
+      title: Text(
+        reason,
+        style: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
+          color: Colors.grey[900],
+        ),
+      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      tileColor: Colors.grey[100],
+      onTap: () => Navigator.pop(context, reason),
+    ),
+  );
 }
