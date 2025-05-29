@@ -16,6 +16,7 @@ class UserModel {
   final String? bannedReason;
   final DateTime? bannedUntil;
 
+
   const UserModel({
     required this.uid,
     required this.name,
