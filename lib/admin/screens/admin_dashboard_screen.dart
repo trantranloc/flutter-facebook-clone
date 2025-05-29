@@ -536,7 +536,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   }
 
   Widget _buildEmptyChart() {
-    return Container(
+    return SizedBox(
       height: 200,
       child: const Center(
         child: Column(
@@ -555,7 +555,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   }
 
   Widget _buildErrorWidget(String message) {
-    return Container(
+    return SizedBox(
       height: 200,
       child: Center(
         child: Column(

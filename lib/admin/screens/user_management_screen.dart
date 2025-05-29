@@ -14,8 +14,9 @@ class UserManagementScreen extends StatefulWidget {
 class _UserManagementScreenState extends State<UserManagementScreen>
     with TickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
+  final TextEditingController _banReasonController = TextEditingController();
   String _searchQuery = '';
-  String _selectedFilter = 'all'; // all, active, blocked, admin
+  String _selectedFilter = 'all'; // all, active, blocked, banned, admin
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final Map<String, bool> _loadingUsers = {};
@@ -39,6 +40,7 @@ class _UserManagementScreenState extends State<UserManagementScreen>
   @override
   void dispose() {
     _searchController.dispose();
+    _banReasonController.dispose();
     _animationController.dispose();
     super.dispose();
   }
@@ -104,6 +106,270 @@ class _UserManagementScreenState extends State<UserManagementScreen>
           _loadingUsers.remove(userId);
         });
       }
+    }
+  }
+
+  Future<void> _banUser(String userId, String reason, DateTime banUntil) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) {
+      _showSnackBar('Không thể xác định người dùng hiện tại', Colors.red);
+      return;
+    }
+
+    if (userId == currentUser.uid) {
+      _showSnackBar('Bạn không thể ban chính mình!', Colors.orange);
+      return;
+    }
+
+    setState(() {
+      _loadingUsers[userId] = true;
+    });
+
+    try {
+      await _firestore.collection('users').doc(userId).update({
+        'isBanned': true,
+        'bannedAt': FieldValue.serverTimestamp(),
+        'bannedReason': reason,
+        'bannedUntil': Timestamp.fromDate(banUntil),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Ghi log hành động
+      await _logAdminAction(
+        action: 'ban_user',
+        targetUserId: userId,
+        description:
+            'Ban người dùng đến ${_formatDate(banUntil)} - Lý do: $reason',
+      );
+
+      _showSnackBar('Đã ban người dùng thành công', Colors.green);
+    } catch (e) {
+      debugPrint('Lỗi ban user: $e');
+      String errorMessage = 'Có lỗi xảy ra';
+      if (e.toString().contains('permission-denied')) {
+        errorMessage = 'Bạn không có quyền thực hiện hành động này';
+      }
+      _showSnackBar(errorMessage, Colors.red);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loadingUsers.remove(userId);
+        });
+      }
+    }
+  }
+
+  Future<void> _unbanUser(String userId) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) {
+      _showSnackBar('Không thể xác định người dùng hiện tại', Colors.red);
+      return;
+    }
+
+    // Hiển thị dialog xác nhận
+    final confirmed = await _showConfirmDialog(
+      title: 'Gỡ ban người dùng',
+      content: 'Bạn có chắc chắn muốn gỡ ban cho người dùng này?',
+      confirmText: 'Gỡ ban',
+      isDestructive: false,
+    );
+
+    if (!confirmed) return;
+
+    setState(() {
+      _loadingUsers[userId] = true;
+    });
+
+    try {
+      await _firestore.collection('users').doc(userId).update({
+        'isBanned': false,
+        'bannedAt': FieldValue.delete(),
+        'bannedReason': FieldValue.delete(),
+        'bannedUntil': FieldValue.delete(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Ghi log hành động
+      await _logAdminAction(
+        action: 'unban_user',
+        targetUserId: userId,
+        description: 'Gỡ ban người dùng',
+      );
+
+      _showSnackBar('Đã gỡ ban người dùng thành công', Colors.green);
+    } catch (e) {
+      debugPrint('Lỗi unban user: $e');
+      String errorMessage = 'Có lỗi xảy ra';
+      if (e.toString().contains('permission-denied')) {
+        errorMessage = 'Bạn không có quyền thực hiện hành động này';
+      }
+      _showSnackBar(errorMessage, Colors.red);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loadingUsers.remove(userId);
+        });
+      }
+    }
+  }
+
+  Future<void> _showBanDialog(String userId, String userName) async {
+    int selectedDays = 7;
+    final reasons = [
+      'Vi phạm chính sách cộng đồng Vi phạm chính sách cộng đồng',
+      'Spam hoặc nội dung rác',
+      'Ngôn từ thù địch',
+      'Nội dung không phù hợp',
+      'Giả mạo danh tính',
+      'Khác',
+    ];
+    String selectedReason = reasons.first;
+    _banReasonController.clear();
+
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder:
+          (context) => StatefulBuilder(
+            builder:
+                (context, setState) => AlertDialog(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  title: Text('Ban người dùng: $userName'),
+                  content: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Thời gian ban:',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 8),
+                        DropdownButtonFormField<int>(
+                          value: selectedDays,
+                          decoration: const InputDecoration(
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                          ),
+                          items:
+                              [1, 3, 7, 14, 30, 90, 365]
+                                  .map(
+                                    (days) => DropdownMenuItem(
+                                      value: days,
+                                      child: Text('$days ngày'),
+                                    ),
+                                  )
+                                  .toList(),
+                          onChanged:
+                              (value) => setState(() => selectedDays = value!),
+                        ),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Lý do ban:',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 8),
+                        DropdownButtonFormField<String>(
+                          value: selectedReason,
+                          decoration: const InputDecoration(
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                          ),
+                          items:
+                              reasons
+                                  .map(
+                                    (reason) => DropdownMenuItem(
+                                      value: reason,
+                                      child: Flexible(
+                                        child: Text(
+                                          reason,
+                                          overflow: TextOverflow.ellipsis,
+                                          maxLines: 1,
+                                        ),
+                                      ),
+                                    ),
+                                  )
+                                  .toList(),
+                                  selectedItemBuilder: (context) {
+                            return reasons.map((reason) {
+                              return SizedBox(
+                                width:
+                                    200,
+                                child: Text(
+                                  reason,
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
+                                ),
+                              );
+                            }).toList();
+                          },
+                          onChanged:
+                              (value) =>
+                                  setState(() => selectedReason = value!),
+                        ),
+                        if (selectedReason == 'Khác') ...[
+                          const SizedBox(height: 16),
+                          TextField(
+                            controller: _banReasonController,
+                            decoration: const InputDecoration(
+                              labelText: 'Nhập lý do cụ thể',
+                              border: OutlineInputBorder(),
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                            ),
+                            maxLines: 3,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Hủy'),
+                    ),
+                    ElevatedButton(
+                      onPressed: () {
+                        final reason =
+                            selectedReason == 'Khác'
+                                ? _banReasonController.text.trim()
+                                : selectedReason;
+                        if (reason.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Vui lòng nhập lý do ban'),
+                            ),
+                          );
+                          return;
+                        }
+                        Navigator.pop(context, {
+                          'days': selectedDays,
+                          'reason': reason,
+                        });
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                      ),
+                      child: const Text('Ban'),
+                    ),
+                  ],
+                ),
+          ),
+    );
+
+    if (result != null) {
+      final banUntil = DateTime.now().add(Duration(days: result['days']));
+      await _banUser(userId, result['reason'], banUntil);
     }
   }
 
@@ -186,10 +452,13 @@ class _UserManagementScreenState extends State<UserManagementScreen>
       bool matchesFilter = true;
       switch (_selectedFilter) {
         case 'active':
-          matchesFilter = !user.isBlocked;
+          matchesFilter = !user.isBlocked && !user.isBanned;
           break;
         case 'blocked':
           matchesFilter = user.isBlocked;
+          break;
+        case 'banned':
+          matchesFilter = user.isBanned;
           break;
         case 'admin':
           matchesFilter = user.isAdmin;
@@ -201,6 +470,11 @@ class _UserManagementScreenState extends State<UserManagementScreen>
 
       return matchesSearch && matchesFilter;
     }).toList();
+  }
+
+  bool _isBanExpired(UserModel user) {
+    if (!user.isBanned || user.bannedUntil == null) return false;
+    return DateTime.now().isAfter(user.bannedUntil!);
   }
 
   @override
@@ -285,6 +559,7 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                 _buildFilterChip('all', 'Tất cả', Icons.people),
                 _buildFilterChip('active', 'Hoạt động', Icons.check_circle),
                 _buildFilterChip('blocked', 'Bị khóa', Icons.block),
+                _buildFilterChip('banned', 'Bị ban', Icons.gavel),
                 _buildFilterChip(
                   'admin',
                   'Quản trị',
@@ -382,6 +657,8 @@ class _UserManagementScreenState extends State<UserManagementScreen>
 
   Widget _buildUserCard(UserModel user, User? currentUser) {
     final isBlocked = user.isBlocked;
+    final isBanned = user.isBanned;
+    final isBanExpired = _isBanExpired(user);
     final isCurrentUser = currentUser?.uid == user.uid;
     final isLoading = _loadingUsers[user.uid] ?? false;
 
@@ -445,13 +722,26 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                                 width: 16,
                                 height: 16,
                                 decoration: BoxDecoration(
-                                  color: isBlocked ? Colors.red : Colors.green,
+                                  color:
+                                      isBanned
+                                          ? Colors.red.shade700
+                                          : isBlocked
+                                          ? Colors.orange
+                                          : Colors.green,
                                   shape: BoxShape.circle,
                                   border: Border.all(
                                     color: Colors.white,
                                     width: 2,
                                   ),
                                 ),
+                                child:
+                                    isBanned
+                                        ? Icon(
+                                          Icons.gavel,
+                                          size: 10,
+                                          color: Colors.white,
+                                        )
+                                        : null,
                               ),
                             ),
                           ],
@@ -518,38 +808,51 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                                     ),
                                     decoration: BoxDecoration(
                                       color:
-                                          isBlocked
+                                          isBanned
                                               ? Colors.red.shade100
+                                              : isBlocked
+                                              ? Colors.orange.shade100
                                               : Colors.green.shade100,
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: Text(
-                                      isBlocked ? 'Đã khóa' : 'Hoạt động',
+                                      isBanned
+                                          ? (isBanExpired
+                                              ? 'Ban hết hạn'
+                                              : 'Đã ban')
+                                          : isBlocked
+                                          ? 'Đã khóa'
+                                          : 'Hoạt động',
                                       style: TextStyle(
                                         fontSize: 12,
                                         fontWeight: FontWeight.w600,
                                         color:
-                                            isBlocked
+                                            isBanned
                                                 ? Colors.red.shade700
+                                                : isBlocked
+                                                ? Colors.orange.shade700
                                                 : Colors.green.shade700,
                                       ),
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    '${user.friends.length} bạn bè',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey.shade600,
-                                    ),
-                                  ),
                                 ],
                               ),
+                              if (isBanned && user.bannedUntil != null) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Ban đến: ${_formatDate(user.bannedUntil!)}',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.red.shade600,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                         ),
 
-                        // Action button
+                        // Action buttons
                         if (isCurrentUser)
                           Container(
                             padding: const EdgeInsets.symmetric(
@@ -576,13 +879,37 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         else
-                          Switch(
-                            value: !isBlocked,
-                            activeColor: Colors.green,
-                            inactiveThumbColor: Colors.red,
-                            onChanged: (newValue) {
-                              _toggleUserStatus(user.uid, isBlocked);
-                            },
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (isBanned && !isBanExpired)
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.restore,
+                                    color: Colors.green,
+                                  ),
+                                  onPressed: () => _unbanUser(user.uid),
+                                  tooltip: 'Gỡ ban',
+                                )
+                              else if (!isBanned)
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.gavel,
+                                    color: Colors.red,
+                                  ),
+                                  onPressed:
+                                      () => _showBanDialog(user.uid, user.name),
+                                  tooltip: 'Ban người dùng',
+                                ),
+                              Switch(
+                                value: !isBlocked,
+                                activeColor: Colors.green,
+                                inactiveThumbColor: Colors.red,
+                                onChanged: (newValue) {
+                                  _toggleUserStatus(user.uid, isBlocked);
+                                },
+                              ),
+                            ],
                           ),
                       ],
                     ),
@@ -649,232 +976,167 @@ class _UserManagementScreenState extends State<UserManagementScreen>
   }
 
   void _showUserDetailsDialog(BuildContext context, UserModel user) {
-    final currentUser = _auth.currentUser;
-    final isCurrentUser = currentUser?.uid == user.uid;
-    final isLoading = _loadingUsers[user.uid] ?? false;
-
     showDialog(
       context: context,
-      builder: (context) {
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Container(
-            constraints: const BoxConstraints(maxWidth: 400, maxHeight: 600),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Header
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Colors.blue.shade600, Colors.blue.shade800],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(20),
-                      topRight: Radius.circular(20),
-                    ),
-                  ),
-                  child: Column(
+      builder:
+          (context) => Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header with avatar and name
+                  Row(
                     children: [
-                      Stack(
-                        children: [
-                          CircleAvatar(
-                            radius: 40,
-                            backgroundImage:
-                                user.avatarUrl.isNotEmpty
-                                    ? NetworkImage(user.avatarUrl)
-                                    : null,
-                            backgroundColor: Colors.white.withOpacity(0.2),
-                            child:
-                                user.avatarUrl.isEmpty
-                                    ? const Icon(
-                                      Icons.person,
-                                      size: 48,
-                                      color: Colors.white,
-                                    )
-                                    : null,
-                          ),
-                          if (user.isAdmin)
-                            Positioned(
-                              right: 0,
-                              bottom: 0,
-                              child: Container(
-                                padding: const EdgeInsets.all(4),
-                                decoration: const BoxDecoration(
-                                  color: Colors.purple,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.admin_panel_settings,
-                                  size: 16,
-                                  color: Colors.white,
-                                ),
+                      CircleAvatar(
+                        radius: 32,
+                        backgroundImage:
+                            user.avatarUrl.isNotEmpty
+                                ? NetworkImage(user.avatarUrl)
+                                : null,
+                        backgroundColor: Colors.grey.shade200,
+                        child:
+                            user.avatarUrl.isEmpty
+                                ? Icon(
+                                  Icons.person,
+                                  size: 32,
+                                  color: Colors.grey.shade600,
+                                )
+                                : null,
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              user.name,
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        user.name,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                            Text(
+                              user.email,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                          ],
                         ),
-                        textAlign: TextAlign.center,
-                      ),
-                      Text(
-                        user.email,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Colors.white70,
-                        ),
-                        textAlign: TextAlign.center,
                       ),
                     ],
                   ),
-                ),
 
-                // Content
-                Flexible(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      children: [
-                        _buildDetailRow(
-                          icon: Icons.fingerprint,
-                          label: 'ID người dùng',
-                          value: user.uid,
-                          isMonospace: true,
-                        ),
-                        _buildDetailRow(
-                          icon: Icons.person,
-                          label: 'Giới tính',
-                          value: _getGenderText(user.gender),
-                        ),
-                        _buildDetailRow(
-                          icon: Icons.info_outline,
-                          label: 'Tiểu sử',
-                          value:
-                              user.bio.isEmpty ? 'Chưa có tiểu sử' : user.bio,
-                        ),
-                        _buildDetailRow(
-                          icon: Icons.calendar_today,
-                          label: 'Ngày tham gia',
-                          value: _formatDate(user.createdAt),
-                        ),
-                        _buildDetailRow(
-                          icon: Icons.people,
-                          label: 'Số bạn bè',
-                          value: user.friends.length.toString(),
-                        ),
-                        _buildDetailRow(
-                          icon: Icons.pending_actions,
-                          label: 'Lời mời chờ',
-                          value: user.pendingRequests.length.toString(),
-                        ),
-                        _buildDetailRow(
-                          icon:
-                              user.isBlocked ? Icons.block : Icons.check_circle,
-                          label: 'Trạng thái',
-                          value:
-                              user.isBlocked ? 'Đã bị khóa' : 'Đang hoạt động',
-                          valueColor:
-                              user.isBlocked ? Colors.red : Colors.green,
-                        ),
-                      ],
-                    ),
+                  const SizedBox(height: 24),
+
+                  // User details
+                  _buildDetailRow('UID:', user.uid),
+                  _buildDetailRow('Giới tính:', user.gender),
+                  _buildDetailRow('Số bạn bè:', '${user.friends.length}'),
+                  _buildDetailRow('Tham gia:', _formatDate(user.createdAt)),
+
+                  if (user.bio.isNotEmpty)
+                    _buildDetailRow('Giới thiệu:', user.bio),
+
+                  // Status information
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Trạng thái:',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
-                ),
+                  const SizedBox(height: 8),
 
-                // Actions
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  child: Row(
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _buildStatusChip('Admin', user.isAdmin, Colors.purple),
+                      _buildStatusChip(
+                        'Bị khóa',
+                        user.isBlocked,
+                        Colors.orange,
+                      ),
+                      _buildStatusChip('Bị ban', user.isBanned, Colors.red),
+                    ],
+                  ),
+
+                  // Ban information
+                  if (user.isBanned) ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.red.shade200),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Thông tin ban:',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.red,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          if (user.bannedReason != null)
+                            Text('Lý do: ${user.bannedReason}'),
+                          if (user.bannedUntil != null)
+                            Text('Ban đến: ${_formatDate(user.bannedUntil!)}'),
+                          if (user.bannedAt != null)
+                            Text('Bị ban lúc: ${_formatDate(user.bannedAt!)}'),
+                        ],
+                      ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 24),
+
+                  // Close button
+                  Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       TextButton(
                         onPressed: () => Navigator.pop(context),
                         child: const Text('Đóng'),
                       ),
-                      if (!isCurrentUser) ...[
-                        const SizedBox(width: 12),
-                        if (isLoading)
-                          const CircularProgressIndicator()
-                        else
-                          ElevatedButton(
-                            onPressed: () {
-                              Navigator.pop(context);
-                              _toggleUserStatus(user.uid, user.isBlocked);
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor:
-                                  user.isBlocked ? Colors.green : Colors.red,
-                              foregroundColor: Colors.white,
-                            ),
-                            child: Text(user.isBlocked ? 'Mở khóa' : 'Khóa'),
-                          ),
-                      ],
                     ],
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-        );
-      },
     );
   }
 
-  Widget _buildDetailRow({
-    required IconData icon,
-    required String label,
-    required String value,
-    Color? valueColor,
-    bool isMonospace = false,
-  }) {
+  Widget _buildDetailRow(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(8),
+          SizedBox(
+            width: 100,
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontWeight: FontWeight.w500,
+                color: Colors.grey,
+              ),
             ),
-            child: Icon(icon, size: 20, color: Colors.grey.shade600),
           ),
-          const SizedBox(width: 16),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey.shade600,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                SelectableText(
-                  value,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: valueColor ?? Colors.black87,
-                    fontWeight: FontWeight.w500,
-                    fontFamily: isMonospace ? 'monospace' : null,
-                  ),
-                ),
-              ],
+            child: Text(
+              value,
+              style: const TextStyle(fontWeight: FontWeight.w500),
             ),
           ),
         ],
@@ -882,22 +1144,26 @@ class _UserManagementScreenState extends State<UserManagementScreen>
     );
   }
 
-  String _getGenderText(String gender) {
-    switch (gender.toLowerCase()) {
-      case 'male':
-        return 'Nam';
-      case 'female':
-        return 'Nữ';
-      case 'other':
-        return 'Khác';
-      default:
-        return 'Không xác định';
-    }
+  Widget _buildStatusChip(String label, bool isActive, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: isActive ? color.withOpacity(0.1) : Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: isActive ? color : Colors.grey.shade300),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: isActive ? color : Colors.grey.shade600,
+        ),
+      ),
+    );
   }
 
   String _formatDate(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}/'
-        '${date.month.toString().padLeft(2, '0')}/'
-        '${date.year}';
+    return '${date.day}/${date.month}/${date.year}';
   }
 }

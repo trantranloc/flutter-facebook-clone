@@ -203,14 +203,14 @@ class _GroupInvitationsScreenState extends State<GroupInvitationsScreen> {
                                 backgroundImage: inviterAvatarUrl != null && inviterAvatarUrl.isNotEmpty
                                     ? NetworkImage(inviterAvatarUrl)
                                     : null,
+                                backgroundColor: inviterAvatarUrl == null || inviterAvatarUrl.isEmpty
+                                    ? Colors.grey[400]
+                                    : null,
                                 child: inviterAvatarUrl == null || inviterAvatarUrl.isEmpty
                                     ? Text(
                                         inviterName.isNotEmpty ? inviterName[0].toUpperCase() : 'A',
                                         style: const TextStyle(fontSize: 18, color: Colors.white),
                                       )
-                                    : null,
-                                backgroundColor: inviterAvatarUrl == null || inviterAvatarUrl.isEmpty
-                                    ? Colors.grey[400]
                                     : null,
                               ),
                               title: Text(

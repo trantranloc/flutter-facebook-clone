@@ -440,7 +440,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                         IconButton(
                           icon: const Icon(Icons.add_location),
                           onPressed: () {
-                            // TODO: Thêm logic chọn vị trí (ví dụ: Google Maps)
+                            //  Thêm logic chọn vị trí (ví dụ: Google Maps)
                           },
                         ),
                       ],
