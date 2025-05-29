@@ -12,7 +12,6 @@ import 'package:image_picker/image_picker.dart';
 import 'package:cloudinary_public/cloudinary_public.dart';
 import 'package:intl/intl.dart';
 
-
 class GroupHomeScreen extends StatefulWidget {
   final String groupId;
 
@@ -164,7 +163,109 @@ class _GroupHomeScreenState extends State<GroupHomeScreen> {
     }
   }
 
-  // Show delete confirmation dialog
+  // Delete a post
+  Future<void> _deletePost(String postId) async {
+    try {
+      await _firestore
+          .collection('groups')
+          .doc(widget.groupId)
+          .collection('posts')
+          .doc(postId)
+          .delete();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Đã xóa bài viết thành công')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Lỗi khi xóa bài viết: $e')),
+      );
+    }
+  }
+
+  // Delete a comment
+  Future<void> _deleteComment(String postId, Map<String, dynamic> comment) async {
+    try {
+      await _firestore
+          .collection('groups')
+          .doc(widget.groupId)
+          .collection('posts')
+          .doc(postId)
+          .update({
+        'comments': FieldValue.arrayRemove([comment]),
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Đã xóa bình luận thành công')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Lỗi khi xóa bình luận: $e')),
+      );
+    }
+  }
+
+  // Show delete confirmation dialog for post
+  Future<void> _showPostDeleteConfirmationDialog(String postId) async {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Xóa bài viết'),
+          content: const Text(
+            'Bạn có chắc chắn muốn xóa bài viết này? Hành động này không thể hoàn tác.',
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Hủy'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: const Text('Xóa', style: TextStyle(color: Colors.red)),
+              onPressed: () async {
+                Navigator.of(context).pop();
+                await _deletePost(postId);
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Show delete confirmation dialog for comment
+  Future<void> _showCommentDeleteConfirmationDialog(String postId, Map<String, dynamic> comment) async {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Xóa bình luận'),
+          content: const Text(
+            'Bạn có chắc chắn muốn xóa bình luận này? Hành động này không thể hoàn tác.',
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Hủy'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: const Text('Xóa', style: TextStyle(color: Colors.red)),
+              onPressed: () async {
+                Navigator.of(context).pop();
+                await _deleteComment(postId, comment);
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Show delete confirmation dialog for group
   Future<void> _showDeleteConfirmationDialog() async {
     return showDialog<void>(
       context: context,
@@ -197,20 +298,20 @@ class _GroupHomeScreenState extends State<GroupHomeScreen> {
 
   // Helper function to calculate relative time
   String _getRelativeTime(dynamic timestamp) {
-    if (timestamp == null) return 'Vừa xong';
+    if (timestamp == null) return 'Vừa vừa';
     DateTime postTime;
     if (timestamp is Timestamp) {
       postTime = timestamp.toDate();
     } else if (timestamp is DateTime) {
       postTime = timestamp;
     } else {
-      return 'Vừa xong';
+      return 'Vừa vừa';
     }
     final now = DateTime.now();
     final difference = now.difference(postTime);
 
     if (difference.inMinutes < 1) {
-      return 'Vừa xong';
+      return 'Vừa vừa';
     } else if (difference.inHours < 1) {
       return '${difference.inMinutes} phút';
     } else if (difference.inDays < 1) {
@@ -265,16 +366,57 @@ class _GroupHomeScreenState extends State<GroupHomeScreen> {
     }
   }
 
+  // Share a post
+  Future<void> _sharePost(String postId, Map<String, dynamic> originalPost) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    try {
+      final content = originalPost['content']?.toString() ?? '';
+      final imageUrl = originalPost['imageUrl']?.toString();
+      final backgroundColor = originalPost['backgroundColor'] ?? 0xFFFFFFFF;
+      final originalCreator = originalPost['createdBy']?.toString() ?? '';
+      final userData = await _fetchUserData(originalCreator);
+      final originalCreatorName = userData['name'] as String;
+
+      // Create a new post with shared content
+      await _firestore
+          .collection('groups')
+          .doc(widget.groupId)
+          .collection('posts')
+          .add({
+        'content': 'Chia sẻ bài viết của $originalCreatorName: $content',
+        'imageUrl': imageUrl,
+        'backgroundColor': backgroundColor,
+        'createdBy': user.uid,
+        'createdAt': FieldValue.serverTimestamp(),
+        'likes': [],
+        'comments': [],
+        'isShared': true,
+        'originalPostId': postId,
+        'originalCreatorId': originalCreator,
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Chia sẻ bài viết thành công')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Lỗi khi chia sẻ bài viết: $e')),
+      );
+    }
+  }
+
   // Add a new comment to a post
   Future<void> _addComment(String postId, String content) async {
     final user = _auth.currentUser;
     if (user == null) return;
 
     final comment = {
-      'userId': user.uid,
-      'content': content,
-      'createdAt': DateTime.now(), // Use client-side timestamp
-    };
+    'userId': user.uid,
+    'content': content, // Fixed: Use the 'content' parameter
+    'createdAt': DateTime.now(),
+  };
 
     await _firestore
         .collection('groups')
@@ -285,7 +427,6 @@ class _GroupHomeScreenState extends State<GroupHomeScreen> {
       'comments': FieldValue.arrayUnion([comment]),
     });
 
-    // Clear the comment input field
     _commentControllers[postId]?.clear();
   }
 
@@ -639,6 +780,8 @@ class _GroupHomeScreenState extends State<GroupHomeScreen> {
                           final createdAt = data['createdAt'] as Timestamp?;
                           final likes = data['likes'] as List<dynamic>? ?? [];
                           final comments = data['comments'] as List<dynamic>? ?? [];
+                          final isShared = data['isShared'] as bool? ?? false;
+                          final originalCreatorId = data['originalCreatorId']?.toString();
                           final postId = post.id;
 
                           // Initialize comment controller for this post
@@ -660,282 +803,69 @@ class _GroupHomeScreenState extends State<GroupHomeScreen> {
                               final currentUser = _auth.currentUser;
                               final isLiked = currentUser != null && likes.contains(currentUser.uid);
 
-                              return Card(
-                                elevation: 2,
-                                margin: const EdgeInsets.symmetric(vertical: 8.0),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(12.0),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      // User info and timestamp
-                                      Row(
-                                        children: [
-                                          CircleAvatar(
-                                            radius: 20,
-                                            backgroundImage: userAvatar.isNotEmpty
-                                                ? NetworkImage(userAvatar)
-                                                : null,
-                                            child: userAvatar.isEmpty
-                                                ? const Icon(
-                                                    Icons.person,
-                                                    size: 20,
-                                                    color: Colors.white,
-                                                  )
-                                                : null,
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  userName,
-                                                  style: const TextStyle(
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 16,
-                                                  ),
-                                                ),
-                                                Text(
-                                                  _getRelativeTime(createdAt),
-                                                  style: const TextStyle(
-                                                    color: Colors.grey,
-                                                    fontSize: 12,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 12),
-                                      // Post content with background color
-                                      Container(
-                                        width: double.infinity,
-                                        padding: const EdgeInsets.all(16.0),
-                                        decoration: BoxDecoration(
-                                          color: backgroundColor,
-                                          borderRadius: BorderRadius.circular(8),
-                                        ),
-                                        child: Text(
-                                          content,
-                                          textAlign: TextAlign.center,
-                                          style: TextStyle(
-                                            fontSize: 18,
-                                            color: backgroundColor == Colors.white
-                                                ? Colors.black
-                                                : Colors.white,
-                                          ),
+                              // Fetch original creator's name for shared posts
+                              Widget sharedPostHeader = const SizedBox.shrink();
+                              if (isShared && originalCreatorId != null) {
+                                return FutureBuilder<Map<String, dynamic>>(
+                                  future: _fetchUserData(originalCreatorId),
+                                  builder: (context, originalUserSnapshot) {
+                                    if (originalUserSnapshot.connectionState == ConnectionState.waiting) {
+                                      return const SizedBox.shrink();
+                                    }
+                                    if (originalUserSnapshot.hasError || !originalUserSnapshot.hasData) {
+                                      return const SizedBox.shrink();
+                                    }
+
+                                    final originalUserData = originalUserSnapshot.data!;
+                                    final originalUserName = originalUserData['name'] as String;
+
+                                    sharedPostHeader = Padding(
+                                      padding: const EdgeInsets.only(bottom: 8.0),
+                                      child: Text(
+                                        'Chia sẻ từ $originalUserName',
+                                        style: const TextStyle(
+                                          fontStyle: FontStyle.italic,
+                                          color: Colors.grey,
+                                          fontSize: 14,
                                         ),
                                       ),
-                                      // Post image
-                                      if (imageUrl != null && imageUrl.isNotEmpty)
-                                        Padding(
-                                          padding: const EdgeInsets.only(top: 8.0),
-                                          child: ClipRRect(
-                                            borderRadius: BorderRadius.circular(8),
-                                            child: Image.network(
-                                              imageUrl,
-                                              fit: BoxFit.cover,
-                                              width: double.infinity,
-                                              errorBuilder: (context, error, stackTrace) {
-                                                return Container(
-                                                  height: 200,
-                                                  color: Colors.grey[300],
-                                                  child: const Center(
-                                                    child: Text(
-                                                      'Không thể tải ảnh',
-                                                      style: TextStyle(color: Colors.grey),
-                                                    ),
-                                                  ),
-                                                );
-                                              },
-                                            ),
-                                          ),
-                                        ),
-                                      const SizedBox(height: 12),
-                                      // Interaction bar
-                                      Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Row(
-                                            children: [
-                                              IconButton(
-                                                icon: Icon(
-                                                  isLiked ? Icons.favorite : Icons.favorite_border,
-                                                  size: 20,
-                                                  color: isLiked ? Colors.red : Colors.grey,
-                                                ),
-                                                onPressed: () {
-                                                  if (currentUser != null) {
-                                                    _toggleLike(postId, likes);
-                                                  }
-                                                },
-                                              ),
-                                              const SizedBox(width: 4),
-                                              Text(
-                                                '${likes.length}',
-                                                style: const TextStyle(
-                                                  color: Colors.grey,
-                                                  fontSize: 14,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          Row(
-                                            children: [
-                                              IconButton(
-                                                icon: const Icon(
-                                                  Icons.comment,
-                                                  size: 20,
-                                                  color: Colors.grey,
-                                                ),
-                                                onPressed: () => _toggleCommentsVisibility(postId),
-                                              ),
-                                              const SizedBox(width: 4),
-                                              Text(
-                                                '${comments.length}',
-                                                style: const TextStyle(
-                                                  color: Colors.grey,
-                                                  fontSize: 14,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ],
-                                      ),
-                                      // Comment section
-                                      if (_showComments[postId] ?? false) ...[
-                                        const Divider(),
-                                        // Existing comments
-                                        ...comments.asMap().entries.map((entry) {
-                                          final comment = entry.value as Map<String, dynamic>;
-                                          final commentUserId = comment['userId'] as String;
-                                          final commentContent = comment['content'] as String;
-                                          final commentCreatedAt = comment['createdAt'];
+                                    );
 
-                                          DateTime? displayTime;
-                                          if (commentCreatedAt is Timestamp) {
-                                            displayTime = commentCreatedAt.toDate();
-                                          } else if (commentCreatedAt is DateTime) {
-                                            displayTime = commentCreatedAt;
-                                          }
+                                    return _buildPostCard(
+                                      postId,
+                                      content,
+                                      imageUrl,
+                                      backgroundColor,
+                                      createdBy,
+                                      createdAt,
+                                      likes,
+                                      comments,
+                                      isShared,
+                                      userName,
+                                      userAvatar,
+                                      isLiked,
+                                      currentUser,
+                                      sharedPostHeader,
+                                    );
+                                  },
+                                );
+                              }
 
-                                          return FutureBuilder<Map<String, dynamic>>(
-                                            future: _fetchUserData(commentUserId),
-                                            builder: (context, commentUserSnapshot) {
-                                              if (commentUserSnapshot.connectionState ==
-                                                  ConnectionState.waiting) {
-                                                return const SizedBox.shrink();
-                                              }
-                                              if (commentUserSnapshot.hasError ||
-                                                  !commentUserSnapshot.hasData) {
-                                                return const SizedBox.shrink();
-                                              }
-
-                                              final commentUserData = commentUserSnapshot.data!;
-                                              final commentUserName = commentUserData['name'] as String;
-                                              final commentUserAvatar =
-                                                  commentUserData['avatarUrl'] as String;
-
-                                              return Padding(
-                                                padding: const EdgeInsets.symmetric(vertical: 4.0),
-                                                child: Row(
-                                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                                  children: [
-                                                    CircleAvatar(
-                                                      radius: 16,
-                                                      backgroundImage: commentUserAvatar.isNotEmpty
-                                                          ? NetworkImage(commentUserAvatar)
-                                                          : null,
-                                                      child: commentUserAvatar.isEmpty
-                                                          ? const Icon(
-                                                              Icons.person,
-                                                              size: 16,
-                                                              color: Colors.white,
-                                                            )
-                                                          : null,
-                                                    ),
-                                                    const SizedBox(width: 8),
-                                                    Expanded(
-                                                      child: Column(
-                                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                                        children: [
-                                                          Row(
-                                                            children: [
-                                                              Text(
-                                                                commentUserName,
-                                                                style: const TextStyle(
-                                                                  fontWeight: FontWeight.bold,
-                                                                  fontSize: 14,
-                                                                ),
-                                                              ),
-                                                              const SizedBox(width: 8),
-                                                              Text(
-                                                                _getRelativeTime(displayTime != null
-                                                                    ? Timestamp.fromDate(displayTime)
-                                                                    : null),
-                                                                style: const TextStyle(
-                                                                  color: Colors.grey,
-                                                                  fontSize: 12,
-                                                                ),
-                                                              ),
-                                                            ],
-                                                          ),
-                                                          const SizedBox(height: 4),
-                                                          Text(
-                                                            commentContent,
-                                                            style: const TextStyle(fontSize: 14),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              );
-                                            },
-                                          );
-                                        }),
-                                        const SizedBox(height: 8),
-                                        // Add comment input
-                                        Row(
-                                          children: [
-                                            Expanded(
-                                              child: TextField(
-                                                controller: _commentControllers[postId],
-                                                decoration: InputDecoration(
-                                                  hintText: 'Viết bình luận...',
-                                                  border: OutlineInputBorder(
-                                                    borderRadius: BorderRadius.circular(20),
-                                                    borderSide: BorderSide.none,
-                                                  ),
-                                                  filled: true,
-                                                  fillColor: Colors.grey[200],
-                                                ),
-                                              ),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            IconButton(
-                                              icon: const Icon(
-                                                Icons.send,
-                                                color: Color(0xFF1877F2),
-                                              ),
-                                              onPressed: () {
-                                                final commentText = _commentControllers[postId]!.text.trim();
-                                                if (commentText.isNotEmpty) {
-                                                  _addComment(postId, commentText);
-                                                }
-                                              },
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                ),
+                              return _buildPostCard(
+                                postId,
+                                content,
+                                imageUrl,
+                                backgroundColor,
+                                createdBy,
+                                createdAt,
+                                likes,
+                                comments,
+                                isShared,
+                                userName,
+                                userAvatar,
+                                isLiked,
+                                currentUser,
+                                sharedPostHeader,
                               );
                             },
                           );
@@ -946,6 +876,372 @@ class _GroupHomeScreenState extends State<GroupHomeScreen> {
                 ],
               ),
             ),
+    );
+  }
+
+  Widget _buildPostCard(
+    String postId,
+    String content,
+    String? imageUrl,
+    Color backgroundColor,
+    String createdBy,
+    Timestamp? createdAt,
+    List<dynamic> likes,
+    List<dynamic> comments,
+    bool isShared,
+    String userName,
+    String userAvatar,
+    bool isLiked,
+    User? currentUser,
+    Widget sharedPostHeader,
+  ) {
+    final isAdmin = _group?.adminUid == currentUser?.uid;
+    final canDeletePost = currentUser != null && (createdBy == currentUser.uid || isAdmin);
+
+    return Card(
+      elevation: 2,
+      margin: const EdgeInsets.symmetric(vertical: 8.0),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Shared post header
+            sharedPostHeader,
+            // User info, timestamp, and menu
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 20,
+                  backgroundImage: userAvatar.isNotEmpty
+                      ? NetworkImage(userAvatar)
+                      : null,
+                  child: userAvatar.isEmpty
+                      ? const Icon(
+                          Icons.person,
+                          size: 20,
+                          color: Colors.white,
+                        )
+                      : null,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        userName,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      Text(
+                        _getRelativeTime(createdAt),
+                        style: const TextStyle(
+                          color: Colors.grey,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (canDeletePost)
+                  PopupMenuButton<String>(
+                    onSelected: (value) {
+                      if (value == 'delete') {
+                        _showPostDeleteConfirmationDialog(postId);
+                      }
+                    },
+                    itemBuilder: (BuildContext context) => [
+                      const PopupMenuItem<String>(
+                        value: 'delete',
+                        child: Text(
+                          'Xóa bài viết',
+                          style: TextStyle(color: Colors.red),
+                        ),
+                      ),
+                    ],
+                    icon: const Icon(Icons.more_vert, color: Colors.grey),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            // Post content with background color
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16.0),
+              decoration: BoxDecoration(
+                color: backgroundColor,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                content,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 18,
+                  color: backgroundColor == Colors.white
+                      ? Colors.black
+                      : Colors.white,
+                ),
+              ),
+            ),
+            // Post image
+            if (imageUrl != null && imageUrl.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 8.0),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.network(
+                    imageUrl,
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        height: 200,
+                        color: Colors.grey[300],
+                        child: const Center(
+                          child: Text(
+                            'Không thể tải ảnh',
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            const SizedBox(height: 12),
+            // Interaction bar
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    IconButton(
+                      icon: Icon(
+                        isLiked ? Icons.favorite : Icons.favorite_border,
+                        size: 20,
+                        color: isLiked ? Colors.red : Colors.grey,
+                      ),
+                      onPressed: () {
+                        if (currentUser != null) {
+                          _toggleLike(postId, likes);
+                        }
+                      },
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${likes.length}',
+                      style: const TextStyle(
+                        color: Colors.grey,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(
+                        Icons.comment,
+                        size: 20,
+                        color: Colors.grey,
+                      ),
+                      onPressed: () => _toggleCommentsVisibility(postId),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${comments.length}',
+                      style: const TextStyle(
+                        color: Colors.grey,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(
+                        Icons.share,
+                        size: 20,
+                        color: Colors.grey,
+                      ),
+                      onPressed: () {
+                        if (currentUser != null) {
+                          _sharePost(postId, {
+                            'content': content,
+                            'imageUrl': imageUrl,
+                            'backgroundColor': backgroundColor.value,
+                            'createdBy': createdBy,
+                          });
+                        }
+                      },
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Chia sẻ',
+                      style: const TextStyle(
+                        color: Colors.grey,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            // Comment section
+            if (_showComments[postId] ?? false) ...[
+              const Divider(),
+              // Existing comments
+              ...comments.asMap().entries.map((entry) {
+                final comment = entry.value as Map<String, dynamic>;
+                final commentUserId = comment['userId'] as String;
+                final commentContent = comment['content'] as String;
+                final commentCreatedAt = comment['createdAt'];
+
+                DateTime? displayTime;
+                if (commentCreatedAt is Timestamp) {
+                  displayTime = commentCreatedAt.toDate();
+                } else if (commentCreatedAt is DateTime) {
+                  displayTime = commentCreatedAt;
+                }
+
+                return FutureBuilder<Map<String, dynamic>>(
+                  future: _fetchUserData(commentUserId),
+                  builder: (context, commentUserSnapshot) {
+                    if (commentUserSnapshot.connectionState ==
+                        ConnectionState.waiting) {
+                      return const SizedBox.shrink();
+                    }
+                    if (commentUserSnapshot.hasError || !commentUserSnapshot.hasData) {
+                      return const SizedBox.shrink();
+                    }
+
+                    final commentUserData = commentUserSnapshot.data!;
+                    final commentUserName = commentUserData['name'] as String;
+                    final commentUserAvatar =
+                        commentUserData['avatarUrl'] as String;
+                    final canDeleteComment = currentUser != null && commentUserId == currentUser.uid;
+
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4.0),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          CircleAvatar(
+                            radius: 16,
+                            backgroundImage: commentUserAvatar.isNotEmpty
+                                ? NetworkImage(commentUserAvatar)
+                                : null,
+                            child: commentUserAvatar.isEmpty
+                                ? const Icon(
+                                    Icons.person,
+                                    size: 16,
+                                    color: Colors.white,
+                                  )
+                                : null,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Text(
+                                      commentUserName,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      _getRelativeTime(displayTime != null
+                                          ? Timestamp.fromDate(displayTime)
+                                          : null),
+                                      style: const TextStyle(
+                                        color: Colors.grey,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    if (canDeleteComment)
+                                      PopupMenuButton<String>(
+                                        onSelected: (value) {
+                                          if (value == 'delete') {
+                                            _showCommentDeleteConfirmationDialog(postId, comment);
+                                          }
+                                        },
+                                        itemBuilder: (BuildContext context) => [
+                                          const PopupMenuItem<String>(
+                                            value: 'delete',
+                                            child: Text(
+                                              'Xóa bình luận',
+                                              style: TextStyle(color: Colors.red),
+                                            ),
+                                          ),
+                                        ],
+                                        icon: const Icon(Icons.more_vert, color: Colors.grey, size: 20),
+                                      ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  commentContent,
+                                  style: const TextStyle(fontSize: 14),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                );
+              }),
+              const SizedBox(height: 8),
+              // Add comment input
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _commentControllers[postId],
+                      decoration: InputDecoration(
+                        hintText: 'Viết bình luận...',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(20),
+                          borderSide: BorderSide.none,
+                        ),
+                        filled: true,
+                        fillColor: Colors.grey[200],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    icon: const Icon(
+                      Icons.send,
+                      color: Color(0xFF1877F2),
+                    ),
+                    onPressed: () {
+                      final commentText = _commentControllers[postId]!.text.trim();
+                      if (commentText.isNotEmpty) {
+                        _addComment(postId, commentText);
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 
