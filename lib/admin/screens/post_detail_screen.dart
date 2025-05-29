@@ -1,4 +1,3 @@
-// post_detail_screen.dart - Phiên bản tối ưu
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_facebook_clone/admin/screens/admin_scaffold.dart';
@@ -65,9 +64,33 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
               .collection('users')
               .doc(userId)
               .get();
-      return doc.exists ? doc.get('displayName') ?? 'Ẩn danh' : 'Ẩn danh';
+      return doc.exists ? doc.get('name') ?? 'Ẩn danh' : 'Ẩn danh';
     } catch (e) {
       return 'Ẩn danh';
+    }
+  }
+
+  Future<List<String>> _getImagePost(String? postId) async {
+    if (postId == null || postId.isEmpty) {
+      return [];
+    }
+    try {
+      final doc =
+          await FirebaseFirestore.instance
+              .collection('posts')
+              .doc(postId)
+              .get();
+      if (!doc.exists) {
+        return [];
+      }
+      final imageUrls = doc.get('imageUrls');
+      if (imageUrls is List && imageUrls.every((item) => item is String)) {
+        return List<String>.from(imageUrls);
+      }
+      return [];
+    } catch (e) {
+      print('Error fetching image post: $e');
+      return [];
     }
   }
 
@@ -410,6 +433,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     final reportCount = _currentPostData['reportCount'] ?? 0;
     final content =
         _currentPostData['content']?.toString() ?? 'Không có nội dung';
+    print(_currentPostData);
 
     return Card(
       elevation: 6,
@@ -521,12 +545,386 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                     content,
                     style: const TextStyle(fontSize: 16, height: 1.5),
                   ),
+
+                  // Hiển thị ảnh nếu có
+                  FutureBuilder<List<String>>(
+                    future: _getImagePost(widget.postId),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Column(
+                          children: [
+                            SizedBox(height: 16),
+                            Center(child: CircularProgressIndicator()),
+                          ],
+                        );
+                      }
+                      if (snapshot.hasError) {
+                        return const Column(
+                          children: [
+                            SizedBox(height: 16),
+                            Text(
+                              'Không thể tải hình ảnh',
+                              style: TextStyle(color: Colors.red),
+                            ),
+                          ],
+                        );
+                      }
+                      final imageUrls = snapshot.data ?? [];
+                      if (imageUrls.isNotEmpty) {
+                        return Column(
+                          children: [
+                            const SizedBox(height: 16),
+                            _buildImageSection(imageUrls),
+                          ],
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    },
+                  ),
                 ],
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildImageSection(List<dynamic> imageUrls) {
+    if (imageUrls.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 12),
+
+        if (imageUrls.length == 1)
+          // Hiển thị 1 ảnh
+          _buildSingleImage(imageUrls[0])
+        else if (imageUrls.length == 2)
+          // Hiển thị 2 ảnh
+          _buildTwoImages(imageUrls)
+        else if (imageUrls.length == 3)
+          // Hiển thị 3 ảnh
+          _buildThreeImages(imageUrls)
+        else
+          // Hiển thị 4+ ảnh
+          _buildMultipleImages(imageUrls),
+      ],
+    );
+  }
+
+  Widget _buildSingleImage(String imageUrl) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: GestureDetector(
+        onTap: () => _showImageDialog(imageUrl),
+        child: Image.network(
+          imageUrl,
+          width: double.infinity,
+          height: 300,
+          fit: BoxFit.cover,
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return Container(
+              width: double.infinity,
+              height: 300,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade200,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Center(child: CircularProgressIndicator()),
+            );
+          },
+          errorBuilder: (context, error, stackTrace) {
+            return Container(
+              width: double.infinity,
+              height: 300,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade200,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.broken_image,
+                    size: 48,
+                    color: Colors.grey.shade500,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Không thể tải ảnh',
+                    style: TextStyle(color: Colors.grey.shade600),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTwoImages(List<dynamic> imageUrls) {
+    return Row(
+      children: [
+        Expanded(child: _buildImageThumbnail(imageUrls[0], height: 200)),
+        const SizedBox(width: 8),
+        Expanded(child: _buildImageThumbnail(imageUrls[1], height: 200)),
+      ],
+    );
+  }
+
+  Widget _buildThreeImages(List<dynamic> imageUrls) {
+    return Column(
+      children: [
+        _buildImageThumbnail(imageUrls[0], height: 200),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(child: _buildImageThumbnail(imageUrls[1], height: 150)),
+            const SizedBox(width: 8),
+            Expanded(child: _buildImageThumbnail(imageUrls[2], height: 150)),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMultipleImages(List<dynamic> imageUrls) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(child: _buildImageThumbnail(imageUrls[0], height: 150)),
+            const SizedBox(width: 8),
+            Expanded(child: _buildImageThumbnail(imageUrls[1], height: 150)),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(child: _buildImageThumbnail(imageUrls[2], height: 150)),
+            const SizedBox(width: 8),
+            Expanded(
+              child:
+                  imageUrls.length > 4
+                      ? _buildMoreImagesOverlay(
+                        imageUrls[3],
+                        imageUrls.length - 4,
+                      )
+                      : _buildImageThumbnail(imageUrls[3], height: 150),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildImageThumbnail(String imageUrl, {required double height}) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: GestureDetector(
+        onTap: () => _showImageDialog(imageUrl),
+        child: Image.network(
+          imageUrl,
+          width: double.infinity,
+          height: height,
+          fit: BoxFit.cover,
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return Container(
+              width: double.infinity,
+              height: height,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade200,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Center(child: CircularProgressIndicator()),
+            );
+          },
+          errorBuilder: (context, error, stackTrace) {
+            return Container(
+              width: double.infinity,
+              height: height,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade200,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                Icons.broken_image,
+                size: 32,
+                color: Colors.grey.shade500,
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMoreImagesOverlay(String imageUrl, int remainingCount) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: GestureDetector(
+        onTap: () => _showAllImagesDialog(),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.network(
+              imageUrl,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return Container(
+                  color: Colors.grey.shade200,
+                  child: Icon(
+                    Icons.broken_image,
+                    size: 32,
+                    color: Colors.grey.shade500,
+                  ),
+                );
+              },
+            ),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.6),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Center(
+                child: Text(
+                  '+$remainingCount',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showImageDialog(String imageUrl) {
+    showDialog(
+      context: context,
+      builder:
+          (context) => Dialog(
+            backgroundColor: Colors.transparent,
+            child: Stack(
+              children: [
+                Center(
+                  child: Image.network(
+                    imageUrl,
+                    fit: BoxFit.contain,
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return const Center(
+                        child: CircularProgressIndicator(color: Colors.white),
+                      );
+                    },
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.broken_image,
+                              size: 64,
+                              color: Colors.grey.shade500,
+                            ),
+                            const SizedBox(height: 16),
+                            const Text('Không thể tải ảnh'),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                Positioned(
+                  top: 40,
+                  right: 20,
+                  child: IconButton(
+                    icon: const Icon(
+                      Icons.close,
+                      color: Colors.white,
+                      size: 30,
+                    ),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ),
+              ],
+            ),
+          ),
+    );
+  }
+
+  void _showAllImagesDialog() {
+    final imageUrls = _currentPostData['imageUrls'] ?? [];
+
+    showDialog(
+      context: context,
+      builder:
+          (context) => Dialog(
+            backgroundColor: Colors.black87,
+            child: Column(
+              children: [
+                AppBar(
+                  title: Text('Tất cả hình ảnh (${imageUrls.length})'),
+                  backgroundColor: Colors.transparent,
+                  elevation: 0,
+                  leading: IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ),
+                Expanded(
+                  child: GridView.builder(
+                    padding: const EdgeInsets.all(16),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 8,
+                          mainAxisSpacing: 8,
+                        ),
+                    itemCount: imageUrls.length,
+                    itemBuilder: (context, index) {
+                      return GestureDetector(
+                        onTap: () {
+                          Navigator.pop(context);
+                          _showImageDialog(imageUrls[index]);
+                        },
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.network(
+                            imageUrls[index],
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                color: Colors.grey.shade800,
+                                child: Icon(
+                                  Icons.broken_image,
+                                  color: Colors.grey.shade500,
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
     );
   }
 
