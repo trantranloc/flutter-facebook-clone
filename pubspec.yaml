@@ -55,6 +55,7 @@ dependencies:
   fl_chart: ^1.0.0
   connectivity_plus: ^6.1.4
   agora_rtc_engine: ^6.5.2
+  image: ^4.2.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

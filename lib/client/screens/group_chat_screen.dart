@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:image/image.dart' as img;
 
 class GroupChatScreen extends StatefulWidget {
   final String groupId;
@@ -42,7 +43,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   Future<void> _fetchGroupData() async {
-    final groupDoc = await FirebaseFirestore.instance.collection('groups').doc(widget.groupId).get();
+    final groupDoc =
+        await FirebaseFirestore.instance.collection('groups').doc(widget.groupId).get();
     if (groupDoc.exists && mounted) {
       setState(() {
         _groupData = groupDoc.data();
@@ -61,10 +63,12 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       }
 
       _engine = createAgoraRtcEngine();
-      await _engine!.initialize(const RtcEngineContext(
-        appId: _appId,
-        channelProfile: ChannelProfileType.channelProfileCommunication,
-      ));
+      await _engine!.initialize(
+        const RtcEngineContext(
+          appId: _appId,
+          channelProfile: ChannelProfileType.channelProfileCommunication,
+        ),
+      );
 
       _engine!.registerEventHandler(
         RtcEngineEventHandler(
@@ -194,7 +198,10 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       _scrollToBottom();
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gửi tin nhắn thất bại: $e'), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text('Gửi tin nhắn thất bại: $e'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -246,10 +253,101 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       _scrollToBottom();
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gửi ảnh thất bại: $e'), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text('Gửi ảnh thất bại: $e'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
+
+  Future<void> _updateGroupAvatar() async {
+  try {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Người dùng chưa đăng nhập')),
+      );
+      return;
+    }
+
+    // Kiểm tra quyền: Chỉ người tạo nhóm được thay đổi avatar
+    if (_groupData?['createdBy'] != user.uid) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Chỉ người tạo nhóm mới có thể thay đổi avatar')),
+      );
+      return;
+    }
+
+    final storageStatus = await Permission.storage.request();
+    if (storageStatus.isDenied) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cần quyền truy cập bộ nhớ để chọn ảnh')),
+      );
+      return;
+    }
+
+    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+    if (image == null) return;
+
+    final file = File(image.path);
+    if (!await file.exists()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('File ảnh không tồn tại')),
+      );
+      return;
+    }
+
+    // Đọc và nén ảnh
+    final bytes = await file.readAsBytes();
+    var decodedImage = img.decodeImage(bytes); // Sử dụng decodeImage thay vì decodeImageFromList
+    if (decodedImage == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Không thể giải mã ảnh, vui lòng thử ảnh khác')),
+      );
+      return;
+    }
+
+    // Thay đổi kích thước ảnh (giới hạn chiều rộng tối đa 800px, giữ tỷ lệ)
+    var resizedImage = img.copyResize(
+      decodedImage,
+      width: decodedImage.width > 800 ? 800 : decodedImage.width,
+      interpolation: img.Interpolation.average,
+    );
+
+    // Nén ảnh với chất lượng 80%
+    final compressedBytes = img.encodeJpg(resizedImage, quality: 80);
+    final base64Image = base64Encode(compressedBytes);
+
+    if (base64Image.length > 700000) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Ảnh vẫn quá lớn sau khi nén, vui lòng chọn ảnh nhỏ hơn'),
+        ),
+      );
+      return;
+    }
+
+    // Cập nhật avatarUrl trong tài liệu nhóm
+    await FirebaseFirestore.instance.collection('groups').doc(widget.groupId).update({
+      'avatarUrl': base64Image,
+    });
+
+    // Làm mới _groupData để cập nhật giao diện
+    await _fetchGroupData();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Cập nhật avatar nhóm thành công')),
+    );
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Cập nhật avatar thất bại: $e'),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
+}
 
   void _viewFullImage(BuildContext context, String base64Image) {
     showDialog(
@@ -293,10 +391,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
               if (snapshot.hasError) {
                 return const Center(child: Text('Lỗi khi tải ảnh'));
               }
-              final images = snapshot.data
-                      ?.where((msg) => msg['type'] == 'image')
-                      .toList() ??
-                  [];
+              final images = snapshot.data?.where((msg) => msg['type'] == 'image').toList() ?? [];
               if (images.isEmpty) {
                 return const Center(child: Text('Không tìm thấy ảnh'));
               }
@@ -324,8 +419,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                             child: Image.memory(
                               base64Decode(image['fileUrl']),
                               fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) =>
-                                  const Icon(Icons.error),
+                              errorBuilder: (context, error, stackTrace) => const Icon(Icons.error),
                             ),
                           ),
                         ),
@@ -361,9 +455,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
-              decoration: const InputDecoration(
-                hintText: 'Nhập URL file (mô phỏng)',
-              ),
+              decoration: const InputDecoration(hintText: 'Nhập URL file (mô phỏng)'),
               onChanged: (value) {},
             ),
           ],
@@ -386,7 +478,10 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                 _scrollToBottom();
               } catch (e) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Chia sẻ file thất bại: $e'), backgroundColor: Colors.red),
+                  SnackBar(
+                    content: Text('Chia sẻ file thất bại: $e'),
+                    backgroundColor: Colors.red,
+                  ),
                 );
               }
             },
@@ -443,12 +538,15 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    final isCreator = _groupData?['createdBy'] == user?.uid;
+
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: Icon(Icons.arrow_back, color: Theme.of(context).colorScheme.onSurface),
           onPressed: () {
             context.go("/message");
           },
@@ -458,7 +556,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             CircleAvatar(
               radius: 18,
               backgroundImage: _groupData?['avatarUrl']?.isNotEmpty == true
-                  ? NetworkImage(_groupData!['avatarUrl'])
+                  ? (_groupData!['avatarUrl'].startsWith('assets/')
+                      ? AssetImage(_groupData!['avatarUrl'])
+                      : MemoryImage(base64Decode(_groupData!['avatarUrl'])))
                   : const AssetImage('assets/group.jpg') as ImageProvider,
             ),
             const SizedBox(width: 8),
@@ -467,8 +567,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
               children: [
                 Text(
                   _groupData?['name'] ?? 'Nhóm không tên',
-                  style: const TextStyle(
-                    color: Colors.black,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface,
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                   ),
@@ -477,16 +577,31 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                   future: _getMemberNames(),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Text('Đang tải...', style: TextStyle(fontSize: 12, color: Colors.grey));
+                      return Text(
+                        'Đang tải...',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      );
                     }
-                    if (snapshot.hasError || !snapshot.hasData) {
-                      return const Text('Lỗi tải thành viên', style: TextStyle(fontSize: 12, color: Colors.grey));
+                    if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
+                      return Text(
+                        'Lỗi tải thành viên',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      );
                     }
-                    final names = snapshot.data!.take(3).join(', ');
-                    final more = snapshot.data!.length > 3 ? '...' : '';
+                    final names = snapshot.data!;
+                    final displayText = names.length > 1 ? '${names[0]}...' : names[0];
                     return Text(
-                      '$names$more',
-                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      displayText,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     );
@@ -500,21 +615,29 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           IconButton(
             icon: Icon(
               _isJoined ? Icons.call_end : Icons.call,
-              color: _isJoined ? Colors.red : Colors.black,
+              color: _isJoined ? Colors.red : Theme.of(context).colorScheme.onSurface,
             ),
             onPressed: _isJoined ? _endCall : _startVoiceCall,
           ),
           IconButton(
-            icon: const Icon(Icons.videocam, color: Colors.black),
+            icon: Icon(
+              Icons.videocam,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
             onPressed: _isJoined ? _endCall : _startVideoCall,
           ),
           PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert, color: Colors.black),
+            icon: Icon(
+              Icons.more_vert,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
             onSelected: (value) {
               if (value == 'gallery') {
                 _showImageGallery();
               } else if (value == 'details') {
                 context.go('/message/group/${widget.groupId}/details');
+              } else if (value == 'change_avatar' && isCreator) {
+                _updateGroupAvatar();
               }
             },
             itemBuilder: (BuildContext context) {
@@ -527,6 +650,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                   value: 'details',
                   child: Text('Xem chi tiết nhóm'),
                 ),
+                if (isCreator)
+                  const PopupMenuItem<String>(
+                    value: 'change_avatar',
+                    child: Text('Thay đổi avatar nhóm'),
+                  ),
               ];
             },
           ),
@@ -537,14 +665,14 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           if (_isJoined)
             Container(
               padding: const EdgeInsets.all(8.0),
-              color: Colors.grey[200],
+              color: Theme.of(context).colorScheme.surfaceContainer,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   IconButton(
                     icon: Icon(
                       _isMuted ? Icons.mic_off : Icons.mic,
-                      color: _isMuted ? Colors.red : Colors.black,
+                      color: _isMuted ? Colors.red : Theme.of(context).colorScheme.onSurface,
                     ),
                     onPressed: _toggleMute,
                   ),
@@ -552,7 +680,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                     IconButton(
                       icon: Icon(
                         _isVideoEnabled ? Icons.videocam : Icons.videocam_off,
-                        color: _isVideoEnabled ? Colors.black : Colors.red,
+                        color: _isVideoEnabled ? Theme.of(context).colorScheme.onSurface : Colors.red,
                       ),
                       onPressed: () async {
                         setState(() {
@@ -607,12 +735,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                           margin: const EdgeInsets.symmetric(vertical: 4.0),
                           padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
                           decoration: BoxDecoration(
-                            color: isMe ? Colors.blue[100] : Colors.grey[200],
+                            color: isMe ? Theme.of(context).colorScheme.primaryContainer : Theme.of(context).colorScheme.surfaceContainer,
                             borderRadius: BorderRadius.circular(12.0),
                           ),
                           child: Column(
-                            crossAxisAlignment:
-                                isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                            crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
                             children: [
                               if (!isMe)
                                 FutureBuilder<String>(
@@ -620,9 +747,10 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                   builder: (context, snapshot) {
                                     return Text(
                                       snapshot.data ?? 'Unknown',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 12.0,
                                         fontWeight: FontWeight.bold,
+                                        color: Theme.of(context).colorScheme.onSurface,
                                       ),
                                     );
                                   },
@@ -642,8 +770,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                       child: Image.memory(
                                         base64Decode(message['fileUrl']),
                                         fit: BoxFit.cover,
-                                        errorBuilder: (context, error, stackTrace) =>
-                                            const Text('Lỗi tải ảnh'),
+                                        errorBuilder: (context, error, stackTrace) => const Text('Lỗi tải ảnh'),
                                       ),
                                     ),
                                   ),
@@ -651,11 +778,17 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                               if (message['type'] == 'image') const SizedBox(height: 4),
                               Text(
                                 message['message']!,
-                                style: const TextStyle(fontSize: 16.0),
+                                style: TextStyle(
+                                  fontSize: 16.0,
+                                  color: Theme.of(context).colorScheme.onSurface,
+                                ),
                               ),
                               Text(
                                 timeString,
-                                style: const TextStyle(fontSize: 10.0, color: Colors.grey),
+                                style: TextStyle(
+                                  fontSize: 10.0,
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                ),
                               ),
                             ],
                           ),
@@ -672,11 +805,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             child: Row(
               children: [
                 IconButton(
-                  icon: const Icon(Icons.camera_alt, color: Colors.grey),
+                  icon: Icon(Icons.camera_alt, color: Theme.of(context).colorScheme.onSurfaceVariant),
                   onPressed: _sendImage,
                 ),
                 IconButton(
-                  icon: const Icon(Icons.attach_file, color: Colors.grey),
+                  icon: Icon(Icons.attach_file, color: Theme.of(context).colorScheme.onSurfaceVariant),
                   onPressed: _shareFile,
                 ),
                 Expanded(
@@ -689,14 +822,14 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                         borderSide: BorderSide.none,
                       ),
                       filled: true,
-                      fillColor: Colors.grey[200],
+                      fillColor: Theme.of(context).colorScheme.surfaceContainer,
                     ),
                     onSubmitted: (value) => _sendMessage(),
                   ),
                 ),
                 const SizedBox(width: 8),
                 IconButton(
-                  icon: const Icon(Icons.send, color: Colors.blue),
+                  icon: Icon(Icons.send, color: Theme.of(context).colorScheme.primary),
                   onPressed: _sendMessage,
                 ),
               ],
@@ -731,3 +864,4 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     super.dispose();
   }
 }
+//màn hình chat nhóm 
