@@ -175,7 +175,10 @@ class _MessageScreenState extends State<MessageScreen> {
               ),
               actions: [
                 IconButton(
-                  icon: Icon(Icons.settings, color: Theme.of(context).colorScheme.onSurface),
+                  icon: Icon(
+                    Icons.settings,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
                   onPressed: () => _showSettingsMenu(context, provider),
                 ),
               ],
@@ -192,7 +195,10 @@ class _MessageScreenState extends State<MessageScreen> {
                     controller: _searchController,
                     decoration: InputDecoration(
                       hintText: 'Search Messenger',
-                      prefixIcon: Icon(Icons.search, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                      prefixIcon: Icon(
+                        Icons.search,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                       filled: true,
                       fillColor: Theme.of(context).colorScheme.surfaceContainer,
                       border: OutlineInputBorder(
@@ -206,55 +212,75 @@ class _MessageScreenState extends State<MessageScreen> {
                   ),
                 ),
                 Expanded(
-                  child: provider.isLoading
-                      ? const Center(child: CircularProgressIndicator())
-                      : ListView(
-                          children: [
-                            // Horizontal Friends Section
-                            Container(
-                              height: 90,
-                              padding: const EdgeInsets.symmetric(vertical: 5),
-                              child: ListView(
-                                scrollDirection: Axis.horizontal,
-                                children: provider.friendsList.take(7).map((friend) {
-                                  return FriendAvatar(
-                                    name: friend['name'],
-                                    image: friend['avatarUrl'],
-                                    isActive: friend['isActive'],
-                                    isGroup: friend['isGroup'] ?? false, // Thêm isGroup
-                                    onTap: () {
-                                      context.go(friend['isGroup'] == true
-                                          ? '/message/group/${friend['uid']}'
-                                          : '/message/chat/${friend['uid']}');
-                                    },
-                                  );
-                                }).toList(),
+                  child:
+                      provider.isLoading
+                          ? const Center(child: CircularProgressIndicator())
+                          : ListView(
+                            children: [
+                              // Horizontal Friends Section
+                              Container(
+                                height: 90,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 5,
+                                ),
+                                child: ListView(
+                                  scrollDirection: Axis.horizontal,
+                                  children:
+                                      provider.friendsList.take(7).map((
+                                        friend,
+                                      ) {
+                                        return FriendAvatar(
+                                          name: friend['name'],
+                                          image: friend['avatarUrl'],
+                                          isActive: friend['isActive'],
+                                          isGroup:
+                                              friend['isGroup'] ??
+                                              false, // Thêm isGroup
+                                          onTap: () {
+                                            context.go(
+                                              friend['isGroup'] == true
+                                                  ? '/message/group/${friend['uid']}'
+                                                  : '/message/chat/${friend['uid']}',
+                                            );
+                                          },
+                                        );
+                                      }).toList(),
+                                ),
                               ),
-                            ),
-                            const Divider(),
-                            // Messages Section
-                            ...provider.friendsList.asMap().entries.map((entry) {
-                              final index = entry.key;
-                              final friend = entry.value;
-                              return MessageTile(
-                                name: friend['name'],
-                                message: friend['lastMessage'],
-                                avatarUrl: friend['avatarUrl'],
-                                isActive: friend['isActive'],
-                                isPinned: friend['isPinned'] ?? false,
-                                isGroup: friend['isGroup'] ?? false,
-                                onTap: () {
-                                  context.go(friend['isGroup'] == true
-                                      ? '/message/group/${friend['uid']}'
-                                      : '/message/chat/${friend['uid']}');
-                                },
-                                onMoreTap: () {
-                                  _showChatOptions(context, provider, friend['uid'], index, friend['isGroup'] ?? false);
-                                },
-                              );
-                            }),
-                          ],
-                        ),
+                              const Divider(),
+                              // Messages Section
+                              ...provider.friendsList.asMap().entries.map((
+                                entry,
+                              ) {
+                                final index = entry.key;
+                                final friend = entry.value;
+                                return MessageTile(
+                                  name: friend['name'],
+                                  message: friend['lastMessage'],
+                                  avatarUrl: friend['avatarUrl'],
+                                  isActive: friend['isActive'],
+                                  isPinned: friend['isPinned'] ?? false,
+                                  isGroup: friend['isGroup'] ?? false,
+                                  onTap: () {
+                                    context.go(
+                                      friend['isGroup'] == true
+                                          ? '/message/group/${friend['uid']}'
+                                          : '/message/chat/${friend['uid']}',
+                                    );
+                                  },
+                                  onMoreTap: () {
+                                    _showChatOptions(
+                                      context,
+                                      provider,
+                                      friend['uid'],
+                                      index,
+                                      friend['isGroup'] ?? false,
+                                    );
+                                  },
+                                );
+                              }),
+                            ],
+                          ),
                 ),
               ],
             ),
@@ -338,18 +364,7 @@ class _MessageScreenState extends State<MessageScreen> {
                   ),
               ],
             ),
-            if (isGroup)
-              ListTile(
-                leading: const Icon(Icons.group),
-                title: const Text('View group details'),
-                onTap: () {
-                  Navigator.pop(context);
-                  context.go('/message/group/${friendId}/details');
-                },
-              ),
-          ],
-        ),
-      ),
+          ),
     );
   }
 }
@@ -386,15 +401,17 @@ class FriendAvatar extends StatelessWidget {
           imageProvider = NetworkImage(image);
         }
       } else {
-        imageProvider = isGroup
-            ? const AssetImage('assets/group.jpg')
-            : const AssetImage('assets/user.jpg');
+        imageProvider =
+            isGroup
+                ? const AssetImage('assets/group.jpg')
+                : const AssetImage('assets/user.jpg');
       }
     } catch (e) {
       // Dự phòng nếu base64 không hợp lệ
-      imageProvider = isGroup
-          ? const AssetImage('assets/group.jpg')
-          : const AssetImage('assets/user.jpg');
+      imageProvider =
+          isGroup
+              ? const AssetImage('assets/group.jpg')
+              : const AssetImage('assets/user.jpg');
       print('Error loading image: $e');
     }
 
@@ -491,15 +508,17 @@ class MessageTile extends StatelessWidget {
           imageProvider = NetworkImage(avatarUrl);
         }
       } else {
-        imageProvider = isGroup
-            ? const AssetImage('assets/group.jpg')
-            : const AssetImage('assets/user.jpg');
+        imageProvider =
+            isGroup
+                ? const AssetImage('assets/group.jpg')
+                : const AssetImage('assets/user.jpg');
       }
     } catch (e) {
       // Dự phòng nếu base64 không hợp lệ
-      imageProvider = isGroup
-          ? const AssetImage('assets/group.jpg')
-          : const AssetImage('assets/user.jpg');
+      imageProvider =
+          isGroup
+              ? const AssetImage('assets/group.jpg')
+              : const AssetImage('assets/user.jpg');
       print('Error loading image: $e');
     }
 
