@@ -1,14 +1,11 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
 import 'create_post_screen.dart';
 import 'create_story_screen.dart';
 import 'story_view_screen.dart';
-import 'event_and_birthday_screen.dart';
-import 'notification_screen.dart';
 import '../../widgets/post_card.dart';
 import '../../models/Story.dart';
 import '../../models/Post.dart';
@@ -53,7 +50,6 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     });
   }
-
 
   Future<List<String>> fetchFriendIds(String currentUserId) async {
     final friendSnap1 =
@@ -403,48 +399,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
               ),
-            ),
-          ),
-
-          // Notifications
-          Card(
-            margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            elevation: 2,
-            child: ListTile(
-              leading: const FaIcon(
-                FontAwesomeIcons.bell,
-                color: Color(0xFF1877F2),
-              ),
-              title: const Text('Thông báo'),
-              subtitle: const Text('Xem các thông báo mới nhất'),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const NotificationScreen()),
-                );
-              },
-            ),
-          ),
-
-          // Events
-          Card(
-            margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            elevation: 2,
-            child: ListTile(
-              leading: const FaIcon(
-                FontAwesomeIcons.cakeCandles,
-                color: Color(0xFF1877F2),
-              ),
-              title: const Text('Sự kiện & Sinh nhật'),
-              subtitle: const Text('Xem các sự kiện và sinh nhật sắp tới'),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const EventAndBirthdayScreen(),
-                  ),
-                );
-              },
             ),
           ),
 

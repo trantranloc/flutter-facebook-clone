@@ -415,7 +415,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
               ),
               const SizedBox(width: 12),
               const Text(
-                'Phân bố trạng thái người dùng',
+                'Phân bố trạng thái',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
             ],
