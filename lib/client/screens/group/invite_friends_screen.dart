@@ -71,11 +71,10 @@ class _InviteFriendsScreenState extends State<InviteFriendsScreen> {
       final chunks = _chunkList(nonMemberFriendIds, 10);
 
       for (var chunk in chunks) {
-        final snapshot =
-            await _firestore
-                .collection('users')
-                .where(FieldPath.documentId, whereIn: chunk)
-                .get();
+        final snapshot = await _firestore
+            .collection('users')
+            .where(FieldPath.documentId, whereIn: chunk)
+            .get();
 
         friendsData.addAll(
           snapshot.docs.map((doc) {
@@ -107,11 +106,10 @@ class _InviteFriendsScreenState extends State<InviteFriendsScreen> {
   void _filterFriends() {
     final query = _searchController.text.toLowerCase().trim();
     setState(() {
-      _filteredFriends =
-          _friends.where((friend) {
-            final name = friend['name']?.toLowerCase() ?? '';
-            return name.contains(query);
-          }).toList();
+      _filteredFriends = _friends.where((friend) {
+        final name = friend['name']?.toLowerCase() ?? '';
+        return name.contains(query);
+      }).toList();
     });
   }
 
@@ -128,13 +126,12 @@ class _InviteFriendsScreenState extends State<InviteFriendsScreen> {
       }
 
       // Kiểm tra xem đã có lời mời chưa
-      final invitationDoc =
-          await _firestore
-              .collection('groups')
-              .doc(widget.groupId)
-              .collection('invitations')
-              .doc(friendId)
-              .get();
+      final invitationDoc = await _firestore
+          .collection('groups')
+          .doc(widget.groupId)
+          .collection('invitations')
+          .doc(friendId)
+          .get();
       if (invitationDoc.exists) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Người dùng đã được mời trước đó')),
@@ -149,13 +146,13 @@ class _InviteFriendsScreenState extends State<InviteFriendsScreen> {
           .collection('invitations')
           .doc(friendId)
           .set({
-            'invitedBy': user.uid,
-            'invitedAt': FieldValue.serverTimestamp(),
-            'status': 'pending',
-            'invitedUserId': friendId,
-            'groupId': widget.groupId,
-            'groupName': widget.group.name,
-          });
+        'invitedBy': user.uid,
+        'invitedAt': FieldValue.serverTimestamp(),
+        'status': 'pending',
+        'invitedUserId': friendId,
+        'groupId': widget.groupId,
+        'groupName': widget.group.name,
+      });
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Đã gửi lời mời thành công')),
@@ -188,7 +185,7 @@ class _InviteFriendsScreenState extends State<InviteFriendsScreen> {
   @override
   Widget build(BuildContext context) {
     final user = _auth.currentUser;
-    if (user == null || widget.group.adminUid != user.uid) {
+    if (user == null) {
       return Scaffold(
         appBar: AppBar(
           title: const Text(
@@ -198,7 +195,24 @@ class _InviteFriendsScreenState extends State<InviteFriendsScreen> {
           backgroundColor: Colors.white,
           foregroundColor: Colors.black,
         ),
-        body: const Center(child: Text('Chỉ quản trị viên có thể mời bạn bè')),
+        body: const Center(child: Text('Vui lòng đăng nhập để mời bạn bè')),
+      );
+    }
+
+    // Kiểm tra xem người dùng có phải là thành viên nhóm (bao gồm admin) không
+    if (!widget.group.members.contains(user.uid)) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text(
+            'Mời bạn bè',
+            style: TextStyle(color: Colors.black),
+          ),
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.black,
+        ),
+        body: const Center(
+          child: Text('Chỉ thành viên nhóm hoặc quản trị viên mới có thể mời bạn bè'),
+        ),
       );
     }
 
@@ -219,140 +233,130 @@ class _InviteFriendsScreenState extends State<InviteFriendsScreen> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body:
-          _isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: TextField(
-                      controller: _searchController,
-                      decoration: InputDecoration(
-                        hintText: 'Tìm kiếm bạn bè',
-                        border: const OutlineInputBorder(),
-                        prefixIcon: const Icon(
-                          Icons.search,
-                          color: Colors.grey,
-                        ),
-                        suffixIcon: IconButton(
-                          icon: const Icon(Icons.clear, color: Colors.grey),
-                          onPressed: () {
-                            _searchController.clear();
-                            _filterFriends();
-                          },
-                        ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      hintText: 'Tìm kiếm bạn bè',
+                      border: const OutlineInputBorder(),
+                      prefixIcon: const Icon(
+                        Icons.search,
+                        color: Colors.grey,
+                      ),
+                      suffixIcon: IconButton(
+                        icon: const Icon(Icons.clear, color: Colors.grey),
+                        onPressed: () {
+                          _searchController.clear();
+                          _filterFriends();
+                        },
                       ),
                     ),
                   ),
-                  if (_errorMessage != null)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                      child: Text(
-                        _errorMessage!,
-                        style: const TextStyle(color: Colors.red, fontSize: 14),
-                        textAlign: TextAlign.center,
-                      ),
+                ),
+                if (_errorMessage != null)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: Text(
+                      _errorMessage!,
+                      style: const TextStyle(color: Colors.red, fontSize: 14),
+                      textAlign: TextAlign.center,
                     ),
-                  Expanded(
-                    child:
-                        _filteredFriends.isEmpty
-                            ? Center(
-                              child: Text(
-                                _searchController.text.isEmpty
-                                    ? 'Không có bạn bè nào để mời'
-                                    : 'Không tìm thấy bạn bè phù hợp',
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  color: Colors.grey,
-                                ),
+                  ),
+                Expanded(
+                  child: _filteredFriends.isEmpty
+                      ? Center(
+                          child: Text(
+                            _searchController.text.isEmpty
+                                ? 'Không có bạn bè nào để mời'
+                                : 'Không tìm thấy bạn bè phù hợp',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8.0,
+                            vertical: 4.0,
+                          ),
+                          itemCount: _filteredFriends.length,
+                          itemBuilder: (context, index) {
+                            final friend = _filteredFriends[index];
+                            final friendId = friend['friendId']!;
+                            final friendName = friend['name']!;
+                            final friendAvatarUrl = friend['avatarUrl'];
+
+                            return Card(
+                              elevation: 2,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
                               ),
-                            )
-                            : ListView.builder(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8.0,
+                              margin: const EdgeInsets.symmetric(
                                 vertical: 4.0,
                               ),
-                              itemCount: _filteredFriends.length,
-                              itemBuilder: (context, index) {
-                                final friend = _filteredFriends[index];
-                                final friendId = friend['friendId']!;
-                                final friendName = friend['name']!;
-                                final friendAvatarUrl = friend['avatarUrl'];
-
-                                return Card(
-                                  elevation: 2,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  margin: const EdgeInsets.symmetric(
-                                    vertical: 4.0,
-                                  ),
-                                  child: ListTile(
-                                    leading: CircleAvatar(
-                                      radius: 20,
-                                      backgroundImage:
-                                          friendAvatarUrl != null &&
-                                                  friendAvatarUrl.isNotEmpty
-                                              ? NetworkImage(friendAvatarUrl)
-                                              : null,
-                                      child:
-                                          friendAvatarUrl == null ||
-                                                  friendAvatarUrl.isEmpty
-                                              ? Text(
-                                                friendName.isNotEmpty
-                                                    ? friendName[0]
-                                                        .toUpperCase()
-                                                    : 'A',
-                                                style: const TextStyle(
-                                                  fontSize: 16,
-                                                  color: Colors.white,
-                                                ),
-                                              )
-                                              : null,
-                                    ),
-                                    title: Text(
-                                      friendName,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w500,
-                                        fontSize: 16,
-                                      ),
-                                    ),
-                                    trailing: ElevatedButton(
-                                      onPressed:
-                                          _isLoading
-                                              ? null
-                                              : () => _inviteFriend(friendId),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: const Color(
-                                          0xFF1877F2,
-                                        ),
-                                        foregroundColor: Colors.white,
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 16,
-                                          vertical: 8,
-                                        ),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            8,
+                              child: ListTile(
+                                leading: CircleAvatar(
+                                  radius: 20,
+                                  backgroundImage: friendAvatarUrl != null &&
+                                          friendAvatarUrl.isNotEmpty
+                                      ? NetworkImage(friendAvatarUrl)
+                                      : null,
+                                  child: friendAvatarUrl == null ||
+                                          friendAvatarUrl.isEmpty
+                                      ? Text(
+                                          friendName.isNotEmpty
+                                              ? friendName[0].toUpperCase()
+                                              : 'A',
+                                          style: const TextStyle(
+                                            fontSize: 16,
+                                            color: Colors.white,
                                           ),
-                                        ),
-                                      ),
-                                      child: const Text(
-                                        'Mời',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
+                                        )
+                                      : null,
+                                ),
+                                title: Text(
+                                  friendName,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                trailing: ElevatedButton(
+                                  onPressed: _isLoading
+                                      ? null
+                                      : () => _inviteFriend(friendId),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF1877F2),
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 8,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
                                     ),
                                   ),
-                                );
-                              },
-                            ),
-                  ),
-                ],
-              ),
+                                  child: const Text(
+                                    'Mời',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
     );
   }
 }
