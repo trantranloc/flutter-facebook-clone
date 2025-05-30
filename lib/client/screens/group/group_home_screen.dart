@@ -178,14 +178,17 @@ class _GroupHomeScreenState extends State<GroupHomeScreen> {
         const SnackBar(content: Text('Đã xóa bài viết thành công')),
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi khi xóa bài viết: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Lỗi khi xóa bài viết: $e')));
     }
   }
 
   // Delete a comment
-  Future<void> _deleteComment(String postId, Map<String, dynamic> comment) async {
+  Future<void> _deleteComment(
+    String postId,
+    Map<String, dynamic> comment,
+  ) async {
     try {
       await _firestore
           .collection('groups')
@@ -193,15 +196,15 @@ class _GroupHomeScreenState extends State<GroupHomeScreen> {
           .collection('posts')
           .doc(postId)
           .update({
-        'comments': FieldValue.arrayRemove([comment]),
-      });
+            'comments': FieldValue.arrayRemove([comment]),
+          });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Đã xóa bình luận thành công')),
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi khi xóa bình luận: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Lỗi khi xóa bình luận: $e')));
     }
   }
 
@@ -237,7 +240,10 @@ class _GroupHomeScreenState extends State<GroupHomeScreen> {
   }
 
   // Show delete confirmation dialog for comment
-  Future<void> _showCommentDeleteConfirmationDialog(String postId, Map<String, dynamic> comment) async {
+  Future<void> _showCommentDeleteConfirmationDialog(
+    String postId,
+    Map<String, dynamic> comment,
+  ) async {
     return showDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -369,7 +375,10 @@ class _GroupHomeScreenState extends State<GroupHomeScreen> {
   }
 
   // Share a post
-  Future<void> _sharePost(String postId, Map<String, dynamic> originalPost) async {
+  Future<void> _sharePost(
+    String postId,
+    Map<String, dynamic> originalPost,
+  ) async {
     final user = _auth.currentUser;
     if (user == null) return;
 
@@ -387,25 +396,25 @@ class _GroupHomeScreenState extends State<GroupHomeScreen> {
           .doc(widget.groupId)
           .collection('posts')
           .add({
-        'content': 'Chia sẻ bài viết của $originalCreatorName: $content',
-        'imageUrl': imageUrl,
-        'backgroundColor': backgroundColor,
-        'createdBy': user.uid,
-        'createdAt': FieldValue.serverTimestamp(),
-        'likes': [],
-        'comments': [],
-        'isShared': true,
-        'originalPostId': postId,
-        'originalCreatorId': originalCreator,
-      });
+            'content': 'Chia sẻ bài viết của $originalCreatorName: $content',
+            'imageUrl': imageUrl,
+            'backgroundColor': backgroundColor,
+            'createdBy': user.uid,
+            'createdAt': FieldValue.serverTimestamp(),
+            'likes': [],
+            'comments': [],
+            'isShared': true,
+            'originalPostId': postId,
+            'originalCreatorId': originalCreator,
+          });
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Chia sẻ bài viết thành công')),
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi khi chia sẻ bài viết: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Lỗi khi chia sẻ bài viết: $e')));
     }
   }
 
@@ -415,10 +424,10 @@ class _GroupHomeScreenState extends State<GroupHomeScreen> {
     if (user == null) return;
 
     final comment = {
-    'userId': user.uid,
-    'content': content, // Fixed: Use the 'content' parameter
-    'createdAt': DateTime.now(),
-  };
+      'userId': user.uid,
+      'content': content, // Fixed: Use the 'content' parameter
+      'createdAt': DateTime.now(),
+    };
 
     await _firestore
         .collection('groups')
@@ -467,13 +476,13 @@ class _GroupHomeScreenState extends State<GroupHomeScreen> {
           IconButton(
             icon: const Icon(Icons.search, color: Colors.black),
             onPressed: () {
-              //   Thêm logic tìm kiếm
+              // Thêm logic tìm kiếm
             },
           ),
           PopupMenuButton<String>(
             onSelected: (value) {
               if (value == 'edit') {
-                //   Thêm logic chỉnh sửa
+                // Thêm logic chỉnh sửa
               } else if (value == 'delete') {
                 _showDeleteConfirmationDialog();
               }
@@ -745,7 +754,7 @@ class _GroupHomeScreenState extends State<GroupHomeScreen> {
                               color: Color(0xFF1877F2),
                             ),
                             onPressed: () {
-                              //   Thêm logic chọn ảnh
+                              // Thêm logic chọn ảnh
                             },
                           ),
                         ],
@@ -771,140 +780,165 @@ class _GroupHomeScreenState extends State<GroupHomeScreen> {
                         ],
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  const Divider(height: 2, color: Colors.grey),
-                  // Display posts
-                  StreamBuilder<QuerySnapshot>(
-                    stream: _firestore
-                        .collection('groups')
-                        .doc(widget.groupId)
-                        .collection('posts')
-                        .orderBy('createdAt', descending: true)
-                        .snapshots(),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-                      if (snapshot.hasError) {
-                        return const Center(child: Text('Lỗi khi tải bài đăng'));
-                      }
-                      if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                        return const Padding(
-                          padding: EdgeInsets.all(16.0),
-                          child: Text('Chưa có bài đăng nào.'),
-                        );
-                      }
-
-                      final posts = snapshot.data!.docs;
-                      return ListView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: posts.length,
-                        itemBuilder: (context, index) {
-                          final post = posts[index];
-                          final data = post.data() as Map<String, dynamic>;
-                          final content = data['content']?.toString() ?? '';
-                          final imageUrl = data['imageUrl']?.toString();
-                          final backgroundColor = Color(data['backgroundColor'] ?? 0xFFFFFFFF);
-                          final createdBy = data['createdBy']?.toString() ?? '';
-                          final createdAt = data['createdAt'] as Timestamp?;
-                          final likes = data['likes'] as List<dynamic>? ?? [];
-                          final comments = data['comments'] as List<dynamic>? ?? [];
-                          final isShared = data['isShared'] as bool? ?? false;
-                          final originalCreatorId = data['originalCreatorId']?.toString();
-                          final postId = post.id;
-
-                          // Initialize comment controller for this post
-                          _commentControllers[postId] ??= TextEditingController();
-
-                          return FutureBuilder<Map<String, dynamic>>(
-                            future: _fetchUserData(createdBy),
-                            builder: (context, userSnapshot) {
-                              if (userSnapshot.connectionState == ConnectionState.waiting) {
-                                return const SizedBox.shrink();
-                              }
-                              if (userSnapshot.hasError || !userSnapshot.hasData) {
-                                return const SizedBox.shrink();
-                              }
-
-                              final userData = userSnapshot.data!;
-                              final userName = userData['name'] as String;
-                              final userAvatar = userData['avatarUrl'] as String;
-                              final currentUser = _auth.currentUser;
-                              final isLiked = currentUser != null && likes.contains(currentUser.uid);
-
-                              // Fetch original creator's name for shared posts
-                              Widget sharedPostHeader = const SizedBox.shrink();
-                              if (isShared && originalCreatorId != null) {
-                                return FutureBuilder<Map<String, dynamic>>(
-                                  future: _fetchUserData(originalCreatorId),
-                                  builder: (context, originalUserSnapshot) {
-                                    if (originalUserSnapshot.connectionState == ConnectionState.waiting) {
-                                      return const SizedBox.shrink();
-                                    }
-                                    if (originalUserSnapshot.hasError || !originalUserSnapshot.hasData) {
-                                      return const SizedBox.shrink();
-                                    }
-
-                                    final originalUserData = originalUserSnapshot.data!;
-                                    final originalUserName = originalUserData['name'] as String;
-
-                                    sharedPostHeader = Padding(
-                                      padding: const EdgeInsets.only(bottom: 8.0),
-                                      child: Text(
-                                        'Chia sẻ từ $originalUserName',
-                                        style: const TextStyle(
-                                          fontStyle: FontStyle.italic,
-                                          color: Colors.grey,
-                                          fontSize: 14,
-                                        ),
-                                      ),
-                                    );
-
-                                    return _buildPostCard(
-                                      postId,
-                                      content,
-                                      imageUrl,
-                                      backgroundColor,
-                                      createdBy,
-                                      createdAt,
-                                      likes,
-                                      comments,
-                                      isShared,
-                                      userName,
-                                      userAvatar,
-                                      isLiked,
-                                      currentUser,
-                                      sharedPostHeader,
-                                    );
-                                  },
-                                );
-                              }
-
-                              return _buildPostCard(
-                                postId,
-                                content,
-                                imageUrl,
-                                backgroundColor,
-                                createdBy,
-                                createdAt,
-                                likes,
-                                comments,
-                                isShared,
-                                userName,
-                                userAvatar,
-                                isLiked,
-                                currentUser,
-                                sharedPostHeader,
-                              );
-                            },
+                    const SizedBox(height: 16),
+                    const Divider(height: 2, color: Colors.grey),
+                    // Display posts
+                    StreamBuilder<QuerySnapshot>(
+                      stream:
+                          _firestore
+                              .collection('groups')
+                              .doc(widget.groupId)
+                              .collection('posts')
+                              .orderBy('createdAt', descending: true)
+                              .snapshots(),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const Center(
+                            child: CircularProgressIndicator(),
                           );
-                        },
-                      );
-                    },
-                  ),
-                ],
+                        }
+                        if (snapshot.hasError) {
+                          return const Center(
+                            child: Text('Lỗi khi tải bài đăng'),
+                          );
+                        }
+                        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                          return const Padding(
+                            padding: EdgeInsets.all(16.0),
+                            child: Text('Chưa có bài đăng nào.'),
+                          );
+                        }
+
+                        final posts = snapshot.data!.docs;
+                        return ListView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: posts.length,
+                          itemBuilder: (context, index) {
+                            final post = posts[index];
+                            final data = post.data() as Map<String, dynamic>;
+                            final content = data['content']?.toString() ?? '';
+                            final imageUrl = data['imageUrl']?.toString();
+                            final backgroundColor = Color(
+                              data['backgroundColor'] ?? 0xFFFFFFFF,
+                            );
+                            final createdBy =
+                                data['createdBy']?.toString() ?? '';
+                            final createdAt = data['createdAt'] as Timestamp?;
+                            final likes = data['likes'] as List<dynamic>? ?? [];
+                            final comments =
+                                data['comments'] as List<dynamic>? ?? [];
+                            final isShared = data['isShared'] as bool? ?? false;
+                            final originalCreatorId =
+                                data['originalCreatorId']?.toString();
+                            final postId = post.id;
+
+                            // Initialize comment controller for this post
+                            _commentControllers[postId] ??=
+                                TextEditingController();
+
+                            return FutureBuilder<Map<String, dynamic>>(
+                              future: _fetchUserData(createdBy),
+                              builder: (context, userSnapshot) {
+                                if (userSnapshot.connectionState ==
+                                    ConnectionState.waiting) {
+                                  return const SizedBox.shrink();
+                                }
+                                if (userSnapshot.hasError ||
+                                    !userSnapshot.hasData) {
+                                  return const SizedBox.shrink();
+                                }
+
+                                final userData = userSnapshot.data!;
+                                final userName = userData['name'] as String;
+                                final userAvatar =
+                                    userData['avatarUrl'] as String;
+                                final currentUser = _auth.currentUser;
+                                final isLiked =
+                                    currentUser != null &&
+                                    likes.contains(currentUser.uid);
+
+                                // Fetch original creator's name for shared posts
+                                Widget sharedPostHeader =
+                                    const SizedBox.shrink();
+                                if (isShared && originalCreatorId != null) {
+                                  return FutureBuilder<Map<String, dynamic>>(
+                                    future: _fetchUserData(originalCreatorId),
+                                    builder: (context, originalUserSnapshot) {
+                                      if (originalUserSnapshot
+                                              .connectionState ==
+                                          ConnectionState.waiting) {
+                                        return const SizedBox.shrink();
+                                      }
+                                      if (originalUserSnapshot.hasError ||
+                                          !originalUserSnapshot.hasData) {
+                                        return const SizedBox.shrink();
+                                      }
+
+                                      final originalUserData =
+                                          originalUserSnapshot.data!;
+                                      final originalUserName =
+                                          originalUserData['name'] as String;
+
+                                      sharedPostHeader = Padding(
+                                        padding: const EdgeInsets.only(
+                                          bottom: 8.0,
+                                        ),
+                                        child: Text(
+                                          'Chia sẻ từ $originalUserName',
+                                          style: const TextStyle(
+                                            fontStyle: FontStyle.italic,
+                                            color: Colors.grey,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                      );
+
+                                      return _buildPostCard(
+                                        postId,
+                                        content,
+                                        imageUrl,
+                                        backgroundColor,
+                                        createdBy,
+                                        createdAt,
+                                        likes,
+                                        comments,
+                                        isShared,
+                                        userName,
+                                        userAvatar,
+                                        isLiked,
+                                        currentUser,
+                                        sharedPostHeader,
+                                      );
+                                    },
+                                  );
+                                }
+
+                                return _buildPostCard(
+                                  postId,
+                                  content,
+                                  imageUrl,
+                                  backgroundColor,
+                                  createdBy,
+                                  createdAt,
+                                  likes,
+                                  comments,
+                                  isShared,
+                                  userName,
+                                  userAvatar,
+                                  isLiked,
+                                  currentUser,
+                                  sharedPostHeader,
+                                );
+                              },
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ],
+                ),
               ),
     );
   }
@@ -926,14 +960,13 @@ class _GroupHomeScreenState extends State<GroupHomeScreen> {
     Widget sharedPostHeader,
   ) {
     final isAdmin = _group?.adminUid == currentUser?.uid;
-    final canDeletePost = currentUser != null && (createdBy == currentUser.uid || isAdmin);
+    final canDeletePost =
+        currentUser != null && (createdBy == currentUser.uid || isAdmin);
 
     return Card(
       elevation: 2,
       margin: const EdgeInsets.symmetric(vertical: 8.0),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(12.0),
         child: Column(
@@ -946,16 +979,16 @@ class _GroupHomeScreenState extends State<GroupHomeScreen> {
               children: [
                 CircleAvatar(
                   radius: 20,
-                  backgroundImage: userAvatar.isNotEmpty
-                      ? NetworkImage(userAvatar)
-                      : null,
-                  child: userAvatar.isEmpty
-                      ? const Icon(
-                          Icons.person,
-                          size: 20,
-                          color: Colors.white,
-                        )
-                      : null,
+                  backgroundImage:
+                      userAvatar.isNotEmpty ? NetworkImage(userAvatar) : null,
+                  child:
+                      userAvatar.isEmpty
+                          ? const Icon(
+                            Icons.person,
+                            size: 20,
+                            color: Colors.white,
+                          )
+                          : null,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -986,15 +1019,16 @@ class _GroupHomeScreenState extends State<GroupHomeScreen> {
                         _showPostDeleteConfirmationDialog(postId);
                       }
                     },
-                    itemBuilder: (BuildContext context) => [
-                      const PopupMenuItem<String>(
-                        value: 'delete',
-                        child: Text(
-                          'Xóa bài viết',
-                          style: TextStyle(color: Colors.red),
-                        ),
-                      ),
-                    ],
+                    itemBuilder:
+                        (BuildContext context) => [
+                          const PopupMenuItem<String>(
+                            value: 'delete',
+                            child: Text(
+                              'Xóa bài viết',
+                              style: TextStyle(color: Colors.red),
+                            ),
+                          ),
+                        ],
                     icon: const Icon(Icons.more_vert, color: Colors.grey),
                   ),
               ],
@@ -1013,9 +1047,10 @@ class _GroupHomeScreenState extends State<GroupHomeScreen> {
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 18,
-                  color: backgroundColor == Colors.white
-                      ? Colors.black
-                      : Colors.white,
+                  color:
+                      backgroundColor == Colors.white
+                          ? Colors.black
+                          : Colors.white,
                 ),
               ),
             ),
@@ -1066,10 +1101,7 @@ class _GroupHomeScreenState extends State<GroupHomeScreen> {
                     const SizedBox(width: 4),
                     Text(
                       '${likes.length}',
-                      style: const TextStyle(
-                        color: Colors.grey,
-                        fontSize: 14,
-                      ),
+                      style: const TextStyle(color: Colors.grey, fontSize: 14),
                     ),
                   ],
                 ),
@@ -1086,10 +1118,7 @@ class _GroupHomeScreenState extends State<GroupHomeScreen> {
                     const SizedBox(width: 4),
                     Text(
                       '${comments.length}',
-                      style: const TextStyle(
-                        color: Colors.grey,
-                        fontSize: 14,
-                      ),
+                      style: const TextStyle(color: Colors.grey, fontSize: 14),
                     ),
                   ],
                 ),
@@ -1115,10 +1144,7 @@ class _GroupHomeScreenState extends State<GroupHomeScreen> {
                     const SizedBox(width: 4),
                     Text(
                       'Chia sẻ',
-                      style: const TextStyle(
-                        color: Colors.grey,
-                        fontSize: 14,
-                      ),
+                      style: const TextStyle(color: Colors.grey, fontSize: 14),
                     ),
                   ],
                 ),
@@ -1148,7 +1174,8 @@ class _GroupHomeScreenState extends State<GroupHomeScreen> {
                         ConnectionState.waiting) {
                       return const SizedBox.shrink();
                     }
-                    if (commentUserSnapshot.hasError || !commentUserSnapshot.hasData) {
+                    if (commentUserSnapshot.hasError ||
+                        !commentUserSnapshot.hasData) {
                       return const SizedBox.shrink();
                     }
 
@@ -1156,7 +1183,8 @@ class _GroupHomeScreenState extends State<GroupHomeScreen> {
                     final commentUserName = commentUserData['name'] as String;
                     final commentUserAvatar =
                         commentUserData['avatarUrl'] as String;
-                    final canDeleteComment = currentUser != null && commentUserId == currentUser.uid;
+                    final canDeleteComment =
+                        currentUser != null && commentUserId == currentUser.uid;
 
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 4.0),
@@ -1165,16 +1193,18 @@ class _GroupHomeScreenState extends State<GroupHomeScreen> {
                         children: [
                           CircleAvatar(
                             radius: 16,
-                            backgroundImage: commentUserAvatar.isNotEmpty
-                                ? NetworkImage(commentUserAvatar)
-                                : null,
-                            child: commentUserAvatar.isEmpty
-                                ? const Icon(
-                                    Icons.person,
-                                    size: 16,
-                                    color: Colors.white,
-                                  )
-                                : null,
+                            backgroundImage:
+                                commentUserAvatar.isNotEmpty
+                                    ? NetworkImage(commentUserAvatar)
+                                    : null,
+                            child:
+                                commentUserAvatar.isEmpty
+                                    ? const Icon(
+                                      Icons.person,
+                                      size: 16,
+                                      color: Colors.white,
+                                    )
+                                    : null,
                           ),
                           const SizedBox(width: 8),
                           Expanded(
@@ -1192,9 +1222,11 @@ class _GroupHomeScreenState extends State<GroupHomeScreen> {
                                     ),
                                     const SizedBox(width: 8),
                                     Text(
-                                      _getRelativeTime(displayTime != null
-                                          ? Timestamp.fromDate(displayTime)
-                                          : null),
+                                      _getRelativeTime(
+                                        displayTime != null
+                                            ? Timestamp.fromDate(displayTime)
+                                            : null,
+                                      ),
                                       style: const TextStyle(
                                         color: Colors.grey,
                                         fontSize: 12,
@@ -1205,19 +1237,29 @@ class _GroupHomeScreenState extends State<GroupHomeScreen> {
                                       PopupMenuButton<String>(
                                         onSelected: (value) {
                                           if (value == 'delete') {
-                                            _showCommentDeleteConfirmationDialog(postId, comment);
+                                            _showCommentDeleteConfirmationDialog(
+                                              postId,
+                                              comment,
+                                            );
                                           }
                                         },
-                                        itemBuilder: (BuildContext context) => [
-                                          const PopupMenuItem<String>(
-                                            value: 'delete',
-                                            child: Text(
-                                              'Xóa bình luận',
-                                              style: TextStyle(color: Colors.red),
-                                            ),
-                                          ),
-                                        ],
-                                        icon: const Icon(Icons.more_vert, color: Colors.grey, size: 20),
+                                        itemBuilder:
+                                            (BuildContext context) => [
+                                              const PopupMenuItem<String>(
+                                                value: 'delete',
+                                                child: Text(
+                                                  'Xóa bình luận',
+                                                  style: TextStyle(
+                                                    color: Colors.red,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                        icon: const Icon(
+                                          Icons.more_vert,
+                                          color: Colors.grey,
+                                          size: 20,
+                                        ),
                                       ),
                                   ],
                                 ),
@@ -1255,12 +1297,10 @@ class _GroupHomeScreenState extends State<GroupHomeScreen> {
                   ),
                   const SizedBox(width: 8),
                   IconButton(
-                    icon: const Icon(
-                      Icons.send,
-                      color: Color(0xFF1877F2),
-                    ),
+                    icon: const Icon(Icons.send, color: Color(0xFF1877F2)),
                     onPressed: () {
-                      final commentText = _commentControllers[postId]!.text.trim();
+                      final commentText =
+                          _commentControllers[postId]!.text.trim();
                       if (commentText.isNotEmpty) {
                         _addComment(postId, commentText);
                       }
