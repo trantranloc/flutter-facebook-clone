@@ -10,6 +10,7 @@ import 'package:flutter_facebook_clone/providers/user_provider.dart';
 import '../client/screens/profile_screen.dart';
 import '../client/screens/create_post_screen.dart';
 import '../models/Post.dart';
+import 'package:go_router/go_router.dart';
 
 class PostCard extends StatefulWidget {
   final String postId;
@@ -436,9 +437,15 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
                 ListTile(
                   leading: const Icon(Icons.share),
                   title: const Text('Chia sẽ về trang cá nhân'),
-                  onTap: () {
-                    _shareToProfile();
-                    Navigator.pop(context);
+                  onTap: () async {
+                    await _shareToProfile();
+                    if (mounted) {
+                      Navigator.pushNamedAndRemoveUntil(
+                        context,
+                        '/home',
+                        (route) => false,
+                      );
+                    }
                   },
                 ),
               ],
