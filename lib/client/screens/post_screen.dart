@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 
 class PostScreen extends StatefulWidget {
   final String postId;
@@ -13,12 +14,15 @@ class PostScreen extends StatefulWidget {
 class _PostScreenState extends State<PostScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   Map<String, dynamic>? postData;
+  List<Map<String, dynamic>> _comments = [];
   bool isLoading = true;
+  bool isCommentLoading = true;
 
   @override
   void initState() {
     super.initState();
     _fetchPost();
+    _loadComments();
   }
 
   Future<void> _fetchPost() async {
@@ -47,6 +51,32 @@ class _PostScreenState extends State<PostScreen> {
     }
   }
 
+  Future<void> _loadComments() async {
+    try {
+      final commentDocs = await _firestore
+          .collection('posts')
+          .doc(widget.postId)
+          .collection('comments')
+          .orderBy('time', descending: true)
+          .get();
+      setState(() {
+        _comments = commentDocs.docs.map((doc) {
+          final data = doc.data();
+          data['id'] = doc.id;
+          return data;
+        }).toList();
+        isCommentLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        isCommentLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Lỗi khi tải bình luận: $e')),
+      );
+    }
+  }
+
   String _formatTimestamp(Timestamp timestamp) {
     final dateTime = timestamp.toDate();
     final now = DateTime.now();
@@ -56,7 +86,73 @@ class _PostScreenState extends State<PostScreen> {
     if (difference.inMinutes < 60) return '${difference.inMinutes} phút trước';
     if (difference.inHours < 24) return '${difference.inHours} giờ trước';
     if (difference.inDays < 7) return '${difference.inDays} ngày trước';
-    return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
+    return DateFormat('dd/MM/yyyy').format(dateTime);
+  }
+
+  Widget _buildCommentItem(int index) {
+    final comment = _comments[index];
+    return ListTile(
+      leading: CircleAvatar(
+        radius: 20,
+        backgroundImage: comment['avatarUrl'] != null && comment['avatarUrl'].toString().isNotEmpty
+            ? NetworkImage(comment['avatarUrl'])
+            : null,
+        backgroundColor: Colors.grey[300],
+        child: (comment['avatarUrl'] == null || comment['avatarUrl'].toString().isEmpty)
+            ? const Icon(Icons.person, size: 20)
+            : null,
+      ),
+      title: Row(
+        children: [
+          Text(
+            comment['name'] ?? 'Người dùng',
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+          ),
+          if (comment['isAuthor'] == true) ...[
+            const SizedBox(width: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.orange.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Text(
+                'Tác giả',
+                style: TextStyle(fontSize: 10, color: Colors.orange),
+              ),
+            ),
+          ],
+          if (comment['topComment'] == true) ...[
+            const SizedBox(width: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.green.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Text(
+                'Top bình luận',
+                style: TextStyle(fontSize: 10, color: Colors.green),
+              ),
+            ),
+          ],
+        ],
+      ),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            comment['text'] ?? '',
+            style: const TextStyle(fontSize: 14),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            _formatTimestamp(comment['time']),
+            style: const TextStyle(fontSize: 11, color: Colors.grey),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -140,6 +236,28 @@ class _PostScreenState extends State<PostScreen> {
                             );
                           }).toList(),
                         ),
+                      const Divider(),
+                      // Phần bình luận
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                        child: const Text(
+                          'Bình luận',
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      isCommentLoading
+                          ? const Center(child: CircularProgressIndicator())
+                          : _comments.isEmpty
+                              ? const Padding(
+                                  padding: EdgeInsets.all(16.0),
+                                  child: Text('Chưa có bình luận nào'),
+                                )
+                              : ListView.builder(
+                                  shrinkWrap: true,
+                                  physics: const NeverScrollableScrollPhysics(),
+                                  itemCount: _comments.length,
+                                  itemBuilder: (context, index) => _buildCommentItem(index),
+                                ),
                     ],
                   ),
                 ),

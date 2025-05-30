@@ -353,10 +353,88 @@ class _CommentScreenState extends State<CommentScreen> {
     _loadComments();
   }
 
-  void _reportComment() {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text("Đã báo cáo bình luận.")));
+Future<void> _reportComment(int index) async {
+    final comment = _comments[index];
+    final commentId = comment['id'];
+    final userId = comment['userId'];
+    const reason = 'Bình luận vi phạm chính sách cộng đồng';
+
+    try {
+      final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+      if (currentUserId == null) {
+        throw Exception('Người dùng chưa đăng nhập');
+      }
+
+      // Tham chiếu Firestore
+      final reportRef = FirebaseFirestore.instance.collection('reports').doc();
+      final userRef = FirebaseFirestore.instance.collection('users').doc(userId);
+
+      // Lưu báo cáo và tăng reportScore
+      await FirebaseFirestore.instance.runTransaction((transaction) async {
+        final userSnapshot = await transaction.get(userRef);
+        if (!userSnapshot.exists) {
+          throw Exception('Người dùng không tồn tại');
+        }
+
+        final userData = userSnapshot.data()!;
+        final reportScore = userData['reportScore'] ?? 0;
+
+        // Lưu báo cáo cho bình luận
+        transaction.set(reportRef, {
+          'commentId': commentId,
+          'reason': reason,
+          'timestamp': Timestamp.now(),
+          'reportedBy': currentUserId,
+          'userId': userId,
+          'postId': widget.postId, // Thêm postId để dễ theo dõi
+        });
+
+        // Tăng reportScore
+        transaction.update(userRef, {
+          'reportScore': reportScore + 1,
+        });
+      });
+
+      // Gửi thông báo cho người bị báo cáo
+      await FirebaseFirestore.instance.collection('notifications').add({
+        'action': 'Bình luận của bạn đã bị báo cáo do vi phạm chính sách cộng đồng. Vui lòng đọc kỹ quy định và tuân thủ để tránh bị xử lý nặng hơn.',
+        'isRead': false,
+        'postId': widget.postId,
+        'commentId': commentId,
+        'senderAvatarUrl': 'assets/images/logos.png',
+        'senderName': 'Quản trị viên',
+        'timestamp': Timestamp.now(),
+        'type': 'warning',
+        'userId': userId,
+      });
+
+      // Hiển thị thông báo thành công
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Báo cáo bình luận đã được gửi'),
+          backgroundColor: Colors.green[600],
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          margin: const EdgeInsets.all(16),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Lỗi khi gửi báo cáo bình luận: $e'),
+          backgroundColor: Colors.red[600],
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          margin: const EdgeInsets.all(16),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
   }
 
   Widget _buildReply(int parentIndex, int replyIndex) {
@@ -494,7 +572,7 @@ class _CommentScreenState extends State<CommentScreen> {
                               _deleteComment(index);
                               break;
                             case 'report':
-                              _reportComment();
+                              _reportComment(index);
                               break;
                           }
                         },
