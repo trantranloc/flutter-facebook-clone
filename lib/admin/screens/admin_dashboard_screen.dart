@@ -183,7 +183,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                     mainAxisSpacing: 16,
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    childAspectRatio: 1.1,
+                    childAspectRatio: 0.8,
                     children: [
                       _buildEnhancedStatsCard(
                         icon: Icons.people_rounded,
@@ -284,6 +284,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         return Transform.scale(
           scale: 0.8 + (0.2 * animationValue),
           child: Container(
+            constraints: const BoxConstraints(
+              minHeight: 260, // Tăng chiều cao tối thiểu để chứa subtitle
+            ),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: gradient,
@@ -305,7 +308,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                 onTap: isLoading || error ? null : () => context.go(route),
                 borderRadius: BorderRadius.circular(20),
                 child: Padding(
-                  padding: const EdgeInsets.all(20.0),
+                  padding: const EdgeInsets.all(24.0), // Tăng padding
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -317,7 +320,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                         ),
                         child: Icon(icon, size: 32, color: Colors.white),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 2), // Tăng khoảng cách
                       Text(
                         title,
                         style: const TextStyle(
@@ -329,7 +332,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 2),
                       if (isLoading)
                         const SizedBox(
                           width: 20,
@@ -356,7 +359,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                             color: Colors.white,
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 8),
                         Text(
                           subtitle,
                           style: TextStyle(
@@ -364,6 +367,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                             color: Colors.white.withOpacity(0.8),
                           ),
                           textAlign: TextAlign.center,
+                          maxLines: 1, // Cho phép subtitle xuống dòng
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ],
@@ -531,7 +536,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   }
 
   Widget _buildEmptyChart() {
-    return Container(
+    return SizedBox(
       height: 200,
       child: const Center(
         child: Column(
@@ -550,7 +555,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   }
 
   Widget _buildErrorWidget(String message) {
-    return Container(
+    return SizedBox(
       height: 200,
       child: Center(
         child: Column(

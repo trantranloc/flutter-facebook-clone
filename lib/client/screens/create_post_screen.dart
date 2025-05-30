@@ -7,7 +7,9 @@ import 'package:cloudinary_public/cloudinary_public.dart';
 import '../../models/Post.dart';
 
 class CreatePostScreen extends StatefulWidget {
-  const CreatePostScreen({super.key});
+  final Post? post;
+
+  const CreatePostScreen({super.key, this.post});
 
   @override
   State<CreatePostScreen> createState() => _CreatePostScreenState();
@@ -16,7 +18,19 @@ class CreatePostScreen extends StatefulWidget {
 class _CreatePostScreenState extends State<CreatePostScreen> {
   final TextEditingController _captionController = TextEditingController();
   File? _selectedImage;
+  String? _existingImageUrl;
   bool _isPosting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.post != null) {
+      _captionController.text = widget.post!.content;
+      if (widget.post!.imageUrls.isNotEmpty) {
+        _existingImageUrl = widget.post!.imageUrls.first;
+      }
+    }
+  }
 
   Future<void> _pickImage() async {
     final picker = ImagePicker();
@@ -24,13 +38,16 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     if (pickedFile != null) {
       setState(() {
         _selectedImage = File(pickedFile.path);
+        _existingImageUrl = null;
       });
     }
   }
 
   Future<void> _submitPost() async {
     final caption = _captionController.text.trim();
-    if (caption.isEmpty && _selectedImage == null) {
+    if (caption.isEmpty &&
+        _selectedImage == null &&
+        _existingImageUrl == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Vui lòng nhập nội dung hoặc chọn ảnh.')),
       );
@@ -94,8 +111,28 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       }
     }
 
-    // ✏️ Tạo Post
-    final docRef = FirebaseFirestore.instance.collection('posts').doc();
+    final postsCollection = FirebaseFirestore.instance.collection('posts');
+
+    // ✏️ Chỉnh sửa bài viết
+    if (widget.post != null) {
+      await postsCollection.doc(widget.post!.id).update({
+        'content': caption,
+        'imageUrls':
+            imageUrl != null
+                ? [imageUrl]
+                : (_existingImageUrl != null ? [_existingImageUrl!] : []),
+        'updatedAt': Timestamp.now(),
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Chỉnh sửa bài viết thành công!')),
+      );
+      Navigator.pop(context, true);
+      return;
+    }
+
+    // ✅ Tạo mới bài viết
+    final docRef = postsCollection.doc();
     final newPost = Post(
       id: docRef.id,
       userId: currentUserId,
@@ -117,25 +154,13 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       },
     );
 
-    await docRef.set({
-      ...newPost.toMap(),
-      'reactionCounts': {
-        'like': 0,
-        'love': 0,
-        'care': 0,
-        'haha': 0,
-        'wow': 0,
-        'sad': 0,
-        'angry': 0,
-      },
-    });
+    await docRef.set(newPost.toMap());
 
     setState(() => _isPosting = false);
 
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text('Đăng bài thành công!')));
-
     Navigator.pop(context, newPost);
   }
 
@@ -149,7 +174,9 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Tạo bài viết mới'),
+        title: Text(
+          widget.post != null ? 'Chỉnh sửa bài viết' : 'Tạo bài viết mới',
+        ),
         actions: [
           TextButton(
             onPressed: _isPosting ? null : _submitPost,
@@ -187,19 +214,26 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            if (_selectedImage != null)
+            if (_selectedImage != null || _existingImageUrl != null)
               Stack(
                 children: [
                   ClipRRect(
                     borderRadius: BorderRadius.circular(12),
-                    child: Image.file(_selectedImage!),
+                    child:
+                        _selectedImage != null
+                            ? Image.file(_selectedImage!)
+                            : Image.network(_existingImageUrl!),
                   ),
                   Positioned(
                     right: 0,
                     top: 0,
                     child: IconButton(
                       icon: const Icon(Icons.close, color: Colors.red),
-                      onPressed: () => setState(() => _selectedImage = null),
+                      onPressed:
+                          () => setState(() {
+                            _selectedImage = null;
+                            _existingImageUrl = null;
+                          }),
                     ),
                   ),
                 ],

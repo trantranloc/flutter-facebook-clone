@@ -26,7 +26,6 @@ class _CreatePostScreenGroupState extends State<CreatePostScreenGroup> {
   final _formKey = GlobalKey<FormState>();
   final _contentController = TextEditingController();
   File? _postImage;
-  String? _postImageUrl;
   bool _isLoading = false;
   String? _errorMessage;
   String? _userAvatarUrl;

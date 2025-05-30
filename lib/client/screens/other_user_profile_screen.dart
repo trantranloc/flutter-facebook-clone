@@ -273,7 +273,7 @@ class _OtherUserProfileScreenState extends State<OtherUserProfileScreen> {
     return ElevatedButton.icon(
       onPressed: _sendFriendRequest,
       style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFF1877F2),
+        backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Colors.white,
         minimumSize: const Size(double.infinity, 40),
       ),

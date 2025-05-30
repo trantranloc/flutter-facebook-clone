@@ -8,6 +8,8 @@ import '../client/screens/comment_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_facebook_clone/providers/user_provider.dart';
 import '../client/screens/profile_screen.dart';
+import '../client/screens/create_post_screen.dart';
+import '../models/Post.dart';
 
 class PostCard extends StatefulWidget {
   final String postId;
@@ -23,6 +25,11 @@ class PostCard extends StatefulWidget {
   final Map<String, int>? reactionCounts;
   final void Function(String)? onReact;
   final String userId;
+  final String? sharedFromPostId;
+  final String? sharedFromUserName;
+  final String? sharedFromAvatarUrl;
+  final String? sharedFromContent;
+  final List<String>? sharedFromImageUrls;
 
   const PostCard({
     super.key,
@@ -39,6 +46,11 @@ class PostCard extends StatefulWidget {
     this.reactionCounts,
     this.onReact,
     required this.userId,
+    this.sharedFromPostId,
+    this.sharedFromUserName,
+    this.sharedFromAvatarUrl,
+    this.sharedFromContent,
+    this.sharedFromImageUrls,
   });
 
   @override
@@ -52,7 +64,6 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
   String? _userReaction;
 
   late AnimationController _animController;
-  late Animation<double> _scaleAnim;
   late AnimationController _popupController;
   late Animation<double> _popupAnim;
   Timer? _dismissTimer;
@@ -95,10 +106,6 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
-    _scaleAnim = Tween<double>(
-      begin: 0.5,
-      end: 1.2,
-    ).chain(CurveTween(curve: Curves.elasticOut)).animate(_animController);
 
     _popupController = AnimationController(
       vsync: this,
@@ -137,6 +144,51 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
     }
   }
 
+  Future<void> _shareToProfile() async {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final user = userProvider.userModel;
+
+    if (user == null) return;
+
+    try {
+      await FirebaseFirestore.instance.collection('posts').add({
+        'userId': user.uid,
+        'name': user.name,
+        'avatarUrl': user.avatarUrl,
+        'content': 'Đã chia sẻ một bài viết',
+        'imageUrls': [],
+        'createdAt': Timestamp.now(),
+        'likes': 0,
+        'comments': 0,
+        'reactionCounts': {
+          'like': 0,
+          'love': 0,
+          'care': 0,
+          'haha': 0,
+          'wow': 0,
+          'sad': 0,
+          'angry': 0,
+        },
+        'sharedPostId': widget.postId,
+      });
+
+      if (mounted) {
+        Navigator.pop(context); // Đóng sheet nếu có
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Đã chia sẻ bài viết về trang cá nhân.'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Lỗi khi chia sẻ: $e')));
+      }
+    }
+  }
+
   @override
   void dispose() {
     _animController.dispose();
@@ -145,7 +197,7 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
     super.dispose();
   }
 
-  void _handleReaction(String newReaction) async {
+  void _handleReactionWithToggle(String tappedReaction) async {
     final user = Provider.of<UserProvider>(context, listen: false).userModel;
     if (user == null) return;
     final postRef = FirebaseFirestore.instance
@@ -155,95 +207,144 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
 
     final oldReaction = _userReaction;
 
+    if (oldReaction == tappedReaction) {
+      // Bỏ cảm xúc
+      setState(() {
+        if (_reactionCounts.containsKey(oldReaction)) {
+          final currentCount = _reactionCounts[oldReaction]!;
+          _reactionCounts[oldReaction!] =
+              (currentCount > 0 ? currentCount - 1 : 0);
+        }
+        _userReaction = null;
+      });
+
+      await postRef.update({
+        'reactionCounts.$oldReaction': FieldValue.increment(-1),
+      });
+
+      await postRef.collection('reactions').doc(userId).delete();
+      return;
+    }
+
+    // Gán cảm xúc mới
     setState(() {
-      if (oldReaction != null) {
+      if (oldReaction != null && oldReaction != tappedReaction) {
         _reactionCounts[oldReaction] = (_reactionCounts[oldReaction] ?? 1) - 1;
       }
-      _reactionCounts[newReaction] = (_reactionCounts[newReaction] ?? 0) + 1;
-      _userReaction = newReaction;
+      _reactionCounts[tappedReaction] =
+          (_reactionCounts[tappedReaction] ?? 0) + 1;
+      _userReaction = tappedReaction;
     });
 
     await postRef.update({
-      'reactionCounts.$newReaction': FieldValue.increment(1),
-      if (oldReaction != null && oldReaction != newReaction)
+      'reactionCounts.$tappedReaction': FieldValue.increment(1),
+      if (oldReaction != null && oldReaction != tappedReaction)
         'reactionCounts.$oldReaction': FieldValue.increment(-1),
     });
 
     await postRef.collection('reactions').doc(userId).set({
-      'type': newReaction,
+      'type': tappedReaction,
     });
   }
 
   void _showOverlayReaction() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final box = _likeKey.currentContext?.findRenderObject() as RenderBox?;
-      if (box == null) {
-        print("⚠️ Không tìm thấy RenderBox của _likeKey");
-        return;
-      }
+      final overlay = Overlay.of(context);
+      if (box == null) return;
 
-      final overlayBox =
-          Overlay.of(context).context.findRenderObject() as RenderBox?;
-      if (overlayBox == null) return;
-
-      final offset = box.localToGlobal(Offset.zero, ancestor: overlayBox);
+      final offset = box.localToGlobal(Offset.zero);
+      final size = box.size;
 
       _popupController.forward(from: 0);
+      _dismissTimer?.cancel();
 
       _overlayEntry = OverlayEntry(
-        builder:
-            (context) => Positioned(
-              left: offset.dx - 20,
-              top: offset.dy - 60,
-              child: Material(
-                color: Colors.transparent,
-                child: ScaleTransition(
-                  scale: _popupAnim,
-                  child: MouseRegion(
-                    onEnter: (_) => _dismissTimer?.cancel(),
-                    onExit: (_) => _startAutoDismiss(),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
+        builder: (context) {
+          return GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onTap: _removeOverlay,
+            child: Stack(
+              children: [
+                Positioned(
+                  left: offset.dx + size.width / 2 - 150, // căn giữa
+                  top: offset.dy - 80,
+                  child: ScaleTransition(
+                    scale: _popupAnim,
+                    child: MouseRegion(
+                      onEnter: (_) => _dismissTimer?.cancel(),
+                      onExit: (_) => _startAutoDismiss(),
+                      child: Material(
+                        elevation: 6,
                         borderRadius: BorderRadius.circular(30),
-                        boxShadow: [
-                          BoxShadow(color: Colors.black26, blurRadius: 5),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children:
-                            reactionIcons.entries.map((entry) {
-                              return InkWell(
-                                onTap: () {
-                                  _handleReaction(entry.key);
-                                  _removeOverlay();
-                                },
-                                borderRadius: BorderRadius.circular(30),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 6,
-                                  ),
-                                  child: Text(
-                                    entry.value,
-                                    style: const TextStyle(fontSize: 26),
-                                  ),
-                                ),
-                              );
-                            }).toList(),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(30),
+                            boxShadow: [
+                              BoxShadow(blurRadius: 6, color: Colors.black26),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children:
+                                reactionIcons.entries.map((entry) {
+                                  return GestureDetector(
+                                    onTap: () {
+                                      _handleReactionWithToggle(entry.key);
+                                      _removeOverlay();
+                                    },
+                                    child: AnimatedScale(
+                                      duration: const Duration(
+                                        milliseconds: 160,
+                                      ),
+                                      scale:
+                                          _userReaction == entry.key
+                                              ? 1.3
+                                              : 1.0,
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                        ),
+                                        child: Column(
+                                          children: [
+                                            Text(
+                                              entry.value,
+                                              style: const TextStyle(
+                                                fontSize: 28,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              reactionTexts[entry.key]!,
+                                              style: const TextStyle(
+                                                fontSize: 10,
+                                                color: Colors.grey,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
+                          ),
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
+              ],
             ),
+          );
+        },
       );
 
-      Overlay.of(context).insert(_overlayEntry!);
+      overlay.insert(_overlayEntry!);
       _startAutoDismiss();
     });
   }
@@ -259,7 +360,6 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
     _overlayEntry = null;
     _dismissTimer?.cancel();
   }
-
 
   void _openCommentSection() {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
@@ -330,9 +430,9 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
 
                 ListTile(
                   leading: const Icon(Icons.share),
-                  title: const Text('Chia sẻ qua ứng dụng khác'),
+                  title: const Text('Chia sẽ về trang cá nhân'),
                   onTap: () {
-                    Share.share("Xem bài viết: https://link.to/post");
+                    _shareToProfile();
                     Navigator.pop(context);
                   },
                 ),
@@ -348,6 +448,7 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
           ..sort((a, b) => b.value.compareTo(a.value));
     final topReactions =
         sorted.take(3).map((e) => reactionIcons[e.key]!).toList();
+    // ignore: avoid_types_as_parameter_names
     final total = counts.values.fold(0, (sum, e) => sum + e);
 
     return Row(
@@ -368,6 +469,7 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
     // final String displayReaction = reactionIcons[_userReaction ?? 'like']!;
 
     // final totalLikes =
+    // ignore: avoid_types_as_parameter_names
     _reactionCounts.values.fold(0, (sum, e) => sum + e);
 
     return Card(
@@ -387,7 +489,11 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => ProfileScreen(uid: widget.userId),
+                        builder:
+                            (_) => ProfileScreen(
+                              uid: widget.userId,
+                              hideAppBar: true,
+                            ),
                       ),
                     );
                   },
@@ -437,16 +543,12 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
                   icon: const Icon(Icons.more_horiz),
                   splashRadius: 20,
                   onPressed: () {
-                    Provider.of<UserProvider>(
-                      context,
-                      listen: false,
-                    );
+                    Provider.of<UserProvider>(context, listen: false);
 
                     showModalBottomSheet(
                       context: context,
                       shape: const RoundedRectangleBorder(
                         borderRadius: BorderRadius.vertical(
-
                           top: Radius.circular(20),
                         ),
                       ),
@@ -482,32 +584,47 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
                                   ),
                                   title: const Text('Sửa bài viết'),
                                   onTap: () async {
-                                    Navigator.pop(context); // Đóng bottom sheet
-                                    // Chuyển đến màn hình sửa bài viết
-                                    // await Navigator.push(
-                                    //   context,
-                                    //   MaterialPageRoute(
-                                    //     builder:
-                                    //         (context) => CreatePostScreen(
-                                    //           post: Post(
-                                    //             id: widget.postId,
-                                    //             userId: widget.userId,
-                                    //             name: widget.name,
-                                    //             avatarUrl: widget.avatarUrl,
-                                    //             content: widget.caption,
-                                    //             imageUrls:
-                                    //                 widget.imageUrl.isNotEmpty
-                                    //                     ? [widget.imageUrl]
-                                    //                     : [],
-                                    //             likes: widget.likes,
-                                    //             createdAt:
-                                    //                 Timestamp.now(), // Cần lấy đúng createdAt nếu có
-                                    //           ),
-                                    //         ),
-                                    //   ),
-                                    // );
-                                    // Làm mới bài viết sau khi sửa (nếu có callback)
-                                    // if (widget.onRefresh != null) widget.onRefresh!();
+                                    Navigator.pop(context);
+                                    final editedPost = await Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder:
+                                            (context) => CreatePostScreen(
+                                              post: Post(
+                                                id: widget.postId,
+                                                userId: widget.userId,
+                                                name: widget.name,
+                                                avatarUrl:
+                                                    widget.avatarUrl ?? '',
+                                                content: widget.caption,
+                                                imageUrls:
+                                                    widget.imageUrl.isNotEmpty
+                                                        ? [widget.imageUrl]
+                                                        : [],
+                                                createdAt:
+                                                    Timestamp.now(), // hoặc giữ nguyên nếu bạn có field gốc
+                                                likes: widget.likes,
+                                                comments: widget.comments,
+                                                reactionCounts:
+                                                    widget.reactionCounts ?? {},
+                                              ),
+                                            ),
+                                      ),
+                                    );
+                                    if (editedPost != null) {
+                                      // Gọi callback để HomeScreen làm mới bài viết
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              'Cập nhật thành công',
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                    }
                                   },
                                 ),
                                 ListTile(
@@ -564,7 +681,6 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
                                           context,
                                         ).showSnackBar(
                                           const SnackBar(
-
                                             content: Text(
                                               'Xóa bài viết thành công',
                                             ),
@@ -587,83 +703,127 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
                               ] else ...[
                                 // Tùy chọn cho bài viết của người khác
                                 ListTile(
-                                  leading: const Icon(
+                                  leading: Icon(
                                     Icons.report,
-                                    color: Colors.red,
+                                    color: Colors.red[600],
+                                    size: 28,
                                   ),
-                                  title: const Text('Báo cáo bài viết'),
+                                  title: Text(
+                                    'Báo cáo bài viết',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 8,
+                                  ),
                                   onTap: () async {
                                     Navigator.pop(context); // Đóng bottom sheet
                                     // Logic báo cáo bài viết
                                     final reason = await showDialog<String>(
                                       context: context,
                                       builder:
-                                          (context) => AlertDialog(
-                                            title: const Text(
-                                              'Báo cáo bài viết',
+                                          (context) => Dialog(
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(16),
                                             ),
-                                            content: const Text(
-                                              'Vui lòng chọn lý do báo cáo:',
+                                            elevation: 8,
+                                            child: Padding(
+                                              padding: const EdgeInsets.all(20),
+                                              child: Column(
+                                                mainAxisSize: MainAxisSize.min,
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    'Báo cáo bài viết',
+                                                    style: TextStyle(
+                                                      fontSize: 20,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      color: Colors.grey[900],
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 12),
+                                                  Text(
+                                                    'Vui lòng chọn lý do báo cáo:',
+                                                    style: TextStyle(
+                                                      fontSize: 14,
+                                                      color: Colors.grey[600],
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 20),
+                                                  _buildReportOption(
+                                                    context,
+                                                    'Nội dung không phù hợp',
+                                                    Icons.content_paste_off,
+                                                  ),
+                                                  _buildReportOption(
+                                                    context,
+                                                    'Spam',
+                                                    Icons.report_problem,
+                                                  ),
+                                                  _buildReportOption(
+                                                    context,
+                                                    'Khác',
+                                                    Icons.info,
+                                                  ),
+                                                  const SizedBox(height: 16),
+                                                  Align(
+                                                    alignment:
+                                                        Alignment.centerRight,
+                                                    child: TextButton(
+                                                      onPressed:
+                                                          () => Navigator.pop(
+                                                            context,
+                                                          ),
+                                                      style:
+                                                          TextButton.styleFrom(
+                                                            foregroundColor:
+                                                                Colors
+                                                                    .grey[600],
+                                                            textStyle:
+                                                                const TextStyle(
+                                                                  fontSize: 16,
+                                                                ),
+                                                          ),
+                                                      child: const Text('Hủy'),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
                                             ),
-                                            actions: [
-                                              TextButton(
-                                                onPressed:
-                                                    () => Navigator.pop(
-                                                      context,
-                                                      'Nội dung không phù hợp',
-                                                    ),
-                                                child: const Text(
-                                                  'Nội dung không phù hợp',
-                                                ),
-                                              ),
-                                              TextButton(
-                                                onPressed:
-                                                    () => Navigator.pop(
-                                                      context,
-                                                      'Spam',
-                                                    ),
-                                                child: const Text('Spam'),
-                                              ),
-                                              TextButton(
-                                                onPressed:
-                                                    () => Navigator.pop(
-                                                      context,
-                                                      'Khác',
-                                                    ),
-                                                child: const Text('Khác'),
-                                              ),
-                                              TextButton(
-                                                onPressed:
-                                                    () =>
-                                                        Navigator.pop(context),
-                                                child: const Text('Hủy'),
-                                              ),
-                                            ],
                                           ),
                                     );
 
                                     if (reason != null && reason.isNotEmpty) {
                                       try {
-                                        // Lưu báo cáo vào Firestore
                                         await FirebaseFirestore.instance
                                             .collection('reports')
                                             .add({
                                               'postId': widget.postId,
-                                              'userId':
-                                                  FirebaseAuth
-                                                      .instance
-                                                      .currentUser
-                                                      ?.uid,
                                               'reason': reason,
                                               'timestamp': Timestamp.now(),
+                                              'reportedBy': FirebaseAuth.instance.currentUser?.uid,
+
                                             });
                                         ScaffoldMessenger.of(
                                           context,
                                         ).showSnackBar(
-                                          const SnackBar(
-                                            content: Text(
+                                          SnackBar(
+                                            content: const Text(
                                               'Báo cáo đã được gửi',
                                             ),
+                                            backgroundColor: Colors.green[600],
+                                            behavior: SnackBarBehavior.floating,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                            ),
+                                            margin: const EdgeInsets.all(16),
                                           ),
                                         );
                                       } catch (e) {
@@ -674,6 +834,13 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
                                             content: Text(
                                               'Lỗi khi gửi báo cáo: $e',
                                             ),
+                                            backgroundColor: Colors.red[600],
+                                            behavior: SnackBarBehavior.floating,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                            ),
+                                            margin: const EdgeInsets.all(16),
                                           ),
                                         );
                                       }
@@ -798,17 +965,97 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
 
             const SizedBox(height: 10),
 
-            // Caption
-            Text(widget.caption, style: const TextStyle(fontSize: 14)),
+            // Nếu là bài chia sẻ
+            if (widget.sharedFromPostId != null) ...[
+              if (widget.caption.isNotEmpty)
+                Text(widget.caption, style: const TextStyle(fontSize: 14)),
 
-            const SizedBox(height: 10),
+              const SizedBox(height: 10),
 
-            // Image
-            if (widget.imageUrl.isNotEmpty)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: Image.network(widget.imageUrl, fit: BoxFit.cover),
+              // Khung bài viết được chia sẻ
+              Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  border: Border.all(color: Colors.grey[300]!),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.1),
+                      blurRadius: 6,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                padding: const EdgeInsets.all(10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header người đăng bài gốc
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 16,
+                          backgroundImage:
+                              widget.sharedFromAvatarUrl != null
+                                  ? NetworkImage(widget.sharedFromAvatarUrl!)
+                                  : const AssetImage(
+                                        'assets/avatar_placeholder.png',
+                                      )
+                                      as ImageProvider,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            widget.sharedFromUserName ?? 'Người dùng',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 8),
+
+                    // Nội dung bài gốc
+                    if ((widget.sharedFromContent ?? '').isNotEmpty)
+                      Text(
+                        widget.sharedFromContent!,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Colors.black87,
+                        ),
+                      ),
+
+                    const SizedBox(height: 8),
+
+                    // Ảnh bài gốc (nếu có)
+                    if ((widget.sharedFromImageUrls?.isNotEmpty ?? false))
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: Image.network(
+                          widget.sharedFromImageUrls!.first,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                  ],
+                ),
               ),
+            ] else ...[
+              // Bài viết bình thường
+              if (widget.caption.isNotEmpty)
+                Text(widget.caption, style: const TextStyle(fontSize: 14)),
+
+              const SizedBox(height: 10),
+
+              if (widget.imageUrl.isNotEmpty)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Image.network(widget.imageUrl, fit: BoxFit.cover),
+                ),
+            ],
 
             // Reaction Summary
             if (_reactionCounts.isNotEmpty)
@@ -826,32 +1073,39 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
                 // LIKE
                 GestureDetector(
                   key: _likeKey,
-                  onTap: () => _handleReaction('like'),
-                  onLongPress: () {
-                    print("🟦 Long press triggered");
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      _showOverlayReaction();
-                    });
+                  onTap: () {
+                    _animController.forward(from: 0); // hiệu ứng nhấn mềm
+                    _handleReactionWithToggle('like');
                   },
-
-                  child: ScaleTransition(
-                    scale: _scaleAnim,
+                  onLongPress: () {
+                    HapticFeedback.mediumImpact(); // rung nhẹ khi long press
+                    _showOverlayReaction();
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
                     child: Row(
                       children: [
                         if (_userReaction != null) ...[
                           Text(
                             reactionIcons[_userReaction]!,
                             style: TextStyle(
-                              fontSize: 22,
+                              fontSize: 24,
                               color: reactionColors[_userReaction]!,
+                              shadows: [
+                                Shadow(
+                                  offset: Offset(0, 1),
+                                  blurRadius: 1,
+                                  color: Colors.black26,
+                                ),
+                              ],
                             ),
                           ),
                           const SizedBox(width: 6),
                           Text(
-                            _userReaction != null &&
-                                    _reactionCounts[_userReaction] != null
-                                ? '${_reactionCounts[_userReaction!]!} ${reactionTexts[_userReaction]!}'
-                                : reactionTexts[_userReaction]!,
+                            reactionTexts[_userReaction!]!,
                             style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w500,
@@ -925,4 +1179,24 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
       ),
     );
   }
+}
+
+Widget _buildReportOption(BuildContext context, String reason, IconData icon) {
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 4),
+    child: ListTile(
+      leading: Icon(icon, color: Colors.grey[700], size: 24),
+      title: Text(
+        reason,
+        style: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
+          color: Colors.grey[900],
+        ),
+      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      tileColor: Colors.grey[100],
+      onTap: () => Navigator.pop(context, reason),
+    ),
+  );
 }

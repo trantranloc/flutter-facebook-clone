@@ -287,7 +287,7 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
                       ],
                     ),
                     onTap: () {
-                      // TODO: Navigate to event details screen with event['id']
+                      //  Navigate to event details screen with event['id']
                     },
                   ),
                 ],

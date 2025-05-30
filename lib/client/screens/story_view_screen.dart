@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -33,11 +34,44 @@ class _StoryViewScreenState extends State<StoryViewScreen> {
     super.initState();
     _currentIndex = widget.initialIndex;
     _pageController = PageController(initialPage: _currentIndex);
-    if (widget.stories[_currentIndex].id != null &&
-        widget.stories[_currentIndex].id!.isNotEmpty) {
-      _incrementViewCount(widget.stories[_currentIndex]);
-    }
+    _checkAccessAndIncrementView();
     _startTimer();
+  }
+
+  Future<bool> _hasAccessToStory(Story story) async {
+    final currentUserId = _auth.currentUser?.uid;
+    if (currentUserId == null) return false;
+
+    if (story.userId == currentUserId) return true; // Chủ story luôn có quyền
+
+    final userDoc =
+        await _firestore.collection('users').doc(story.userId).get();
+    final userData = userDoc.data();
+    if (userData == null) return false;
+
+    final List<dynamic> friends = userData['friends'] ?? [];
+    final List<dynamic> closeFriends = userData['closeFriends'] ?? [];
+
+    return friends.contains(currentUserId) ||
+        closeFriends.contains(currentUserId);
+  }
+
+  void _checkAccessAndIncrementView() async {
+    final story = widget.stories[_currentIndex];
+    if (story.id == null || story.id!.isEmpty) return; // Preview mode
+
+    if (!await _hasAccessToStory(story)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Bạn không có quyền xem story này.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      Navigator.pop(context);
+      return;
+    }
+
+    _incrementViewCount(story);
   }
 
   void _startTimer() {
@@ -67,10 +101,7 @@ class _StoryViewScreenState extends State<StoryViewScreen> {
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
       );
-      if (widget.stories[_currentIndex].id != null &&
-          widget.stories[_currentIndex].id!.isNotEmpty) {
-        _incrementViewCount(widget.stories[_currentIndex]);
-      }
+      _checkAccessAndIncrementView();
       _startTimer();
     } else {
       Navigator.pop(context);
@@ -83,10 +114,7 @@ class _StoryViewScreenState extends State<StoryViewScreen> {
       if (_currentIndex > 0) {
         _currentIndex--;
         _pageController.jumpToPage(_currentIndex);
-        if (widget.stories[_currentIndex].id != null &&
-            widget.stories[_currentIndex].id!.isNotEmpty) {
-          _incrementViewCount(widget.stories[_currentIndex]);
-        }
+        _checkAccessAndIncrementView();
         _timer.cancel();
         _startTimer();
       }
@@ -112,16 +140,58 @@ class _StoryViewScreenState extends State<StoryViewScreen> {
 
   Future<void> _incrementViewCount(Story story) async {
     final currentUser = _auth.currentUser;
-    if (currentUser == null) return;
+    if (currentUser == null || story.id == null || story.id!.isEmpty) return;
 
-    await _firestore.collection('stories').doc(story.id).update({
-      'views': FieldValue.increment(1),
-    });
+    final storyRef = _firestore.collection('stories').doc(story.id);
+    final storyDoc = await storyRef.get();
+    final data = storyDoc.data();
+    if (data == null) return;
+
+    final viewedBy = List<String>.from(data['viewedBy'] ?? []);
+    if (!viewedBy.contains(currentUser.uid)) {
+      await storyRef.update({
+        'views': FieldValue.increment(1),
+        'viewedBy': FieldValue.arrayUnion([currentUser.uid]),
+      });
+
+      final senderDoc =
+          await _firestore.collection('users').doc(currentUser.uid).get();
+      final senderData = senderDoc.data();
+      if (senderData != null) {
+        final senderName = senderData['name'] ?? 'Người dùng';
+        final senderAvatarUrl =
+            senderData['avatarUrl'] ?? 'https://i.pravatar.cc/150?img=1';
+
+        await _firestore.collection('notifications').add({
+          'userId': storyDoc['userId'],
+          'senderId': currentUser.uid,
+          'senderName': senderName,
+          'senderAvatarUrl': senderAvatarUrl,
+          'action': 'đã xem story của bạn.',
+          'type': 'story_view',
+          'storyId': story.id,
+          'isRead': false,
+          'timestamp': FieldValue.serverTimestamp(),
+          'date': 'Hôm nay',
+          'story': story.toMap(),
+        });
+      }
+    }
   }
 
   Future<void> _toggleLike(Story story) async {
     final currentUser = _auth.currentUser;
-    if (currentUser == null) return;
+    if (currentUser == null || story.id == null || story.id!.isEmpty) return;
+
+    if (!await _hasAccessToStory(story)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Bạn không có quyền tương tác với story này.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
 
     final storyRef = _firestore.collection('stories').doc(story.id);
     final storyDoc = await storyRef.get();
@@ -137,68 +207,145 @@ class _StoryViewScreenState extends State<StoryViewScreen> {
         'likes': FieldValue.increment(-1),
         'likedBy': likedBy,
       });
+      final notificationSnapshot =
+          await _firestore
+              .collection('notifications')
+              .where('userId', isEqualTo: storyDoc['userId'])
+              .where('senderId', isEqualTo: currentUser.uid)
+              .where('type', isEqualTo: 'story_like')
+              .where('storyId', isEqualTo: story.id)
+              .get();
+      for (var doc in notificationSnapshot.docs) {
+        await doc.reference.delete();
+      }
     } else {
       likedBy.add(currentUser.uid);
       await storyRef.update({
         'likes': FieldValue.increment(1),
         'likedBy': likedBy,
       });
+
+      final senderDoc =
+          await _firestore.collection('users').doc(currentUser.uid).get();
+      final senderData = senderDoc.data();
+      if (senderData != null) {
+        final senderName = senderData['name'] ?? 'Người dùng';
+        final senderAvatarUrl =
+            senderData['avatarUrl'] ?? 'https://i.pravatar.cc/avatars';
+        await _firestore.collection('notifications').add({
+          'userId': storyDoc['userId'],
+          'senderId': currentUser.uid,
+          'senderName': senderName,
+          'senderAvatarUrl': senderAvatarUrl,
+          'action': 'đã thích story của bạn.',
+          'type': 'story_like',
+          'storyId': story.id,
+          'isRead': false,
+          'timestamp': FieldValue.serverTimestamp(),
+          'date': 'Hôm nay',
+          'story': story.toMap(),
+        });
+      }
     }
 
     setState(() {});
   }
 
-  void _showViewers(Story story) {
+  void _showViewers(String storyId) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) return;
+
+    final storyDoc = await _firestore.collection('stories').doc(storyId).get();
+    final storyData = storyDoc.data();
+    if (storyData == null || storyData['userId'] != currentUser.uid) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Chỉ chủ story có thể xem danh sách người xem.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder:
           (context) => StreamBuilder<DocumentSnapshot>(
-            stream: _firestore.collection('stories').doc(story.id).snapshots(),
+            stream: _firestore.collection('stories').doc(storyId).snapshots(),
             builder: (context, snapshot) {
               if (!snapshot.hasData) {
                 return const Center(child: CircularProgressIndicator());
               }
-              final data = snapshot.data!.data() as Map<String, dynamic>;
-              final views = data['views'] ?? 0;
+              final data = snapshot.data!.data() as Map<String, dynamic>?;
+              final views = data?['views'] ?? 0;
+              final viewedByIds = List<String>.from(data?['viewedBy'] ?? []);
+
               return Container(
-                padding: const EdgeInsets.all(16.0),
-                height: 200,
+                padding: const EdgeInsets.all(16),
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.5,
+                ),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Lượt xem: $views',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        fontFamily: 'Poppins',
-                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Lượt xem: $views',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'Poppins',
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 16),
+                    const Divider(),
                     Expanded(
-                      child: ListView(
-                        children: const [
-                          ListTile(
-                            leading: CircleAvatar(
-                              backgroundImage: NetworkImage(
-                                'https://i.pravatar.cc/150?img=5',
+                      child:
+                          viewedByIds.isEmpty
+                              ? const Center(
+                                child: Text('Chưa có ai xem story này.'),
+                              )
+                              : FutureBuilder<List<Map<String, dynamic>>>(
+                                future: _fetchViewerDetails(viewedByIds),
+                                builder: (context, futureSnapshot) {
+                                  if (!futureSnapshot.hasData) {
+                                    return const Center(
+                                      child: CircularProgressIndicator(),
+                                    );
+                                  }
+                                  final viewers = futureSnapshot.data!;
+                                  return ListView.builder(
+                                    itemCount: viewers.length,
+                                    itemBuilder: (context, index) {
+                                      final viewer = viewers[index];
+                                      return ListTile(
+                                        leading: CircleAvatar(
+                                          backgroundImage: NetworkImage(
+                                            viewer['avatarUrl'],
+                                          ),
+                                        ),
+                                        title: Text(
+                                          viewer['name'],
+                                          style: const TextStyle(
+                                            fontFamily: 'Poppins',
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  );
+                                },
                               ),
-                            ),
-                            title: Text('Jane Smith'),
-                          ),
-                          ListTile(
-                            leading: CircleAvatar(
-                              backgroundImage: NetworkImage(
-                                'https://i.pravatar.cc/150?img=12',
-                              ),
-                            ),
-                            title: Text('John Doe'),
-                          ),
-                        ],
-                      ),
                     ),
                   ],
                 ),
@@ -206,6 +353,23 @@ class _StoryViewScreenState extends State<StoryViewScreen> {
             },
           ),
     );
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchViewerDetails(
+    List<String> userIds,
+  ) async {
+    final List<Map<String, dynamic>> viewers = [];
+    for (final userId in userIds) {
+      final userDoc = await _firestore.collection('users').doc(userId).get();
+      final userData = userDoc.data();
+      if (userData != null) {
+        viewers.add({
+          'name': userData['name'] ?? 'Người dùng',
+          'avatarUrl': userData['avatarUrl'] ?? 'https://i.pravatar.cc/avatars',
+        });
+      }
+    }
+    return viewers;
   }
 
   @override
@@ -234,7 +398,7 @@ class _StoryViewScreenState extends State<StoryViewScreen> {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    _buildStoryImage(story.imageUrl),
+                    _buildImage(story.imageUrl),
                     Container(
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
@@ -315,7 +479,7 @@ class _StoryViewScreenState extends State<StoryViewScreen> {
                                 ),
                               ),
                               GestureDetector(
-                                onTap: () => _showViewers(story),
+                                onTap: () => _showViewers(story.id!),
                                 child: Text(
                                   _formatTimeAgo(story.time),
                                   style: const TextStyle(
@@ -452,7 +616,7 @@ class _StoryViewScreenState extends State<StoryViewScreen> {
                                           const Icon(
                                             FontAwesomeIcons.eye,
                                             color: Colors.white,
-                                            size: 28,
+                                            size: 25,
                                           ),
                                           const SizedBox(width: 8),
                                           Text(
@@ -481,14 +645,14 @@ class _StoryViewScreenState extends State<StoryViewScreen> {
     );
   }
 
-  Widget _buildStoryImage(String imageUrl) {
+  Widget _buildImage(String imageUrl) {
     print('Loading image: $imageUrl');
     if (imageUrl.startsWith('/')) {
-      return Image.network(
-        'https://via.placeholder.com/150', // Placeholder cho preview
+      return Image.file(
+        File(imageUrl),
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) {
-          print('Error loading placeholder image: $error');
+          print('Error loading local image $imageUrl: $error');
           return const Center(
             child: Icon(Icons.error, color: Colors.red, size: 48),
           );
