@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_facebook_clone/client/screens/group_chat_screen.dart';
+import 'package:flutter_facebook_clone/client/screens/post_screen.dart';
 import 'package:flutter_facebook_clone/client/screens/profile_screen.dart';
 import 'package:flutter_facebook_clone/widgets/avatar_selection_screen.dart';
 import 'package:flutter_facebook_clone/widgets/email_screen.dart';
@@ -248,6 +249,13 @@ final GoRouter userRouter = GoRouter(
     GoRoute(
       path: '/game-word-chain',
       builder: (context, state) => const GameWordChainScreen(),
+    ),
+    GoRoute(
+      path: '/post/:postId',
+      builder: (context, state) {
+        final postId = state.pathParameters['postId']!;
+        return PostScreen(postId: postId);
+      },
     ),
   ],
 );

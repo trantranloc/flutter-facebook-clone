@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_facebook_clone/client/screens/comment_screen.dart';
+// import 'package:flutter_facebook_clone/client/screens/post_screen.dart';
 import 'package:flutter_facebook_clone/providers/user_provider.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
@@ -853,6 +854,15 @@ class _NotificationScreenState extends State<NotificationScreen> {
                   ),
             ),
           );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Đã xem: ${notification['action']}')),
+          );
+        }
+        break;
+      case 'warning':
+        if (notification['postId'] != null) {
+          context.push('/post/${notification['postId']}');
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Đã xem: ${notification['action']}')),

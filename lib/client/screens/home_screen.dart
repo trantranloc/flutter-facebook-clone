@@ -54,6 +54,7 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+
   Future<List<String>> fetchFriendIds(String currentUserId) async {
     final friendSnap1 =
         await FirebaseFirestore.instance
@@ -85,6 +86,22 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> fetchStory() async {
     try {
       final now = DateTime.now();
+      final userId = FirebaseAuth.instance.currentUser?.uid;
+      if (userId == null) return; // Nếu không đăng nhập, thoát
+
+      // Lấy thông tin người dùng hiện tại
+      final userDoc =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(userId)
+              .get();
+      final userData = userDoc.data();
+      if (userData == null) return;
+
+      // final List<dynamic> friends = userData['friends'] ?? [];
+      // final List<dynamic> closeFriends = userData['closeFriends'] ?? [];
+
+      // Lấy tất cả stories
       final snapshot =
           await FirebaseFirestore.instance
               .collection('stories')
@@ -95,6 +112,7 @@ class _HomeScreenState extends State<HomeScreen> {
       for (var doc in snapshot.docs) {
         final story = Story.fromDocument(doc);
         final expiresAt = (doc['expiresAt'] as Timestamp).toDate();
+        final storyOwnerId = story.userId;
 
         // Kiểm tra nếu story đã hết hạn
         if (now.isAfter(expiresAt)) {
@@ -102,9 +120,32 @@ class _HomeScreenState extends State<HomeScreen> {
               .collection('stories')
               .doc(doc.id)
               .update({'isActive': false});
-        } else {
-          if (doc['isActive'] == true) {
+          continue;
+        }
+
+        // Kiểm tra quyền xem story
+        if (doc['isActive'] == true) {
+          if (storyOwnerId == userId) {
+            // Story của chính người dùng
             loaded.add(story);
+          } else {
+            // Kiểm tra xem người dùng hiện tại có trong danh sách bạn bè hoặc bạn thân của chủ story
+            final storyOwnerDoc =
+                await FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(storyOwnerId)
+                    .get();
+            final storyOwnerData = storyOwnerDoc.data();
+            if (storyOwnerData != null) {
+              final List<dynamic> ownerFriends =
+                  storyOwnerData['friends'] ?? [];
+              final List<dynamic> ownerCloseFriends =
+                  storyOwnerData['closeFriends'] ?? [];
+              if (ownerFriends.contains(userId) ||
+                  ownerCloseFriends.contains(userId)) {
+                loaded.add(story);
+              }
+            }
           }
         }
       }
@@ -414,10 +455,7 @@ class _HomeScreenState extends State<HomeScreen> {
               postId: post.id,
               name: post.name,
               avatarUrl: post.avatarUrl,
-              time: timeAgo(
-                post.createdAt,
-              ), // bạn có thể định dạng từ post.createdAt
-
+              time: timeAgo(post.createdAt),
               caption: post.content,
               imageUrl: post.imageUrls.isNotEmpty ? post.imageUrls.first : '',
               likes: post.likes,
@@ -486,17 +524,12 @@ class _HomeScreenState extends State<HomeScreen> {
     return Container(
       width: 100,
       margin: const EdgeInsets.only(right: 10),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(
-          12,
-        ), // Bo tròn các góc của Container
-      ),
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(12)),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(12), // Bo tròn các góc của hình ảnh
+        borderRadius: BorderRadius.circular(12),
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // Hiển thị hình ảnh (cục bộ hoặc từ URL)
             story.imageUrl.startsWith('/')
                 ? Image.file(
                   File(story.imageUrl),
@@ -535,7 +568,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     );
                   },
                 ),
-            // Avatar và tên người dùng
             Positioned(
               top: 8,
               left: 8,

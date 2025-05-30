@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_facebook_clone/models/user.dart';
+import 'package:go_router/go_router.dart';
 
 class FriendRequestsScreen extends StatefulWidget {
   const FriendRequestsScreen({super.key});
@@ -70,16 +71,11 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen> {
           }
 
           if (!snapshot.hasData || !snapshot.data!.exists) {
-            return const Center(
-              child: Text('Không tìm thấy dữ liệu người dùng'),
-            );
+            return const Center(child: Text('Không tìm thấy dữ liệu người dùng'));
           }
 
           final currentUserData = snapshot.data!.data() as Map<String, dynamic>;
-          final List<String> pendingRequestUids = List<String>.from(
-            currentUserData['pendingRequests'] ?? [],
-          );
-          print('Pending request UIDs: $pendingRequestUids'); // Debug log
+          final List<String> pendingRequestUids = List<String>.from(currentUserData['pendingRequests'] ?? []);
 
           if (pendingRequestUids.isEmpty) {
             return Center(
@@ -100,16 +96,12 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen> {
                   const SizedBox(height: 20),
                   ElevatedButton(
                     onPressed: () {
-                      // Quay lại FriendScreen và yêu cầu làm mới
                       Navigator.pop(context, true);
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF1877F2),
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 10,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                     ),
                     child: const Text('Xem gợi ý kết bạn'),
                   ),
@@ -128,26 +120,12 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen> {
                 return const Center(child: CircularProgressIndicator());
               }
               if (userSnapshot.hasError) {
-                print(
-                  'Error fetching users: ${userSnapshot.error}',
-                ); // Debug log
-                return Center(
-                  child: Text(
-                    'Lỗi khi tải thông tin người dùng: ${userSnapshot.error}',
-                  ),
-                );
+                return Center(child: Text('Lỗi khi tải thông tin người dùng: ${userSnapshot.error}'));
               }
 
               final pendingRequests = userSnapshot.data!.docs
-                  .map(
-                    (doc) => UserModel.fromMap(
-                      doc.data() as Map<String, dynamic>,
-                    ),
-                  )
+                  .map((doc) => UserModel.fromMap(doc.data() as Map<String, dynamic>))
                   .toList();
-              print(
-                'Pending requests: ${pendingRequests.map((u) => u.name).toList()}',
-              ); // Debug log
 
               if (pendingRequests.isEmpty) {
                 return const Center(child: Text('Không có lời mời kết bạn'));
@@ -158,18 +136,24 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen> {
                 itemBuilder: (context, index) {
                   final user = pendingRequests[index];
                   return ListTile(
-                    leading: CircleAvatar(
-                      radius: 25,
-                      backgroundImage: NetworkImage(
-                        user.avatarUrl.isNotEmpty
-                            ? user.avatarUrl
-                            : 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-4.0.3&auto=format&fit=crop&w=1350&q=80',
+                    onTap: () => _navigateToProfile(context, user.uid),
+                    leading: GestureDetector(
+                      onTap: () => _navigateToProfile(context, user.uid),
+                      child: CircleAvatar(
+                        radius: 25,
+                        backgroundImage: NetworkImage(
+                          user.avatarUrl.isNotEmpty
+                              ? user.avatarUrl
+                              : 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-4.0.3&auto=format&fit=crop&w=1350&q=80',
+                        ),
+                        onBackgroundImageError: (_, __) => const Icon(Icons.person, size: 25),
                       ),
                     ),
-                    title: Text(user.name),
-                    subtitle: const Text(
-                      '1 phút',
-                    ), // Có thể thay bằng thời gian thực
+                    title: Text(
+                      user.name,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    subtitle: const Text('1 phút'), // Có thể thay bằng thời gian thực
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -178,6 +162,8 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen> {
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF1877F2),
                             foregroundColor: Colors.white,
+                            textStyle: const TextStyle(fontSize: 14),
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
                           ),
                           child: const Text('Xác nhận'),
                         ),
@@ -187,6 +173,8 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen> {
                           style: OutlinedButton.styleFrom(
                             side: const BorderSide(color: Colors.grey),
                             foregroundColor: Colors.black,
+                            textStyle: const TextStyle(fontSize: 14),
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
                           ),
                           child: const Text('Xóa'),
                         ),
@@ -202,12 +190,20 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen> {
     );
   }
 
+  void _navigateToProfile(BuildContext context, String uid) {
+    context.push('/other-profile/$uid');
+  }
+
   Future<void> _acceptFriendRequest(String friendUid) async {
     final currentUser = _auth.currentUser;
-    if (currentUser == null) return;
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vui lòng đăng nhập lại')),
+      );
+      return;
+    }
 
     try {
-      // Thêm vào danh sách bạn bè của cả hai và xóa lời mời
       await _firestore.collection('users').doc(currentUser.uid).update({
         'friends': FieldValue.arrayUnion([friendUid]),
         'pendingRequests': FieldValue.arrayRemove([friendUid]),
@@ -217,41 +213,40 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen> {
         'sentRequests': FieldValue.arrayRemove([currentUser.uid]),
       });
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Đã xác nhận bạn bè')));
-      // Không điều hướng, giữ người dùng ở lại FriendRequestsScreen
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Đã xác nhận bạn bè')),
+      );
     } catch (e) {
-      print('Error accepting friend request: $e'); // Debug log
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Lỗi: $e')),
+      );
     }
   }
 
   Future<void> _rejectFriendRequest(String friendUid) async {
     final currentUser = _auth.currentUser;
-    if (currentUser == null) return;
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vui lòng đăng nhập lại')),
+      );
+      return;
+    }
 
     try {
-      // Xóa lời mời từ pendingRequests của người nhận
       await _firestore.collection('users').doc(currentUser.uid).update({
         'pendingRequests': FieldValue.arrayRemove([friendUid]),
       });
-      // Xóa lời mời từ sentRequests của người gửi
       await _firestore.collection('users').doc(friendUid).update({
         'sentRequests': FieldValue.arrayRemove([currentUser.uid]),
       });
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Đã xóa lời mời')));
-      // Không điều hướng, giữ người dùng ở lại FriendRequestsScreen
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Đã xóa lời mời')),
+      );
     } catch (e) {
-      print('Error rejecting friend request: $e'); // Debug log
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Lỗi: $e')),
+      );
     }
   }
 }

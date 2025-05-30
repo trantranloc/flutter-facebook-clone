@@ -208,6 +208,9 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
         likes: 0,
         views: 0,
         likedBy: [],
+        userId: '',
+        expiresAt: DateTime.now().add(const Duration(hours: 24)),
+        isActive: true,
       );
 
       _showSnackBar('Story đã được đăng!');
@@ -252,6 +255,9 @@ class _CreateStoryScreenState extends State<CreateStoryScreen> {
                   likes: 0,
                   views: 0,
                   likedBy: [],
+                  userId: currentUser?.uid ?? '',
+                  expiresAt: DateTime.now().add(const Duration(hours: 24)),
+                  isActive: true,
                 ),
               ],
               initialIndex: 0,
