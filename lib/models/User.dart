@@ -15,7 +15,7 @@ class UserModel {
   final DateTime? bannedAt;
   final String? bannedReason;
   final DateTime? bannedUntil;
-
+  final int reportScore;
 
   const UserModel({
     required this.uid,
@@ -34,6 +34,7 @@ class UserModel {
     this.bannedAt,
     this.bannedReason,
     this.bannedUntil,
+    this.reportScore = 0, // Mặc định là 0
   });
 
   factory UserModel.fromMap(Map<String, dynamic> map) {
@@ -67,6 +68,7 @@ class UserModel {
                   ? DateTime.parse(map['bannedUntil'])
                   : (map['bannedUntil'] as dynamic).toDate())
               : null,
+      reportScore: map['reportScore'] ?? 0,
     );
   }
 
@@ -88,6 +90,7 @@ class UserModel {
       'bannedAt': bannedAt?.toIso8601String(),
       'bannedReason': bannedReason,
       'bannedUntil': bannedUntil?.toIso8601String(),
+      'reportScore': reportScore,
     };
   }
 
@@ -110,6 +113,7 @@ class UserModel {
     DateTime? bannedAt,
     String? bannedReason,
     DateTime? bannedUntil,
+    int? reportScore,
   }) {
     return UserModel(
       uid: uid ?? this.uid,
@@ -128,6 +132,7 @@ class UserModel {
       bannedAt: bannedAt ?? this.bannedAt,
       bannedReason: bannedReason ?? this.bannedReason,
       bannedUntil: bannedUntil ?? this.bannedUntil,
+      reportScore: reportScore ?? this.reportScore,
     );
   }
 
@@ -142,7 +147,7 @@ class UserModel {
 
   @override
   String toString() {
-    return 'UserModel(uid: $uid, name: $name, email: $email, isAdmin: $isAdmin, isBanned: $isBanned)';
+    return 'UserModel(uid: $uid, name: $name, email: $email, isAdmin: $isAdmin, isBanned: $isBanned, reportScore: $reportScore)';
   }
 
   @override
@@ -165,7 +170,8 @@ class UserModel {
         other.isBanned == isBanned &&
         other.bannedAt == bannedAt &&
         other.bannedReason == bannedReason &&
-        other.bannedUntil == bannedUntil;
+        other.bannedUntil == bannedUntil &&
+        other.reportScore == reportScore;
   }
 
   @override
@@ -185,6 +191,7 @@ class UserModel {
         isBanned.hashCode ^
         bannedAt.hashCode ^
         bannedReason.hashCode ^
-        bannedUntil.hashCode;
+        bannedUntil.hashCode ^
+        reportScore.hashCode;
   }
 }

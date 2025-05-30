@@ -21,12 +21,14 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   bool _isLoading = false;
   late Map<String, dynamic> _currentPostData;
   String? _cachedUserName;
+  int? _userReportScore;
 
   @override
   void initState() {
     super.initState();
     _currentPostData = Map<String, dynamic>.from(widget.postData);
     _loadUserName();
+    _loadUserReportScore();
   }
 
   // Cache tên user để tránh gọi API nhiều lần
@@ -67,6 +69,27 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       return doc.exists ? doc.get('name') ?? 'Ẩn danh' : 'Ẩn danh';
     } catch (e) {
       return 'Ẩn danh';
+    }
+  }
+
+  Future<void> _loadUserReportScore() async {
+    try {
+      final userId = _currentPostData['userId']?.toString();
+      if (userId != null && userId.isNotEmpty) {
+        final snapshot = await _firestore.collection('users').doc(userId).get();
+        if (mounted) {
+          setState(() {
+            _userReportScore = snapshot.data()?['reportScore'] ?? 0;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Lỗi khi tải reportScore: $e');
+      if (mounted) {
+        setState(() {
+          _userReportScore = 0;
+        });
+      }
     }
   }
 
@@ -228,28 +251,63 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     }
   }
 
-  // Các hàm xử lý hành động cụ thể
   Future<void> _handleIgnoreAction() async {
-    await _firestore.collection('posts').doc(widget.postId).update({
-      'isReported': false,
-      'reportCount': 0,
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+    try {
+      // Lấy thông tin user để cập nhật reportScore
+      final userId = _currentPostData['userId']?.toString();
+      final currentReportCount = _currentPostData['reportCount'] ?? 0;
 
-    // Xóa tất cả báo cáo liên quan
-    final reportQuery =
-        await _firestore
-            .collection('reports')
-            .where('postId', isEqualTo: widget.postId)
-            .get();
+      if (userId != null && userId.isNotEmpty && currentReportCount > 0) {
+        // Lấy reportScore hiện tại của user
+        final userDoc = await _firestore.collection('users').doc(userId).get();
+        final currentReportScore = userDoc.data()?['reportScore'] ?? 0;
 
-    final batch = _firestore.batch();
-    for (var doc in reportQuery.docs) {
-      batch.delete(doc.reference);
+        // Tính toán reportScore mới (trừ đi số report của bài viết khi bỏ qua)
+        final newReportScore =
+            (currentReportScore - currentReportCount)
+                .clamp(0, double.infinity)
+                .toInt();
+
+        await _firestore.collection('users').doc(userId).update({
+          'reportScore': newReportScore,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+
+        if (mounted) {
+          setState(() {
+            _userReportScore = newReportScore;
+          });
+        }
+      }
+
+      // Reset trạng thái báo cáo của bài viết
+      await _firestore.collection('posts').doc(widget.postId).update({
+        'isReported': false,
+        'reportCount': 0,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Xóa tất cả báo cáo liên quan
+      final reportQuery =
+          await _firestore
+              .collection('reports')
+              .where('postId', isEqualTo: widget.postId)
+              .get();
+
+      final batch = _firestore.batch();
+      for (var doc in reportQuery.docs) {
+        batch.delete(doc.reference);
+      }
+      await batch.commit();
+
+      await _logAdminAction(
+        'ignore_report',
+        'Bỏ qua báo cáo - Trừ $currentReportCount điểm reportScore của user',
+      );
+    } catch (e) {
+      debugPrint('Lỗi khi bỏ qua báo cáo: $e');
+      rethrow; 
     }
-    await batch.commit();
-
-    await _logAdminAction('ignore_report', 'Bỏ qua báo cáo');
   }
 
   Future<void> _handleDeleteAction() async {
@@ -430,7 +488,6 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   }
 
   Widget _buildPostInfoCard() {
-    final reportCount = _currentPostData['reportCount'] ?? 0;
     final content =
         _currentPostData['content']?.toString() ?? 'Không có nội dung';
     print(_currentPostData);
@@ -483,28 +540,51 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                     ],
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
+                Tooltip(
+                  message:
+                      'Tổng số lần người dùng bị báo cáo vì vi phạm nội dung trên hệ thống',
+                  preferBelow: true,
+                  margin: const EdgeInsets.only(left: 80,right: 16),
+                  textStyle: const TextStyle(
+                    fontSize: 14, // Cỡ chữ của tooltip
+                    color: Colors.white, // Màu chữ của tooltip
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.red.shade100,
-                    borderRadius: BorderRadius.circular(20),
+                    color: Theme.of(context).colorScheme.primary,
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.report, size: 16, color: Colors.red.shade700),
-                      const SizedBox(width: 4),
-                      Text(
-                        '$reportCount',
-                        style: TextStyle(
+                  height: 40, // Chiều cao của tooltip
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ), // Pa
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade100,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.report,
+                          size: 16,
                           color: Colors.red.shade700,
-                          fontWeight: FontWeight.bold,
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 4),
+                        Text(
+                          '${_userReportScore ?? 0}',
+                          style: TextStyle(
+                            color: Colors.red.shade700,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],

@@ -12,7 +12,6 @@ import '../client/screens/profile_screen.dart';
 import '../client/screens/create_post_screen.dart';
 import '../models/Post.dart';
 
-
 class PostCard extends StatefulWidget {
   final String postId;
   final String name;
@@ -803,31 +802,61 @@ class _PostCardState extends State<PostCard> with TickerProviderStateMixin {
 
                                     if (reason != null && reason.isNotEmpty) {
                                       try {
-                                        await FirebaseFirestore.instance
-                                            .collection('reports')
-                                            .add({
-                                              'postId': widget.postId,
-                                              'reason': reason,
-                                              'timestamp': Timestamp.now(),
-                                              'reportedBy': FirebaseAuth.instance.currentUser?.uid,
+                                        final currentUserId =
+                                            FirebaseAuth
+                                                .instance
+                                                .currentUser
+                                                ?.uid;
+                                        if (currentUserId == null) {
+                                          throw Exception(
+                                            'Người dùng chưa đăng nhập',
+                                          );
+                                        }
 
+                                        // Tham chiếu Firestore
+                                        final reportRef =
+                                            FirebaseFirestore.instance
+                                                .collection('reports')
+                                                .doc();
+                                        final userRef = FirebaseFirestore
+                                            .instance
+                                            .collection('users')
+                                            .doc(widget.userId);
+
+                                        // Lưu báo cáo và tăng reportScore
+                                        await FirebaseFirestore.instance
+                                            .runTransaction((
+                                              transaction,
+                                            ) async {
+                                              final userSnapshot =
+                                                  await transaction.get(
+                                                    userRef,
+                                                  );
+                                              if (!userSnapshot.exists) {
+                                                throw Exception(
+                                                  'Người dùng không tồn tại',
+                                                );
+                                              }
+
+                                              final userData =
+                                                  userSnapshot.data()!;
+                                              final reportScore =
+                                                  userData['reportScore'] ?? 0;
+
+                                              // Lưu báo cáo
+                                              transaction.set(reportRef, {
+                                                'postId': widget.postId,
+                                                'reason': reason,
+                                                'timestamp': Timestamp.now(),
+                                                'reportedBy': currentUserId,
+                                                'userId': widget.userId,
+                                              });
+
+                                              // Tăng reportScore
+                                              transaction.update(userRef, {
+                                                'reportScore': reportScore + 1,
+                                              });
                                             });
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          SnackBar(
-                                            content: const Text(
-                                              'Báo cáo đã được gửi',
-                                            ),
-                                            backgroundColor: Colors.green[600],
-                                            behavior: SnackBarBehavior.floating,
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(8),
-                                            ),
-                                            margin: const EdgeInsets.all(16),
-                                          ),
-                                        );
                                       } catch (e) {
                                         ScaffoldMessenger.of(
                                           context,
