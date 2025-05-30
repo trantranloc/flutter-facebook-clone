@@ -1,5 +1,4 @@
 import 'dart:ui';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class Story {
@@ -11,6 +10,9 @@ class Story {
   final String? caption;
   final String? sticker;
   final Offset? stickerOffset;
+  final int likes;
+  final int views;
+  final List<String> likedBy;
 
   Story({
     this.id,
@@ -21,6 +23,9 @@ class Story {
     this.caption,
     this.sticker,
     this.stickerOffset,
+    this.likes = 0,
+    this.views = 0,
+    this.likedBy = const [],
   });
 
   Map<String, dynamic> toMap() {
@@ -32,9 +37,11 @@ class Story {
       'time': Timestamp.fromDate(time),
       'caption': caption,
       'sticker': sticker,
-      'stickerOffset': stickerOffset != null
-          ? {'dx': stickerOffset!.dx, 'dy': stickerOffset!.dy}
-          : null,
+      'stickerOffsetX': stickerOffset?.dx,
+      'stickerOffsetY': stickerOffset?.dy,
+      'likes': likes,
+      'views': views,
+      'likedBy': likedBy,
     };
   }
 
@@ -42,18 +49,27 @@ class Story {
     final data = doc.data() as Map<String, dynamic>;
     return Story(
       id: doc.id,
-      imageUrl: data['imageUrl'],
-      user: data['user'],
-      avatarUrl: data['avatarUrl'],
-      time: (data['time'] as Timestamp).toDate(),
+      imageUrl: data['imageUrl'] ?? '',
+      user: data['userName'] ?? data['user'] ?? 'Unknown',
+      avatarUrl:
+          data['userAvatar'] ??
+          data['avatarUrl'] ??
+          'https://via.placeholder.com/150',
+      time:
+          (data['createdAt'] ?? data['time'] as Timestamp?)?.toDate() ??
+          DateTime.now(),
       caption: data['caption'],
       sticker: data['sticker'],
-      stickerOffset: data['stickerOffset'] != null
-          ? Offset(
-              data['stickerOffset']['dx'],
-              data['stickerOffset']['dy'],
-            )
-          : null,
+      stickerOffset:
+          data['stickerOffsetX'] != null && data['stickerOffsetY'] != null
+              ? Offset(
+                (data['stickerOffsetX'] as num).toDouble(),
+                (data['stickerOffsetY'] as num).toDouble(),
+              )
+              : null,
+      likes: data['likes'] ?? 0,
+      views: data['views'] ?? 0,
+      likedBy: List<String>.from(data['likedBy'] ?? []),
     );
   }
 }

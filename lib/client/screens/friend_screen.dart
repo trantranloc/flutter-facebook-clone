@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_facebook_clone/models/user.dart';
-import 'package:flutter_facebook_clone/screens/add_friend_screen.dart';
+import 'package:flutter_facebook_clone/client/screens/add_friend_screen.dart';
 import 'package:go_router/go_router.dart';
-import 'package:flutter_facebook_clone/screens/other_user_profile_screen.dart';
+import 'package:flutter_facebook_clone/client/screens/other_user_profile_screen.dart';
 
 class FriendScreen extends StatefulWidget {
   const FriendScreen({super.key});

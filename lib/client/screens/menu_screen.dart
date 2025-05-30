@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_facebook_clone/screens/group_screen.dart';
+import 'package:flutter_facebook_clone/client/screens/group/group_screen.dart';
 import 'package:flutter_facebook_clone/providers/user_provider.dart';
 import 'package:flutter_facebook_clone/services/auth_service.dart';
 import 'package:flutter_facebook_clone/services/user_service.dart';
@@ -7,7 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_facebook_clone/providers/theme_provider.dart';
-import 'package:flutter_facebook_clone/app_router.dart';
+import 'package:flutter_facebook_clone/router/app_router.dart';
 
 class MenuScreen extends StatefulWidget {
   const MenuScreen({super.key});
@@ -25,13 +25,12 @@ class _MenuScreenState extends State<MenuScreen> {
   void initState() {
     super.initState();
     _loggedInUserId = FirebaseAuth.instance.currentUser?.uid;
-
+    
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final userProvider = Provider.of<UserProvider>(context, listen: false);
-      if (_loggedInUserId != null &&
-          (userProvider.userModel == null ||
-              userProvider.userModel?.uid != _loggedInUserId)) {
-        userProvider.loadUserData(_loggedInUserId!, _userService);
+      final userId = FirebaseAuth.instance.currentUser?.uid;
+      if (userId != null) {
+        userProvider.loadUserData(userId, _userService);
       }
     });
   }
@@ -198,19 +197,12 @@ class _MenuScreenState extends State<MenuScreen> {
                                               () => context.go('/list-friend'),
                                         ),
                                         _buildMenuItem(
-                                          key: 'marketplace',
-                                          icon: Icons.store,
-                                          title: 'Marketplace',
+                                          key: 'game',
+                                          icon: Icons.gamepad,
+                                          title: 'Trò chơi',
                                           onTap:
-                                              () => ScaffoldMessenger.of(
-                                                context,
-                                              ).showSnackBar(
-                                                const SnackBar(
-                                                  content: Text(
-                                                    'Tính năng đang phát triển',
-                                                  ),
-                                                ),
-                                              ),
+                                              () =>
+                                                  context.go('/game-selection'),
                                         ),
                                         _buildMenuItem(
                                           key: 'memories',
@@ -315,7 +307,11 @@ class _MenuScreenState extends State<MenuScreen> {
   }) {
     return ListTile(
       key: ValueKey(key),
-      leading: Icon(icon, color: const Color(0xFF1877F2), size: 28),
+      leading: Icon(
+        icon,
+        color: Theme.of(context).colorScheme.primary,
+        size: 28,
+      ),
       title: Text(
         title,
         style: Theme.of(context).textTheme.bodyMedium, // Use theme text style

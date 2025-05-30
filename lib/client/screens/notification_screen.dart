@@ -6,7 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'notification_settings_screen.dart';
 import 'story_view_screen.dart';
 import 'event_and_birthday_screen.dart';
-import '../models/Story.dart';
+import '../../models/Story.dart';
 
 class NotificationScreen extends StatefulWidget {
   const NotificationScreen({super.key});

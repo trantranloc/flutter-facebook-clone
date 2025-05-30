@@ -599,7 +599,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           margin: const EdgeInsets.symmetric(vertical: 4.0),
                           padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
                           decoration: BoxDecoration(
-                            color: isMe ? Colors.blue[100] : Colors.grey[200],
+                            color: isMe ? Theme.of(context).colorScheme.primaryContainer : Theme.of(context).colorScheme.surfaceContainer,
                             borderRadius: BorderRadius.circular(12.0),
                           ),
                           child: message['type'] == 'image'
@@ -715,7 +715,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         borderSide: BorderSide.none,
                       ),
                       filled: true,
-                      fillColor: Colors.grey[200],
+                      // fillColor: Colors.grey[200],
                     ),
                     onSubmitted: (value) => _sendMessage(),
                   ),

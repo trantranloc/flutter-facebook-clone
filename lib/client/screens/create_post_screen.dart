@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloudinary_public/cloudinary_public.dart';
-import '../models/Post.dart';
+import '../../models/Post.dart';
 
 class CreatePostScreen extends StatefulWidget {
   const CreatePostScreen({super.key});
@@ -105,9 +105,30 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       imageUrls: imageUrl != null ? [imageUrl] : [],
       createdAt: Timestamp.now(),
       likes: 0,
+      comments: 0,
+      reactionCounts: {
+        'like': 0,
+        'love': 0,
+        'care': 0,
+        'haha': 0,
+        'wow': 0,
+        'sad': 0,
+        'angry': 0,
+      },
     );
 
-    await docRef.set(newPost.toMap());
+    await docRef.set({
+      ...newPost.toMap(),
+      'reactionCounts': {
+        'like': 0,
+        'love': 0,
+        'care': 0,
+        'haha': 0,
+        'wow': 0,
+        'sad': 0,
+        'angry': 0,
+      },
+    });
 
     setState(() => _isPosting = false);
 

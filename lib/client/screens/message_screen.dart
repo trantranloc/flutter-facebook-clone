@@ -532,4 +532,4 @@ class MessageTile extends StatelessWidget {
     );
   }
 }
-//giao diện màn hình home của chat 
+//giao diện màn hình home của chat... 

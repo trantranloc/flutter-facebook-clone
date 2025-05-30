@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_facebook_clone/widgets/group_home_screen.dart';
+import 'package:flutter_facebook_clone/client/screens/group/group_home_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_facebook_clone/models/user.dart';
 import 'package:flutter_facebook_clone/models/group.dart';
-import 'package:flutter_facebook_clone/screens/profile_screen.dart';
+import 'package:flutter_facebook_clone/client/screens/profile_screen.dart';
 import 'package:flutter_facebook_clone/providers/theme_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
