@@ -205,6 +205,7 @@ class _HomeScreenState extends State<HomeScreen> {
       }
 
       allPosts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
       setState(() {
         posts = allPosts;
       });
