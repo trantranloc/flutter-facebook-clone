@@ -87,4 +87,4 @@ class MessageProvider with ChangeNotifier {
     await fetchFriends();
   }
 }
-//trạng thái 
+//quản lý trạng thái chat

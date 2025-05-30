@@ -864,4 +864,4 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     super.dispose();
   }
 }
-//chat nhóm
+//màn hình chat nhóm 
