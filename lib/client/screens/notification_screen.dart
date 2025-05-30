@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_facebook_clone/client/screens/comment_screen.dart';
+// import 'package:flutter_facebook_clone/client/screens/post_screen.dart';
 import 'package:flutter_facebook_clone/providers/user_provider.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
@@ -217,21 +218,25 @@ class _NotificationScreenState extends State<NotificationScreen> {
   ) {
     final filteredBySettings =
         notifications.where((n) {
-          if (n['type'] == 'like' && !_notificationSettings['likes']!)
+          if (n['type'] == 'like' && !_notificationSettings['likes']!) {
             return false;
+          }
           if ((n['type'] == 'comment' ||
                   n['type'] == 'comment_tag' ||
                   n['type'] == 'comment_reply' ||
                   n['type'] == 'comment_like') &&
-              !_notificationSettings['comments']!)
+              !_notificationSettings['comments']!) {
             return false;
-          if (n['type'] == 'story_view' && !_notificationSettings['stories']!)
+          }
+          if (n['type'] == 'story_view' && !_notificationSettings['stories']!) {
             return false;
+          }
           if ((n['type'] == 'event' ||
                   n['type'] == 'event_reminder' ||
                   n['type'] == 'birthday') &&
-              !_notificationSettings['events']!)
+              !_notificationSettings['events']!) {
             return false;
+          }
           return true;
         }).toList();
 
@@ -573,8 +578,9 @@ class _NotificationScreenState extends State<NotificationScreen> {
       final difference = now.difference(dateTime);
 
       if (difference.inMinutes < 1) return 'Vừa xong';
-      if (difference.inMinutes < 60)
+      if (difference.inMinutes < 60) {
         return '${difference.inMinutes} phút trước';
+      }
       if (difference.inHours < 24) return '${difference.inHours} giờ trước';
       if (difference.inDays < 7) return '${difference.inDays} ngày trước';
       return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
@@ -848,6 +854,15 @@ class _NotificationScreenState extends State<NotificationScreen> {
                   ),
             ),
           );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Đã xem: ${notification['action']}')),
+          );
+        }
+        break;
+      case 'warning':
+        if (notification['postId'] != null) {
+          context.push('/post/${notification['postId']}');
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Đã xem: ${notification['action']}')),

@@ -362,7 +362,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           _getScreenTitle(),
           style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
         ),
-        backgroundColor: const Color(0xFF1877F2),
+        backgroundColor:Theme.of(context).colorScheme.primary,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
@@ -372,26 +372,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       body:
           _isLoading
               ? const Center(child: CircularProgressIndicator())
-              : Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Color(0xFF1877F2), Colors.white],
-                    stops: [0.0, 0.3],
+              : SingleChildScrollView(
+                padding: const EdgeInsets.all(16.0),
+                child: Card(
+                  elevation: 4,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
                   ),
-                ),
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Card(
-                    elevation: 4,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: _buildEditForm(),
-                    ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: _buildEditForm(),
                   ),
                 ),
               ),
@@ -546,8 +536,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               borderRadius: BorderRadius.circular(8),
               borderSide: const BorderSide(color: Color(0xFF1877F2)),
             ),
-            filled: true,
-            fillColor: Colors.grey[50],
           ),
         ),
         const SizedBox(height: 24),
@@ -576,8 +564,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               borderRadius: BorderRadius.circular(8),
               borderSide: const BorderSide(color: Color(0xFF1877F2)),
             ),
-            filled: true,
-            fillColor: Colors.grey[50],
+
           ),
           items: const [
             DropdownMenuItem(value: 'Nam', child: Text('Nam')),

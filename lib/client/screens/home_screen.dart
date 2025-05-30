@@ -54,9 +54,54 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+
+  Future<List<String>> fetchFriendIds(String currentUserId) async {
+    final friendSnap1 =
+        await FirebaseFirestore.instance
+            .collection('friends')
+            .where('status', isEqualTo: 'accepted')
+            .where('userId1', isEqualTo: currentUserId)
+            .get();
+
+    final friendSnap2 =
+        await FirebaseFirestore.instance
+            .collection('friends')
+            .where('status', isEqualTo: 'accepted')
+            .where('userId2', isEqualTo: currentUserId)
+            .get();
+
+    List<String> friendIds = [];
+
+    for (var doc in friendSnap1.docs) {
+      friendIds.add(doc['userId2']);
+    }
+
+    for (var doc in friendSnap2.docs) {
+      friendIds.add(doc['userId1']);
+    }
+
+    return friendIds;
+  }
+
   Future<void> fetchStory() async {
     try {
       final now = DateTime.now();
+      final userId = FirebaseAuth.instance.currentUser?.uid;
+      if (userId == null) return; // Nếu không đăng nhập, thoát
+
+      // Lấy thông tin người dùng hiện tại
+      final userDoc =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(userId)
+              .get();
+      final userData = userDoc.data();
+      if (userData == null) return;
+
+      // final List<dynamic> friends = userData['friends'] ?? [];
+      // final List<dynamic> closeFriends = userData['closeFriends'] ?? [];
+
+      // Lấy tất cả stories
       final snapshot =
           await FirebaseFirestore.instance
               .collection('stories')
@@ -67,6 +112,7 @@ class _HomeScreenState extends State<HomeScreen> {
       for (var doc in snapshot.docs) {
         final story = Story.fromDocument(doc);
         final expiresAt = (doc['expiresAt'] as Timestamp).toDate();
+        final storyOwnerId = story.userId;
 
         // Kiểm tra nếu story đã hết hạn
         if (now.isAfter(expiresAt)) {
@@ -74,9 +120,32 @@ class _HomeScreenState extends State<HomeScreen> {
               .collection('stories')
               .doc(doc.id)
               .update({'isActive': false});
-        } else {
-          if (doc['isActive'] == true) {
+          continue;
+        }
+
+        // Kiểm tra quyền xem story
+        if (doc['isActive'] == true) {
+          if (storyOwnerId == userId) {
+            // Story của chính người dùng
             loaded.add(story);
+          } else {
+            // Kiểm tra xem người dùng hiện tại có trong danh sách bạn bè hoặc bạn thân của chủ story
+            final storyOwnerDoc =
+                await FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(storyOwnerId)
+                    .get();
+            final storyOwnerData = storyOwnerDoc.data();
+            if (storyOwnerData != null) {
+              final List<dynamic> ownerFriends =
+                  storyOwnerData['friends'] ?? [];
+              final List<dynamic> ownerCloseFriends =
+                  storyOwnerData['closeFriends'] ?? [];
+              if (ownerFriends.contains(userId) ||
+                  ownerCloseFriends.contains(userId)) {
+                loaded.add(story);
+              }
+            }
           }
         }
       }
@@ -94,24 +163,57 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> fetchPosts() async {
     try {
-      final snapshot =
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) return;
+
+      // Lấy danh sách bạn bè từ trường `friends` của user hiện tại
+      final currentUserDoc =
           await FirebaseFirestore.instance
-              .collection('posts')
-              .orderBy('createdAt', descending: true)
+              .collection('users')
+              .doc(currentUser.uid)
               .get();
 
-      final List<Post> loaded = await Future.wait(
-        snapshot.docs.map((doc) => Post.fromDocumentWithShare(doc)),
+      final userData = currentUserDoc.data();
+      final List<String> friendIds = List<String>.from(
+        userData?['friends'] ?? [],
       );
 
+      // Thêm bài viết của chính người dùng
+      friendIds.add(currentUser.uid);
+
+      // Do Firestore giới hạn 10 phần tử trong `whereIn`, nên chia nhỏ
+      List<Post> allPosts = [];
+      const int chunkSize = 10;
+      for (int i = 0; i < friendIds.length; i += chunkSize) {
+        final chunk = friendIds.sublist(
+          i,
+          (i + chunkSize > friendIds.length) ? friendIds.length : i + chunkSize,
+        );
+
+        final snapshot =
+            await FirebaseFirestore.instance
+                .collection('posts')
+                .where('userId', whereIn: chunk)
+                .orderBy('createdAt', descending: true)
+                .get();
+
+        final chunkPosts = await Future.wait(
+          snapshot.docs.map((doc) => Post.fromDocumentWithShare(doc)),
+        );
+
+        allPosts.addAll(chunkPosts);
+      }
+
+      allPosts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
       setState(() {
-        posts = loaded;
+        posts = allPosts;
       });
     } catch (e) {
-      print('Error fetching posts: $e');
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Lỗi khi tải bài viết: $e')));
+      print('Error fetching posts for friends: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Lỗi khi tải bài viết bạn bè: $e')),
+      );
     }
   }
 
@@ -353,10 +455,7 @@ class _HomeScreenState extends State<HomeScreen> {
               postId: post.id,
               name: post.name,
               avatarUrl: post.avatarUrl,
-              time: timeAgo(
-                post.createdAt,
-              ), // bạn có thể định dạng từ post.createdAt
-
+              time: timeAgo(post.createdAt),
               caption: post.content,
               imageUrl: post.imageUrls.isNotEmpty ? post.imageUrls.first : '',
               likes: post.likes,
@@ -425,17 +524,12 @@ class _HomeScreenState extends State<HomeScreen> {
     return Container(
       width: 100,
       margin: const EdgeInsets.only(right: 10),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(
-          12,
-        ), // Bo tròn các góc của Container
-      ),
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(12)),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(12), // Bo tròn các góc của hình ảnh
+        borderRadius: BorderRadius.circular(12),
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // Hiển thị hình ảnh (cục bộ hoặc từ URL)
             story.imageUrl.startsWith('/')
                 ? Image.file(
                   File(story.imageUrl),
@@ -474,7 +568,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     );
                   },
                 ),
-            // Avatar và tên người dùng
             Positioned(
               top: 8,
               left: 8,
