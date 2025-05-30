@@ -268,6 +268,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                 .clamp(0, double.infinity)
                 .toInt();
 
+        // Cập nhật reportScore của user
         await _firestore.collection('users').doc(userId).update({
           'reportScore': newReportScore,
           'updatedAt': FieldValue.serverTimestamp(),
@@ -306,7 +307,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       );
     } catch (e) {
       debugPrint('Lỗi khi bỏ qua báo cáo: $e');
-      rethrow; 
+      rethrow;
     }
   }
 
@@ -544,7 +545,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                   message:
                       'Tổng số lần người dùng bị báo cáo vì vi phạm nội dung trên hệ thống',
                   preferBelow: true,
-                  margin: const EdgeInsets.only(left: 80,right: 16),
+                  margin: const EdgeInsets.only(left: 80, right: 16),
                   textStyle: const TextStyle(
                     fontSize: 14, // Cỡ chữ của tooltip
                     color: Colors.white, // Màu chữ của tooltip

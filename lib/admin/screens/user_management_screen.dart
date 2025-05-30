@@ -297,11 +297,10 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                                     ),
                                   )
                                   .toList(),
-                                  selectedItemBuilder: (context) {
+                          selectedItemBuilder: (context) {
                             return reasons.map((reason) {
                               return SizedBox(
-                                width:
-                                    200,
+                                width: 200,
                                 child: Text(
                                   reason,
                                   overflow: TextOverflow.ellipsis,
@@ -981,184 +980,362 @@ class _UserManagementScreenState extends State<UserManagementScreen>
       builder:
           (context) => Dialog(
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(20),
             ),
+            elevation: 0,
+            backgroundColor: Colors.white,
             child: Container(
               padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Header with avatar and name
-                  Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 32,
-                        backgroundImage:
-                            user.avatarUrl.isNotEmpty
-                                ? NetworkImage(user.avatarUrl)
-                                : null,
-                        backgroundColor: Colors.grey.shade200,
-                        child:
-                            user.avatarUrl.isEmpty
-                                ? Icon(
-                                  Icons.person,
-                                  size: 32,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header with avatar and name
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        CircleAvatar(
+                          radius: 40,
+                          backgroundImage:
+                              user.avatarUrl.isNotEmpty
+                                  ? NetworkImage(user.avatarUrl)
+                                  : null,
+                          backgroundColor: Colors.grey.shade100,
+                          child:
+                              user.avatarUrl.isEmpty
+                                  ? Icon(
+                                    Icons.person,
+                                    size: 40,
+                                    color: Colors.grey.shade500,
+                                  )
+                                  : null,
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                user.name,
+                                style: const TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                user.email,
+                                style: TextStyle(
+                                  fontSize: 14,
                                   color: Colors.grey.shade600,
-                                )
-                                : null,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // User details with card style
+                    Card(
+                      elevation: 0,
+                      color: Colors.grey.shade50,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      const SizedBox(width: 16),
-                      Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              user.name,
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                              ),
+                            _buildDetailRow(
+                              'UID:',
+                              user.uid,
+                              Icons.fingerprint,
                             ),
-                            Text(
-                              user.email,
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey.shade600,
-                              ),
+                            const Divider(height: 16),
+                            _buildDetailRow(
+                              'Giới tính:',
+                              user.gender,
+                              Icons.person_outline,
                             ),
+                            const Divider(height: 16),
+                            _buildDetailRow(
+                              'Số bạn bè:',
+                              '${user.friends.length}',
+                              Icons.group,
+                            ),
+                            const Divider(height: 16),
+                            _buildDetailRow(
+                              'Tham gia:',
+                              _formatDate(user.createdAt),
+                              Icons.calendar_today,
+                            ),
+                            if (user.bio.isNotEmpty) ...[
+                              const Divider(height: 16),
+                              _buildDetailRow(
+                                'Giới thiệu:',
+                                user.bio,
+                                Icons.info_outline,
+                              ),
+                            ],
                           ],
                         ),
                       ),
-                    ],
-                  ),
+                    ),
 
-                  const SizedBox(height: 24),
+                    const SizedBox(height: 24),
 
-                  // User details
-                  _buildDetailRow('UID:', user.uid),
-                  _buildDetailRow('Giới tính:', user.gender),
-                  _buildDetailRow('Số bạn bè:', '${user.friends.length}'),
-                  _buildDetailRow('Tham gia:', _formatDate(user.createdAt)),
-
-                  if (user.bio.isNotEmpty)
-                    _buildDetailRow('Giới thiệu:', user.bio),
-
-                  // Status information
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Trạng thái:',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      _buildStatusChip('Admin', user.isAdmin, Colors.purple),
-                      _buildStatusChip(
-                        'Bị khóa',
-                        user.isBlocked,
-                        Colors.orange,
-                      ),
-                      _buildStatusChip('Bị ban', user.isBanned, Colors.red),
-                    ],
-                  ),
-
-                  // Ban information
-                  if (user.isBanned) ...[
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.red.shade200),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Thông tin ban:',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.red,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          if (user.bannedReason != null)
-                            Text('Lý do: ${user.bannedReason}'),
-                          if (user.bannedUntil != null)
-                            Text('Ban đến: ${_formatDate(user.bannedUntil!)}'),
-                          if (user.bannedAt != null)
-                            Text('Bị ban lúc: ${_formatDate(user.bannedAt!)}'),
-                        ],
+                    // Status section
+                    const Text(
+                      'Trạng thái:',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
                       ),
                     ),
-                  ],
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _buildStatusChip(
+                          'Admin',
+                          user.isAdmin,
+                          Colors.purple.shade400,
+                        ),
+                        _buildStatusChip(
+                          'Bị khóa',
+                          user.isBlocked,
+                          Colors.orange.shade400,
+                        ),
+                        _buildStatusChip(
+                          'Bị cấm',
+                          user.isBanned,
+                          Colors.red.shade400,
+                        ),
+                      ],
+                    ),
 
-                  const SizedBox(height: 24),
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      onPressed: () async {
+                        try {
+                          // Cập nhật trạng thái isAdmin
+                          final newAdminStatus = !user.isAdmin;
+                          await FirebaseFirestore.instance
+                              .collection('users')
+                              .doc(user.uid)
+                              .update({'isAdmin': newAdminStatus});
+// Tạo thông báo về phân quyền
+                          await FirebaseFirestore.instance
+                              .collection('notifications')
+                              .add({
+                                'action':
+                                    newAdminStatus
+                                        ? 'Bạn đã được cấp quyền quản trị viên.'
+                                        : 'Quyền quản trị viên của bạn đã bị xóa.',
+                                'isRead': false,
+                                'senderAvatarUrl': 'assets/images/logos.png',
+                                'senderName': 'Quản trị viên',
+                                'timestamp': Timestamp.now(),
+                                'type': 'admin_status',
+                                'userId': user.uid,
+                              });
+                          // Cập nhật UI
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                newAdminStatus
+                                    ? 'Đã cấp quyền admin'
+                                    : 'Đã xóa quyền admin',
+                              ),
+                              backgroundColor: Colors.green,
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                        } catch (e) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Lỗi khi cập nhật quyền admin: $e'),
+                              backgroundColor: Colors.red,
+                              duration: const Duration(seconds: 3),
+                            ),
+                          );
+                        }
+                      },
+                      icon: Icon(
+                        user.isAdmin
+                            ? Icons.admin_panel_settings_rounded
+                            : Icons.admin_panel_settings,
+                        size: 20,
+                      ),
+                      label: Text(
+                        user.isAdmin ? 'Xóa quyền Admin' : 'Cấp quyền Admin',
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor:
+                            user.isAdmin
+                                ? Colors.red.shade400
+                                : Colors.green.shade400,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                      ),
+                    ),
 
-                  // Close button
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('Đóng'),
+                    // Ban information
+                    if (user.isBanned) ...[
+                      const SizedBox(height: 24),
+                      Card(
+                        elevation: 0,
+                        color: Colors.red.shade50,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: BorderSide(color: Colors.red.shade200),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Thông tin ban:',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.red,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              if (user.bannedReason != null)
+                                _buildDetailRow(
+                                  'Lý do:',
+                                  user.bannedReason!,
+                                  Icons.warning_amber,
+                                ),
+                              if (user.bannedUntil != null)
+                                _buildDetailRow(
+                                  'Ban đến:',
+                                  _formatDate(user.bannedUntil!),
+                                  Icons.timer,
+                                ),
+                              if (user.bannedAt != null)
+                                _buildDetailRow(
+                                  'Bị ban lúc:',
+                                  _formatDate(user.bannedAt!),
+                                  Icons.history,
+                                ),
+                            ],
+                          ),
+                        ),
                       ),
                     ],
-                  ),
-                ],
+
+                    const SizedBox(height: 24),
+
+                    // Action buttons
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text(
+                            'Đóng',
+                            style: TextStyle(
+                              color: Colors.grey,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        ElevatedButton(
+                          onPressed: () => Navigator.pop(context),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue.shade400,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text(
+                            'Xác nhận',
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
     );
   }
 
-  Widget _buildDetailRow(String label, String value) {
+  // Cập nhật hàm _buildDetailRow để thêm icon
+  Widget _buildDetailRow(String label, String value, [IconData? icon]) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 100,
-            child: Text(
-              label,
-              style: const TextStyle(
-                fontWeight: FontWeight.w500,
-                color: Colors.grey,
-              ),
+          if (icon != null) ...[
+            Icon(icon, size: 20, color: Colors.grey.shade600),
+            const SizedBox(width: 8),
+          ],
+          Text(
+            label,
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              color: Colors.grey.shade700,
             ),
           ),
+          const SizedBox(width: 8),
           Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(fontWeight: FontWeight.w500),
-            ),
+            child: Text(value, style: const TextStyle(color: Colors.black87)),
           ),
         ],
       ),
     );
   }
 
+  // Cập nhật hàm _buildStatusChip để cải thiện giao diện
   Widget _buildStatusChip(String label, bool isActive, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: isActive ? color.withOpacity(0.1) : Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isActive ? color : Colors.grey.shade300),
-      ),
-      child: Text(
+    return Chip(
+      label: Text(
         label,
         style: TextStyle(
-          fontSize: 12,
+          color: isActive ? Colors.white : Colors.black54,
           fontWeight: FontWeight.w600,
-          color: isActive ? color : Colors.grey.shade600,
         ),
       ),
+      backgroundColor: isActive ? color : Colors.grey.shade200,
+      side: BorderSide(color: isActive ? color : Colors.grey.shade300),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
     );
   }
 
